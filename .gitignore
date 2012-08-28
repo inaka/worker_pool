@@ -1,6 +1,12 @@
-.eunit
-deps
-priv
-*.o
-*.beam
+.classpath
+bin
 *.plt
+doc
+ebin
+deps
+.DS_Store
+log
+logs
+erl_crash.dump
+*.beam
+*.log
