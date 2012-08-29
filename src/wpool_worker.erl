@@ -44,13 +44,12 @@ cast(S, M, F, A) ->
 -record(state, {}).
 
 -spec init(undefined) -> {ok, #state{}}.
--spec terminate(atom(), #state{}) -> ok.
--spec code_change(string(), #state{}, any()) -> {ok, {}}.
--spec handle_info(any(), #state{}) -> {noreply, #state{}}.
-
 init(undefined) -> {ok, #state{}}.
+-spec terminate(atom(), #state{}) -> ok.
 terminate(_Reason, _State) -> ok.
+-spec code_change(string(), #state{}, any()) -> {ok, {}}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
+-spec handle_info(any(), #state{}) -> {noreply, #state{}}.
 handle_info(_Info, State) -> {noreply, State}.
 
 %%%===================================================================

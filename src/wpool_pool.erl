@@ -43,7 +43,7 @@ create_table() ->
 start_link(Name, Options) -> supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
 
 %% @doc inspired by http://lethain.com/load-balancing-across-erlang-process-groups/
-%% @throws no_workers if there're no workers running
+%% @throws no_workers
 -spec best_worker(wpool:name()) -> pid().
 best_worker(Sup) ->
     case find_wpool(Sup) of
@@ -52,7 +52,7 @@ best_worker(Sup) ->
     end.
 
 %% @doc Picks a random worker
-%% @throws no_workers if there're no workers running
+%% @throws no_workers
 -spec random_worker(wpool:name()) -> pid().
 random_worker(Sup) ->
     case wpool_size(Sup) of
@@ -61,7 +61,7 @@ random_worker(Sup) ->
     end.
 
 %% @doc Picks the next worker in a round robin fashion
-%% @throws no_workers if there're no workers running
+%% @throws no_workers
 -spec next_worker(wpool:name()) -> pid().
 next_worker(Sup) ->
     case move_wpool(Sup) of
@@ -70,7 +70,7 @@ next_worker(Sup) ->
     end.
 
 %% @doc Retrieves a snapshot of the pool stats
-%% @throws no_workers if there're no workers running
+%% @throws no_workers
 -spec stats(wpool:name()) -> wpool:stats().
 stats(Sup) ->
     case find_wpool(Sup) of
