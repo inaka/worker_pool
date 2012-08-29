@@ -1,4 +1,4 @@
-RUN := erl -pa ebin -pa deps/*/ebin -smp enable -s lager -setcookie QWJCDLYIBTECKABSLLNC -config rel/files/app.config ${ERL_ARGS}
+RUN := erl -pa ebin -pa deps/*/ebin -smp enable -s lager -boot start_sasl ${ERL_ARGS}
 
 all:
 	rebar get-deps && rebar compile
@@ -14,22 +14,22 @@ clean_logs:
 
 build_plt: erl
 	dialyzer --verbose --build_plt --apps kernel stdlib erts compiler hipe crypto \
-		edoc gs syntax_tools --output_plt ~/.worker_pool.plt -pa deps/*/ebin ebin
+		edoc gs syntax_tools --output_plt ~/.wpool.plt -pa deps/*/ebin ebin
 
 analyze: erl
-	dialyzer --verbose -pa deps/*/ebin --plt ~/.worker_pool.plt -Werror_handling ebin
+	dialyzer --verbose -pa deps/*/ebin --plt ~/.wpool.plt -Werror_handling ebin
 
 xref: all
-	rebar skip_deps=true xref
+	rebar skip_deps=true --verbose xref
 
 shell: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname` -boot start_sasl; \
-	else ${RUN} -name message_anyone@`hostname` -boot start_sasl; \
+	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname`; \
+	else ${RUN}; \
 	fi
 
 run: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname` -boot start_sasl -s worker_pool; \
-	else ${RUN} -name message_anyone@`hostname` -boot start_sasl -s worker_pool; \
+	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname` -s wpool; \
+	else ${RUN} -s wpool; \
 	fi
 
 test: erl

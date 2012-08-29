@@ -22,7 +22,7 @@
                 options :: [wpool:option()]}).
 
 %% api
--export([start_link/4, call/2, cast/2]).
+-export([start_link/4, call/2, call/3, cast/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -35,6 +35,9 @@ start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODU
 
 -spec call(wpool:name(), term()) -> term().
 call(Process, Call) -> gen_server:call(Process, Call).
+
+-spec call(wpool:name(), term(), integer()) -> term().
+call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 
 -spec cast(wpool:name(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
@@ -78,7 +81,7 @@ handle_info(Info, State) ->
 handle_cast(Cast, State) ->
   Task = task_init({cast, Cast},
                    proplists:get_value(time_checker, State#state.options, undefined),
-                   proplists:get_value(timeout_warning, State#state.options, infinity)),
+                   proplists:get_value(overrun_warning, State#state.options, infinity)),
   Reply =
     try (State#state.mod):handle_cast(Cast, State#state.state) of
       {noreply, NewState} -> {noreply, State#state{state = NewState}};
@@ -97,7 +100,7 @@ handle_cast(Cast, State) ->
 handle_call(Call, From, State) ->
   Task = task_init({call, Call},
                    proplists:get_value(time_checker, State#state.options, undefined),
-                   proplists:get_value(timeout_warning, State#state.options, infinity)),
+                   proplists:get_value(overrun_warning, State#state.options, infinity)),
   Reply =
     try (State#state.mod):handle_call(Call, From, State#state.state) of
       {noreply, NewState} -> {noreply, State#state{state = NewState}};
@@ -125,10 +128,10 @@ handle_call(Call, From, State) ->
 task_init(Task, _TimeChecker, infinity) ->
   erlang:put(wpool_task, {undefined, calendar:datetime_to_gregorian_seconds(calendar:universal_time()), Task}),
   undefined;
-task_init(Task, TimeChecker, Timeout) ->
+task_init(Task, TimeChecker, OverrunTime) ->
   TaskId = erlang:make_ref(),
   erlang:put(wpool_task, {TaskId, calendar:datetime_to_gregorian_seconds(calendar:universal_time()), Task}),
-  erlang:send_after(Timeout * 1000, TimeChecker, {check, self(), TaskId, Timeout}).
+  erlang:send_after(OverrunTime * 1000, TimeChecker, {check, self(), TaskId, OverrunTime}).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.

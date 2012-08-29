@@ -17,10 +17,11 @@
 
 -behaviour(gen_server).
 
--record(state, {wpool :: wpool:name()}).
+-record(state, {wpool   :: wpool:name(),
+                handler :: {atom(), atom()}}).
 
 %% api
--export([start_link/2]).
+-export([start_link/3]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -28,14 +29,14 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec start_link(wpool:name(), atom()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_link(WPool, Name) -> gen_server:start_link({local, Name}, ?MODULE, WPool, []).
+-spec start_link(wpool:name(), atom(), {atom(), atom()}) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_link(WPool, Name, Handler) -> gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
--spec init(wpool:name()) -> {ok, #state{}}.
-init(WPool) -> {ok, #state{wpool = WPool}}.
+-spec init({wpool:name(), {atom(), atom()}}) -> {ok, #state{}}.
+init({WPool, Handler}) -> {ok, #state{wpool = WPool, handler = Handler}}.
 
 -spec terminate(atom(), #state{}) -> ok.
 terminate(_Reason, _State) -> ok.
@@ -54,19 +55,21 @@ handle_call(_Call, _From, State) -> {reply, ok, State}.
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 -spec handle_info(any(), #state{}) -> {noreply, #state{}}.
-handle_info({check, Pid, TaskId, Timeout}, State) ->
+handle_info({check, Pid, TaskId, Runtime}, State) ->
   case erlang:process_info(Pid, dictionary) of
     {dictionary, Values} ->
       case proplists:get_value(wpool_task, Values) of
         {TaskId, _, Task} ->
-          lager:warning("Task ~p (running on worker ~p) took to long (More than ~p seconds already):~n\t~p",
-                        [TaskId, Pid, Timeout, Task]),
-          tt_stats:overrun(State#state.wpool),
-          case 2 * Timeout of
-            NewTimeout when NewTimeout =< 4294967295 ->
-              erlang:send_after(Timeout * 1000, self(), {check, Pid, TaskId, NewTimeout});
-            _ ->
-              ok
+          {Mod, Fun} = State#state.handler,
+          catch Mod:Fun([{alert,  overrun},
+                         {pool,   State#state.wpool},
+                         {worker, Pid},
+                         {task,   Task},
+                         {runtime,Runtime}]),
+          case 2 * Runtime of
+            NewOverrunTime when NewOverrunTime =< 4294967295 ->
+              erlang:send_after(Runtime * 1000, self(), {check, Pid, TaskId, NewOverrunTime});
+            _ -> ok
           end;
         _ -> ok
       end;
