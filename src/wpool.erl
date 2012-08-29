@@ -61,7 +61,7 @@ stop(_State) -> ok.
 -spec start_pool(name()) -> {ok, pid()}.
 start_pool(Name) -> start_pool(Name, []).
 
-%% @doc Starts (and links) a pool of N wpool_processes
+%% @doc Starts (and links) a pool of N wpool_processes.
 %%		The result pid belongs to a supervisor (in case you want to add it to a supervisor tree)
 -spec start_pool(name(), [option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) -> wpool_sup:start_pool(Name, Options ++ ?DEFAULTS).
