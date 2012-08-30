@@ -132,7 +132,7 @@ task_init(Task, _TimeChecker, infinity) ->
 task_init(Task, TimeChecker, OverrunTime) ->
   TaskId = erlang:make_ref(),
   erlang:put(wpool_task, {TaskId, calendar:datetime_to_gregorian_seconds(calendar:universal_time()), Task}),
-  erlang:send_after(OverrunTime * 1000, TimeChecker, {check, self(), TaskId, OverrunTime}).
+  erlang:send_after(OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime}).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.

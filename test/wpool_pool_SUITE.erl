@@ -57,13 +57,13 @@ best_worker(_Config) ->
 
 	%% Fill up their message queues...
 	[wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <- lists:seq(1, ?WORKERS)],
-	timer:sleep(100),
+	timer:sleep(500),
 	[0] = sets:to_list(
 			sets:from_list(
 				[proplists:get_value(message_queue_len, WS)
 					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 	[wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <- lists:seq(1, ?WORKERS)],
-	timer:sleep(100),
+	timer:sleep(500),
 	[1] = sets:to_list(
 			sets:from_list(
 				[proplists:get_value(message_queue_len, WS)

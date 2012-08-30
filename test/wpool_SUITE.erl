@@ -41,7 +41,7 @@ overrun_handler(M) -> overrun_handler ! {overrun, M}.
 -spec overrun(config()) -> _.
 overrun(_Config) ->
 	true = register(overrun_handler, self()),
-	{ok, _Pid} = wpool:start_pool(?MODULE, [{workers, 1}, {overrun_warning, 1}, {overrun_handler, {?MODULE, overrun_handler}}]),
+	{ok, _Pid} = wpool:start_pool(?MODULE, [{workers, 1}, {overrun_warning, 1000}, {overrun_handler, {?MODULE, overrun_handler}}]),
 	ok = wpool:cast(?MODULE, {timer, sleep, [1500]}),
 	receive
 		{overrun, Message} ->
@@ -51,7 +51,7 @@ overrun(_Config) ->
 			true	= is_pid(WPid),
 			{cast, {timer, sleep, [1500]}} = proplists:get_value(task, Message),
 			Runtime = proplists:get_value(runtime,  Message),
-			true	= Runtime >= 1
+			true	= Runtime >= 1000
 	after 1500 ->
 		throw(no_overrun)
 	end,
