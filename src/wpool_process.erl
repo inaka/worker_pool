@@ -11,7 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
+%% @doc Decorator over {@link gen_server} that lets {@link wpool_pool}
+%%      control certain aspects of the execution
 -module(wpool_process).
 -author('elbrujohalcon@inaka.net').
 
@@ -30,21 +31,26 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%% @doc Starts a named process
 -spec start_link(wpool:name(), module(), term(), [wpool:option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODULE, {Module, InitArgs, Options}, []).
 
+%% @equiv gen_server:call(Process, Call)
 -spec call(wpool:name(), term()) -> term().
 call(Process, Call) -> gen_server:call(Process, Call).
 
+%% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name(), term(), integer()) -> term().
 call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 
+%% @equiv gen_server:cast(Process, Cast)
 -spec cast(wpool:name(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
+%% @private
 -spec init({atom(), term(), [wpool:option()]}) -> {ok, #state{}}.
 init({Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
@@ -53,9 +59,11 @@ init({Mod, InitArgs, Options}) ->
     Error -> Error
   end.
 
+%% @private
 -spec terminate(atom(), #state{}) -> term().
 terminate(Reason, State) -> (State#state.mod):terminate(Reason, State#state.state).
 
+%% @private
 -spec code_change(string(), #state{}, any()) -> {ok, {}} | {stop, term(), #state{}}.
 code_change(OldVsn, State, Extra) ->
   case (State#state.mod):code_change(OldVsn, State#state.state, Extra) of
@@ -63,6 +71,7 @@ code_change(OldVsn, State, Extra) ->
     Error -> {stop, Error, State}
   end.
 
+%% @private
 -spec handle_info(any(), #state{}) -> {noreply, #state{}} | {stop, term(), #state{}}.
 handle_info(Info, State) ->
   try (State#state.mod):handle_info(Info, State#state.state) of
@@ -78,6 +87,7 @@ handle_info(Info, State) ->
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
+%% @private
 -spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
 handle_cast(Cast, State) ->
   Task = task_init({cast, Cast},
@@ -97,6 +107,7 @@ handle_cast(Cast, State) ->
   Reply.
 
 -type from() :: {pid(), reference()}.
+%% @private
 -spec handle_call(term(), from(), #state{}) -> {reply, term(), #state{}}.
 handle_call(Call, From, State) ->
   Task = task_init({call, Call},

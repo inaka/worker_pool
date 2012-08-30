@@ -1,0 +1,10 @@
+@author Fernando Benavides <elbrujohalcon@inaka.net>
+@author Jay Nelson <jaynel@duomark.com>
+@copyright 2012, Tigertext
+@version 0.1
+@title worker_pool
+
+@doc
+
+== About ==
+A library to handle pools of gen_servers in Erlang.

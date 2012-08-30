@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
+%% @doc Default instance for {@link wpool_process}
 -module(wpool_worker).
 -author('elbrujohalcon@inaka.net').
 
@@ -26,6 +26,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%% @doc Returns the result of M:F(A) from any of the workers of the pool S
 -spec call(wpool:name(), module(), atom(), [term()]) -> term().
 call(S, M, F, A) ->
   case wpool:call(S, {M,F,A}) of
@@ -33,6 +34,7 @@ call(S, M, F, A) ->
     {error, Error} -> throw(Error)
   end.
 
+%% @doc Executes M:F(A) in any of the workers of the pool S
 -spec cast(wpool:name(), module(), atom(), [term()]) -> ok.
 cast(S, M, F, A) ->
   wpool:cast(S, {M,F,A}).
@@ -43,18 +45,23 @@ cast(S, M, F, A) ->
 
 -record(state, {}).
 
+%% @private
 -spec init(undefined) -> {ok, #state{}}.
 init(undefined) -> {ok, #state{}}.
+%% @private
 -spec terminate(atom(), #state{}) -> ok.
 terminate(_Reason, _State) -> ok.
+%% @private
 -spec code_change(string(), #state{}, any()) -> {ok, {}}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
+%% @private
 -spec handle_info(any(), #state{}) -> {noreply, #state{}}.
 handle_info(_Info, State) -> {noreply, State}.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
+%% @private
 -spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
 handle_cast({M,F,A}, State) ->
   try erlang:apply(M, F, A) of
@@ -70,6 +77,7 @@ handle_cast(Cast, State) ->
   {noreply, State, hibernate}.
 
 -type from() :: {pid(), reference()}.
+%% @private
 -spec handle_call(term(), from(), #state{}) -> {reply, {ok, term()} | {error, term()}, #state{}}.
 handle_call({M,F,A}, _From, State) ->
   try erlang:apply(M, F, A) of

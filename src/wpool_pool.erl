@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
+%% @doc A pool of workers. If you want to put it in your supervisor tree, remember it's a supervisor.
 -module(wpool_pool).
 -author('elbrujohalcon@inaka.net').
 
@@ -39,11 +39,12 @@ create_table() ->
     ?MODULE = ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
     ok.
 
-%% @doc Starts a supervisor with several gen_servers as its children
+%% @doc Starts a supervisor with several {@link wpool_process}es as its children
 -spec start_link(wpool:name(), [wpool:option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Name, Options) -> supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
 
-%% @doc inspired by http://lethain.com/load-balancing-across-erlang-process-groups/
+%% @doc Picks the worker with the smaller queue of messages.
+%%      Based on [http://lethain.com/load-balancing-across-erlang-process-groups/]
 %% @throws no_workers
 -spec best_worker(wpool:name()) -> pid().
 best_worker(Sup) ->
@@ -107,6 +108,7 @@ stats(Sup) ->
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
+%% @private
 -spec init({wpool:name(), [wpool:option()]}) -> {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()}, [supervisor:child_spec()]}}.
 init({Name, Options}) ->
     _ = random:seed(erlang:now()),
