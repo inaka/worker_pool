@@ -49,6 +49,7 @@ cast(Process, Cast) -> gen_server:cast(Process, Cast).
 init({Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
     {ok, State} -> {ok, #state{mod = Mod, state = State, options = Options}};
+    ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
 
@@ -103,15 +104,15 @@ handle_call(Call, From, State) ->
                    proplists:get_value(overrun_warning, State#state.options, infinity)),
   Reply =
     try (State#state.mod):handle_call(Call, From, State#state.state) of
-      {noreply, NewState} -> {noreply, State#state{state = NewState}};
-      {noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
+      {noreply, NewState} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      {noreply, NewState, _Timeout} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
       {reply, Response, NewState} -> {reply, Response, State#state{state = NewState}};
       {reply, Response, NewState, Timeout} -> {reply, Response, State#state{state = NewState}, Timeout};
       {stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}};
       {stop, Reason, Response, NewState} -> {stop, Reason, Response, State#state{state = NewState}}
     catch
-      _:{noreply, NewState} -> {noreply, State#state{state = NewState}};
-      _:{noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
+      _:{noreply, NewState} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      _:{noreply, NewState, _Timeout} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
       _:{reply, Response, NewState} -> {reply, Response, State#state{state = NewState}};
       _:{reply, Response, NewState, Timeout} -> {reply, Response, State#state{state = NewState}, Timeout};
       _:{stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}};
