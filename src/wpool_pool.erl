@@ -46,7 +46,7 @@ start_link(Name, Options) -> supervisor:start_link({local, Name}, ?MODULE, {Name
 %% @doc Picks the worker with the smaller queue of messages.
 %%      Based on [http://lethain.com/load-balancing-across-erlang-process-groups/]
 %% @throws no_workers
--spec best_worker(wpool:name()) -> pid().
+-spec best_worker(wpool:name()) -> atom().
 best_worker(Sup) ->
     case find_wpool(Sup) of
         undefined -> throw(no_workers);
@@ -55,7 +55,7 @@ best_worker(Sup) ->
 
 %% @doc Picks a random worker
 %% @throws no_workers
--spec random_worker(wpool:name()) -> pid().
+-spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
     case wpool_size(Sup) of
         undefined -> throw(no_workers);
@@ -64,7 +64,7 @@ random_worker(Sup) ->
 
 %% @doc Picks the next worker in a round robin fashion
 %% @throws no_workers
--spec next_worker(wpool:name()) -> pid().
+-spec next_worker(wpool:name()) -> atom().
 next_worker(Sup) ->
     case move_wpool(Sup) of
         undefined -> throw(no_workers);

@@ -62,7 +62,7 @@ handle_info(_Info, State) -> {noreply, State}.
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 %% @private
--spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
+-spec handle_cast(term(), #state{}) -> {noreply, #state{}, hibernate}.
 handle_cast({M,F,A}, State) ->
   try erlang:apply(M, F, A) of
     _ ->
@@ -78,7 +78,7 @@ handle_cast(Cast, State) ->
 
 -type from() :: {pid(), reference()}.
 %% @private
--spec handle_call(term(), from(), #state{}) -> {reply, {ok, term()} | {error, term()}, #state{}}.
+-spec handle_call(term(), from(), #state{}) -> {reply, {ok, term()} | {error, term()}, #state{}, hibernate}.
 handle_call({M,F,A}, _From, State) ->
   try erlang:apply(M, F, A) of
     R ->

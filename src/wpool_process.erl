@@ -32,19 +32,19 @@
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
--spec start_link(wpool:name(), module(), term(), [wpool:option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link({local, wpool:name()}, module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODULE, {Module, InitArgs, Options}, []).
 
 %% @equiv gen_server:call(Process, Call)
--spec call(wpool:name(), term()) -> term().
+-spec call(wpool:name() | pid(), term()) -> term().
 call(Process, Call) -> gen_server:call(Process, Call).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
--spec call(wpool:name(), term(), integer()) -> term().
+-spec call(wpool:name() | pid(), term(), integer()) -> term().
 call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 
 %% @equiv gen_server:cast(Process, Cast)
--spec cast(wpool:name(), term()) -> ok.
+-spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
 
 %%%===================================================================
@@ -64,7 +64,7 @@ init({Mod, InitArgs, Options}) ->
 terminate(Reason, State) -> (State#state.mod):terminate(Reason, State#state.state).
 
 %% @private
--spec code_change(string(), #state{}, any()) -> {ok, {}} | {stop, term(), #state{}}.
+-spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {stop, term(), #state{}}.
 code_change(OldVsn, State, Extra) ->
   case (State#state.mod):code_change(OldVsn, State#state.state, Extra) of
     {ok, NewState} -> {ok, State#state{state = NewState}};
