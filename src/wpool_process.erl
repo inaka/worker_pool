@@ -135,7 +135,7 @@ task_init(Task, TimeChecker, OverrunTime) ->
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.
-task_end(undefined) -> ok;
+task_end(undefined) -> erlang:erase(wpool_task);
 task_end(TimerRef) ->
   erlang:cancel_timer(TimerRef),
   erlang:erase(wpool_task).

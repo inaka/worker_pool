@@ -19,7 +19,8 @@
 
 -record(wpool, {name :: wpool:name(),
                 size :: pos_integer(),
-                next :: pos_integer()}).
+                next :: pos_integer(),
+                opts :: [wpool:option()]}).
 
 %% API
 -export([start_link/2, create_table/0]).
@@ -79,27 +80,24 @@ stats(Sup) ->
             {Total, WorkerStats} =
                 lists:foldl(
                     fun(N, {T, L}) ->
-                        case erlang:whereis(worker_name(Sup, N)) of
-                            undefined ->
-                                {T, [{N, not_found} | L]};
-                            Worker ->
-                                [{message_queue_len, MQL} = MQLT, Memory, Function, Location, {dictionary, Dictionary}] =
-                                    erlang:process_info(Worker, [message_queue_len, memory, current_function, current_location, dictionary]),
-                                WS =
-                                    case {Function, proplists:get_value(wpool_task, Dictionary)} of
-                                        {{current_function, {gen_server, loop, 6}}, undefined} -> [MQLT, Memory];
-                                        {{current_function, {erlang, hibernate, _}}, undefined} -> [MQLT, Memory];
-                                        {_, undefined} -> [MQLT, Memory, Function, Location];
-                                        {_, {_TaskId, Started, Task}} ->
-                                            [MQLT, Memory, Function, Location,
-                                             {task, Task},
-                                             {runtime, calendar:datetime_to_gregorian_seconds(calendar:universal_time()) - Started}]
-                                    end,
-                                {T + MQL, [{N, WS} | L]}
-                        end
+                        Worker = erlang:whereis(worker_name(Sup, N)),
+                        [{message_queue_len, MQL} = MQLT, Memory, Function, Location, {dictionary, Dictionary}] =
+                            erlang:process_info(Worker, [message_queue_len, memory, current_function, current_location, dictionary]),
+                        WS =
+                            case {Function, proplists:get_value(wpool_task, Dictionary)} of
+                                {{current_function, {gen_server, loop, 6}}, undefined} -> [MQLT, Memory];
+                                {{current_function, {erlang, hibernate, _}}, undefined} -> [MQLT, Memory];
+                                {_, undefined} -> [MQLT, Memory, Function, Location];
+                                {_, {_TaskId, Started, Task}} ->
+                                    [MQLT, Memory, Function, Location,
+                                     {task, Task},
+                                     {runtime, calendar:datetime_to_gregorian_seconds(calendar:universal_time()) - Started}]
+                            end,
+                        {T + MQL, [{N, WS} | L]}
                     end, {0, []}, lists:seq(1, Wpool#wpool.size)),
             [{pool,                     Sup},
              {supervisor,               erlang:whereis(Sup)},
+             {options,                  Wpool#wpool.opts},
              {size,                     Wpool#wpool.size},
              {next_worker,              Wpool#wpool.next},
              {total_message_queue_len,  Total},
@@ -117,7 +115,7 @@ init({Name, Options}) ->
     Strategy            = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
     TimeChecker         = time_checker_name(Name),
-    _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1}),
+    _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1, opts = Options}),
     {ok, {Strategy,
           [{TimeChecker, {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}, permanent, brutal_kill, worker, [wpool_time_checker]} |
             [{worker_name(Name, I), {wpool_process, start_link, [{local, worker_name(Name, I)}, Worker, InitArgs, [{time_checker, TimeChecker}|Options]]},
@@ -162,7 +160,11 @@ move_wpool(Name) ->
         Wpool_Size = ets:update_counter(?MODULE, Name, {#wpool.size, 0}),
         ets:update_counter(?MODULE, Name, {#wpool.next, 1, Wpool_Size, 1})
     catch
-        _:badarg -> build_wpool(Name), 1
+        _:badarg ->
+            case build_wpool(Name) of
+                undefined -> undefined;
+                Wpool -> Wpool#wpool.next
+            end
     end.
 
 wpool_size(Name) ->
@@ -177,8 +179,10 @@ wpool_size(Name) ->
             end
     catch
         _:badarg ->
-            Wpool = build_wpool(Name),
-            Wpool#wpool.size
+            case build_wpool(Name) of
+                undefined -> undefined;
+                Wpool -> Wpool#wpool.size
+            end
     end.
 
 find_wpool(Name) ->
@@ -206,7 +210,7 @@ build_wpool(Name) ->
             case proplists:get_value(active, Children, 0) of
                 0 -> undefined;
                 Size ->
-                    Wpool = #wpool{name = Name, size = Size, next = 1},
+                    Wpool = #wpool{name = Name, size = Size, next = 1, opts = []},
                     store_wpool(Wpool)
             end
     catch
