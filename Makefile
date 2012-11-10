@@ -34,7 +34,7 @@ run: erl
 
 test: erl
 	mkdir -p log/ct
-	rebar skip_deps=true ct --verbose
+	rebar skip_deps=true ct
 	open log/ct/index.html
 
 doc: erl

@@ -99,16 +99,14 @@ next_worker(_Config) ->
 
 -spec random_worker(config()) -> _.
 random_worker(_Config) ->
-	Pool = random_worker,
+    Pool = random_worker,
 
-	try wpool:cast(not_a_pool, x)
-	catch
-		_:no_workers -> ok
-	end,
+    try wpool:cast(not_a_pool, x)
+    catch
+        _:no_workers -> ok
+    end,
 
-	Res0 = [begin
-				random:seed({0,0,0}),
-				wpool:cast(Pool, {timer, sleep, [100]}),
-				wpool:call(Pool, {erlang, self, []})
-			end || _ <- lists:seq(1, ?WORKERS)],
-	1 = sets:size(sets:from_list(Res0)).
+    %% Ask for a random worker's identity 20x more than the number of workers and
+    %% expect to get an answer from every worker at least once.
+    Res0 = [wpool:call(Pool, {erlang, self, []}) || _ <- lists:seq(1, 20 * ?WORKERS)],
+    ?WORKERS = sets:size(sets:from_list(Res0)).
