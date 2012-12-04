@@ -111,7 +111,7 @@ stats(Sup) ->
 %% @private
 -spec init({wpool:name(), [wpool:option()]}) -> {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()}, [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    {Worker, InitArgs}  = proplists:get_value(worker, Options, {wpool_worker, start_link, []}),
+    {Worker, InitArgs}  = proplists:get_value(worker, Options, {wpool_worker, undefined}),
     Workers             = proplists:get_value(workers, Options, 100),
     Strategy            = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
