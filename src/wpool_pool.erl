@@ -58,8 +58,8 @@ best_worker(Sup) ->
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
     case wpool_size(Sup) of
-        undefined -> throw(no_workers);
-        Wpool_Size -> worker_name(Sup, random:uniform(Wpool_Size))
+        undefined  -> throw(no_workers);
+        Wpool_Size -> _ = random:seed(now()), worker_name(Sup, random:uniform(Wpool_Size))
     end.
 
 %% @doc Picks the next worker in a round robin fashion
@@ -111,8 +111,7 @@ stats(Sup) ->
 %% @private
 -spec init({wpool:name(), [wpool:option()]}) -> {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()}, [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    _ = random:seed(erlang:now()),
-    {Worker, InitArgs}  = proplists:get_value(worker, Options, {wpool_worker, start_link, []}),
+    {Worker, InitArgs}  = proplists:get_value(worker, Options, {wpool_worker, undefined}),
     Workers             = proplists:get_value(workers, Options, 100),
     Strategy            = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
