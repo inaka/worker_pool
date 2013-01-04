@@ -24,23 +24,23 @@
 %%% callbacks
 %%%===================================================================
 
--spec init(term()) -> term().
+-spec init(Something) -> Something.
 init(Something) -> Something.
 
--spec terminate(atom(), term()) -> atom().
+-spec terminate(Any, term()) -> Any.
 terminate(Reason, _State) -> Reason.
 
--spec code_change(string(), term(), any()) -> {ok, term()}.
+-spec code_change(string(), State, any()) -> {ok, State}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
--spec handle_info(term(), term()) -> term().
+-spec handle_info(timeout | Info, term()) -> {noreply, timeout} | Info.
 handle_info(timeout, _State) -> {noreply, timeout};
 handle_info(Info, _State) -> Info.
 
--spec handle_cast(term(), term()) -> term().
+-spec handle_cast(Cast, term()) -> Cast.
 handle_cast(Cast, _State) -> Cast.
 
 -type from() :: {pid(), reference()}.
--spec handle_call(term(), from(), term()) -> term().
+-spec handle_call(state | Call, from(), State) -> {reply, State, State} | Call.
 handle_call(state, _From, State) -> {reply, State, State};
 handle_call(Call, _From, _State) -> Call.
