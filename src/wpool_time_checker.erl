@@ -68,7 +68,8 @@ handle_info({check, Pid, TaskId, Runtime}, State) ->
                          {runtime,Runtime}]),
           case 2 * Runtime of
             NewOverrunTime when NewOverrunTime =< 4294967295 ->
-              erlang:send_after(Runtime, self(), {check, Pid, TaskId, NewOverrunTime});
+              erlang:send_after(Runtime, self(), {check, Pid, TaskId, NewOverrunTime}),
+              ok;
             _ -> ok
           end;
         _ -> ok
