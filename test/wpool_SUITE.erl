@@ -41,7 +41,7 @@ overrun_handler(M) -> overrun_handler ! {overrun, M}.
 -spec overrun(config()) -> _.
 overrun(_Config) ->
 	true = register(overrun_handler, self()),
-	{ok, _Pid} = wpool:start_pool(?MODULE, [{workers, 1}, {overrun_warning, 1000}, {overrun_handler, {?MODULE, overrun_handler}}]),
+	{ok, _Pid} = wpool:start_sup_pool(?MODULE, [{workers, 1}, {overrun_warning, 1000}, {overrun_handler, {?MODULE, overrun_handler}}]),
 	ok = wpool:cast(?MODULE, {timer, sleep, [1500]}),
 	receive
 		{overrun, Message} ->
@@ -62,7 +62,7 @@ overrun(_Config) ->
 
 -spec stop_pool(config()) -> _.
 stop_pool(_Config) ->
-	{ok, PoolPid} = wpool:start_pool(?MODULE),
+	{ok, PoolPid} = wpool:start_sup_pool(?MODULE),
 	true = erlang:is_process_alive(PoolPid),
 	ok = wpool:stop_pool(?MODULE),
 	false = erlang:is_process_alive(PoolPid),
