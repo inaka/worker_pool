@@ -40,7 +40,7 @@ start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODU
 call(Process, Call) -> gen_server:call(Process, Call).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
--spec call(wpool:name() | pid(), term(), integer()) -> term().
+-spec call(wpool:name() | pid(), term(), timeout()) -> term().
 call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 
 %% @equiv gen_server:cast(Process, Cast)
@@ -64,11 +64,11 @@ init({Mod, InitArgs, Options}) ->
 terminate(Reason, State) -> (State#state.mod):terminate(Reason, State#state.state).
 
 %% @private
--spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {stop, term(), #state{}}.
+-spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {error, term()}.
 code_change(OldVsn, State, Extra) ->
   case (State#state.mod):code_change(OldVsn, State#state.state, Extra) of
     {ok, NewState} -> {ok, State#state{state = NewState}};
-    Error -> {stop, Error, State}
+    Error -> {error, Error}
   end.
 
 %% @private
@@ -149,5 +149,5 @@ task_init(Task, TimeChecker, OverrunTime) ->
 -spec task_end(undefined | reference()) -> ok.
 task_end(undefined) -> erlang:erase(wpool_task);
 task_end(TimerRef) ->
-  erlang:cancel_timer(TimerRef),
+  _ = erlang:cancel_timer(TimerRef),
   erlang:erase(wpool_task).
