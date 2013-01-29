@@ -19,6 +19,7 @@
 
 -record(state, {wpool   :: wpool:name(),
                 handler :: {atom(), atom()}}).
+-opaque state() :: #state{}.
 
 %% api
 -export([start_link/3]).
@@ -35,26 +36,26 @@ start_link(WPool, Name, Handler) -> gen_server:start_link({local, Name}, ?MODULE
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
--spec init({wpool:name(), {atom(), atom()}}) -> {ok, #state{}}.
+-spec init({wpool:name(), {atom(), atom()}}) -> {ok, state()}.
 init({WPool, Handler}) -> {ok, #state{wpool = WPool, handler = Handler}}.
 
--spec terminate(atom(), #state{}) -> ok.
+-spec terminate(atom(), state()) -> ok.
 terminate(_Reason, _State) -> ok.
 
--spec code_change(string(), #state{}, any()) -> {ok, #state{}}.
+-spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
--spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
+-spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast(_Cast, State) -> {noreply, State}.
 
 -type from() :: {pid(), reference()}.
--spec handle_call(term(), from(), #state{}) -> {reply, ok, #state{}}.
+-spec handle_call(term(), from(), state()) -> {reply, ok, state()}.
 handle_call(_Call, _From, State) -> {reply, ok, State}.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
--spec handle_info(any(), #state{}) -> {noreply, #state{}}.
+-spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({check, Pid, TaskId, Runtime}, State) ->
   case erlang:process_info(Pid, dictionary) of
     {dictionary, Values} ->

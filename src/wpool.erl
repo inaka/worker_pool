@@ -26,7 +26,7 @@
 -export_type([name/0, option/0, strategy/0, worker_stats/0, stats/0]).
 
 -export([start/0, start/2, stop/0, stop/1]).
--export([start_pool/1, start_pool/2, stop_pool/1]).
+-export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2, stop_pool/1]).
 -export([call/2, cast/2, call/3, cast/3, call/4]).
 -export([stats/1]).
 
@@ -64,7 +64,15 @@ start_pool(Name) -> start_pool(Name, []).
 %% @doc Starts (and links) a pool of N wpool_processes.
 %%		The result pid belongs to a supervisor (in case you want to add it to a supervisor tree)
 -spec start_pool(name(), [option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_pool(Name, Options) -> wpool_sup:start_pool(Name, Options ++ ?DEFAULTS).
+start_pool(Name, Options) -> wpool_pool:start_link(Name, Options ++ ?DEFAULTS).
+
+%% @equiv start_sup_pool(Name, [])
+-spec start_sup_pool(name()) -> {ok, pid()}.
+start_sup_pool(Name) -> start_sup_pool(Name, []).
+
+%% @doc Starts a pool of N wpool_processes under the supervision of {@link wpool_sup}
+-spec start_sup_pool(name(), [option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_sup_pool(Name, Options) -> wpool_sup:start_pool(Name, Options ++ ?DEFAULTS).
 
 %% @doc Stops the pool
 -spec stop_pool(name()) -> ok.
