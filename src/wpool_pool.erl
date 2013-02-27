@@ -38,8 +38,11 @@
 %% @doc Creates the ets table that will hold the information about currently active pools
 -spec create_table() -> ok.
 create_table() ->
-    lager:info("Creating wpool ETS table"),
-    ?MODULE = ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
+    case ets:info(?MODULE, named_table) of
+        true      -> already_created;
+        undefined -> lager:info("Creating wpool ETS table"),
+                     ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}])
+    end,
     ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
