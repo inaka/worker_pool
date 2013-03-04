@@ -19,7 +19,7 @@
 
 -record(state, {wpool   :: wpool:name(),
                 handler :: {atom(), atom()}}).
--opaque state() :: #state{}.
+-type state() :: #state{}.
 
 %% api
 -export([start_link/3]).
