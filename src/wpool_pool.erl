@@ -36,6 +36,7 @@
 %% @doc Creates the ets table that will hold the information about currently active pools
 -spec create_table() -> ok.
 create_table() ->
+    lager:info("Creating wpool ETS table"),
     ?MODULE = ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
     ok.
 
