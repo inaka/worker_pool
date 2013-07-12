@@ -211,8 +211,8 @@ build_wpool(Name) ->
         Children ->
             case proplists:get_value(active, Children, 0) of
                 0 -> undefined;
-                Size ->
-                    Wpool = #wpool{name = Name, size = Size, next = 1, opts = []},
+                Size -> % NOTE: We deduce 1 from Size to acount for the time checker
+                    Wpool = #wpool{name = Name, size = Size - 1, next = 1, opts = []},
                     store_wpool(Wpool)
             end
     catch
