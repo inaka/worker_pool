@@ -20,7 +20,7 @@
 
 -type name() :: atom().
 -type option() :: {overrun_warning, infinity|pos_integer()} | {overrun_handler, {Module::atom(), Fun::atom()}} | {workers, pos_integer()} | {worker, {Module::atom(), InitArg::term()}}.
--type strategy() :: best_worker | random_worker | next_worker.
+-type strategy() :: best_worker | random_worker | next_worker | available_worker.
 -type worker_stats() :: [{messsage_queue_len, non_neg_integer()} | {memory, pos_integer()}].
 -type stats() :: [{workers, pos_integer()} | {total_message_queue_len, non_neg_integer()} | {worker_stats, [{pos_integer(), worker_stats()}]}].
 -export_type([name/0, option/0, strategy/0, worker_stats/0, stats/0]).
@@ -47,8 +47,8 @@ stop() -> application:stop(worker_pool).
 %% @private
 -spec start(any(), any()) -> {ok, pid()} | {error, term()}.
 start(_StartType, _StartArgs) ->
-	ok = wpool_pool:create_table(),
-	wpool_sup:start_link().
+    ok = wpool_pool:create_table(),
+    wpool_sup:start_link().
 
 %% @private
 -spec stop(any()) -> ok.
@@ -62,7 +62,7 @@ stop(_State) -> ok.
 start_pool(Name) -> start_pool(Name, []).
 
 %% @doc Starts (and links) a pool of N wpool_processes.
-%%		The result pid belongs to a supervisor (in case you want to add it to a supervisor tree)
+%%      The result pid belongs to a supervisor (in case you want to add it to a supervisor tree)
 -spec start_pool(name(), [option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) -> wpool_pool:start_link(Name, Options ++ ?DEFAULTS).
 
@@ -84,10 +84,27 @@ call(Sup, Call) -> call(Sup, Call, random_worker).
 
 %% @equiv call(Sup, Call, Strategy, 5000)
 -spec call(name(), term(), strategy()) -> term().
-call(Sup, Call, Strategy) -> wpool_process:call(wpool_pool:Strategy(Sup), Call).
+call(Sup, Call, Strategy) -> call(Sup, Call, Strategy, 5000).
 
-%% @doc Picks a server and issues the call to it
+%% @doc Picks a server and issues the call to it.
+%%      For all strategies except available_worker, Timeout applies only to the
+%%      time spent on the actual call to the worker, because time spent finding
+%%      the woker in other strategies is negligible.
+%%      For available_worker the time used choosing a worker is also considered
 -spec call(name(), term(), strategy(), timeout()) -> term().
+call(Sup, Call, available_worker, infinity) ->
+    wpool_process:call(wpool_pool:available_worker(Sup, infinity), Call, infinity);
+call(Sup, Call, available_worker, Timeout) ->
+    {Elapsed, Worker} = timer:tc(wpool_pool, available_worker, [Sup, Timeout]),
+    % Since the Timeout is a general constraint, we have to deduce the time
+    % we spent waiting for a worker, and if it took it too much, no_workers
+    % exception should have been thrown
+    NewTimeout =
+        case Timeout - round(Elapsed/1000) of
+            NT when NT < 0 -> 0; % This is a trick to make wpool_process throw the proper exception
+            NT -> NT
+        end,
+    wpool_process:call(Worker, Call, NewTimeout);
 call(Sup, Call, Strategy, Timeout) -> wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
 %% @equiv cast(Sup, Cast, random_worker)

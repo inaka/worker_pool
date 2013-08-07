@@ -23,7 +23,7 @@
                 options :: [wpool:option()]}).
 
 %% api
--export([start_link/4, call/2, call/3, cast/2]).
+-export([start_link/4, call/3, cast/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -34,10 +34,6 @@
 %% @doc Starts a named process
 -spec start_link({local, wpool:name()}, module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODULE, {Module, InitArgs, Options}, []).
-
-%% @equiv gen_server:call(Process, Call)
--spec call(wpool:name() | pid(), term()) -> term().
-call(Process, Call) -> gen_server:call(Process, Call).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
