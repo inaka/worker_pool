@@ -48,14 +48,14 @@ end_per_testcase(_TestCase, Config) ->
 
 -spec init(config()) -> _.
 init(_Config) ->
-	{error, can_not_ignore} = wpool_process:start_link({local, ?MODULE}, echo_server, ignore, []),
-	{error, ?MODULE} = wpool_process:start_link({local, ?MODULE}, echo_server, {stop, ?MODULE}, []),
-	{ok, _Pid} = wpool_process:start_link({local, ?MODULE}, echo_server, {ok, state}, []),
+	{error, can_not_ignore} = wpool_process:start_link(?MODULE, echo_server, ignore, []),
+	{error, ?MODULE} = wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, []),
+	{ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
 	wpool_process:cast(?MODULE, {stop, normal, state}).
 
 -spec info(config()) -> _.
 info(_Config) ->
-	{ok, Pid} = wpool_process:start_link({local, ?MODULE}, echo_server, {ok, state}, []),
+	{ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
 	Pid ! {noreply, newstate},
 	newstate = wpool_process:call(?MODULE, state, 5000),
 	Pid ! {noreply, newerstate, 1},
@@ -67,7 +67,7 @@ info(_Config) ->
 
 -spec cast(config()) -> _.
 cast(_Config) ->
-	{ok, Pid} = wpool_process:start_link({local, ?MODULE}, echo_server, {ok, state}, []),
+	{ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
 	wpool_process:cast(Pid, {noreply, newstate}),
 	newstate = wpool_process:call(?MODULE, state, 5000),
 	wpool_process:cast(Pid, {noreply, newerstate, 1}),
@@ -79,7 +79,7 @@ cast(_Config) ->
 
 -spec call(config()) -> _.
 call(_Config) ->
-	{ok, Pid} = wpool_process:start_link({local, ?MODULE}, echo_server, {ok, state}, []),
+	{ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
 	ok1 = wpool_process:call(Pid, {reply, ok1, newstate}, 5000),
 	newstate = wpool_process:call(?MODULE, state, 5000),
 	ok2 = wpool_process:call(Pid, {reply, ok2, newerstate, 1}, 5000),

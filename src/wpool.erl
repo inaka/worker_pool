@@ -113,6 +113,7 @@ cast(Sup, Cast) -> cast(Sup, Cast, random_worker).
 
 %% @doc Picks a server and issues the cast to it
 -spec cast(name(), term(), strategy()) -> ok.
+cast(Sup, Cast, available_worker) -> wpool_pool:cast_to_available_worker(Sup, Cast);
 cast(Sup, Cast, Strategy) -> wpool_process:cast(wpool_pool:Strategy(Sup), Cast).
 
 %% @doc Retrieves a snapshot of the pool stats

@@ -25,6 +25,7 @@
 %% API
 -export([start_link/2, create_table/0]).
 -export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
+-export([cast_to_available_worker/2]).
 -export([stats/1]).
 
 %% Supervisor callbacks
@@ -83,6 +84,14 @@ available_worker(Sup, Timeout) ->
         Worker -> Worker
     end.
 
+%% @doc Casts a message to the first available worker.
+%%      Since we can wait forever for a wpool:cast to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the cast when it gets the worker
+-spec cast_to_available_worker(wpool:name(), term()) -> ok.
+cast_to_available_worker(Sup, Cast) ->
+    wpool_queue_manager:cast_to_available_worker(queue_manager_name(Sup), Cast).
+
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
 -spec stats(wpool:name()) -> wpool:stats().
@@ -135,7 +144,7 @@ init({Name, Options}) ->
            {QueueManager, {wpool_queue_manager, start_link, [Name, QueueManager]}, permanent, brutal_kill, worker, [wpool_queue_manager]} |
             [{worker_name(Name, I),
                 {wpool_process, start_link,
-                 [{local, worker_name(Name, I)}, Worker, InitArgs,
+                 [worker_name(Name, I), Worker, InitArgs,
                   [{queue_manager, QueueManager}, {time_checker, TimeChecker}|Options]]},
               permanent, 5000, worker, [Worker]}
                 || I <- lists:seq(1, Workers)]
