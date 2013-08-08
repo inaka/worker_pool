@@ -62,7 +62,7 @@ overrun(_Config) ->
 
 -spec stop_pool(config()) -> _.
 stop_pool(_Config) ->
-	{ok, PoolPid} = wpool:start_sup_pool(?MODULE),
+	{ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 1}]),
 	true = erlang:is_process_alive(PoolPid),
 	ok = wpool:stop_pool(?MODULE),
 	false = erlang:is_process_alive(PoolPid),

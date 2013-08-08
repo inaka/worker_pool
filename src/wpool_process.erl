@@ -18,9 +18,10 @@
 
 -behaviour(gen_server).
 
--record(state, {mod     :: atom(),
+-record(state, {name    :: atom(),
+                mod     :: atom(),
                 state   :: term(),
-                options :: [wpool:option()]}).
+                options :: [{time_checker|queue_manager, atom()} | wpool:option()]}).
 
 %% api
 -export([start_link/4, call/3, cast/2]).
@@ -33,7 +34,7 @@
 %%%===================================================================
 %% @doc Starts a named process
 -spec start_link({local, wpool:name()}, module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
-start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODULE, {Module, InitArgs, Options}, []).
+start_link(Name, Module, InitArgs, Options) -> gen_server:start_link(Name, ?MODULE, {Name, Module, InitArgs, Options}, []).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
@@ -47,17 +48,21 @@ cast(Process, Cast) -> gen_server:cast(Process, Cast).
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), term(), [wpool:option()]}) -> {ok, #state{}}.
-init({Mod, InitArgs, Options}) ->
+-spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, #state{}}.
+init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
-    {ok, State} -> {ok, #state{mod = Mod, state = State, options = Options}};
+    {ok, State} ->
+      ok = notify_queue_manager(worker_ready, Name, Options),
+      {ok, #state{name = Name, mod = Mod, state = State, options = Options}};
     ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
 
 %% @private
 -spec terminate(atom(), #state{}) -> term().
-terminate(Reason, State) -> (State#state.mod):terminate(Reason, State#state.state).
+terminate(Reason, State) ->
+  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options), % So it's not considered available anymore
+  (State#state.mod):terminate(Reason, State#state.state).
 
 %% @private
 -spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {error, term()}.
@@ -89,6 +94,7 @@ handle_cast(Cast, State) ->
   Task = task_init({cast, Cast},
                    proplists:get_value(time_checker, State#state.options, undefined),
                    proplists:get_value(overrun_warning, State#state.options, infinity)),
+  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
     try (State#state.mod):handle_cast(Cast, State#state.state) of
       {noreply, NewState} -> {noreply, State#state{state = NewState}};
@@ -100,6 +106,7 @@ handle_cast(Cast, State) ->
       _:{stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}}
     end,
   task_end(Task),
+  ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
   Reply.
 
 -type from() :: {pid(), reference()}.
@@ -109,6 +116,7 @@ handle_call(Call, From, State) ->
   Task = task_init({call, Call},
                    proplists:get_value(time_checker, State#state.options, undefined),
                    proplists:get_value(overrun_warning, State#state.options, infinity)),
+  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
     try (State#state.mod):handle_call(Call, From, State#state.state) of
       {noreply, NewState} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
@@ -126,6 +134,7 @@ handle_call(Call, From, State) ->
       _:{stop, Reason, Response, NewState} -> {stop, Reason, Response, State#state{state = NewState}}
     end,
   task_end(Task),
+  ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
   Reply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -147,3 +156,9 @@ task_end(undefined) -> erlang:erase(wpool_task);
 task_end(TimerRef) ->
   _ = erlang:cancel_timer(TimerRef),
   erlang:erase(wpool_task).
+
+notify_queue_manager(Function, Name, Options) ->
+  case proplists:get_value(queue_manager, Options) of
+    undefined -> ok;
+    QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
+  end.

@@ -18,13 +18,13 @@
 -behaviour(gen_server).
 
 -record(state, {wpool   :: wpool:name(),
-                clients :: queue(),
-                workers :: queue()}).
+        clients :: queue(),
+        workers :: gb_set()}).
 -type state() :: #state{}.
 
 %% api
 -export([start_link/2]).
--export([available_worker/2]).
+-export([available_worker/2, worker_ready/2, worker_busy/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -37,7 +37,12 @@ start_link(WPool, Name) -> gen_server:start_link({local, Name}, ?MODULE, WPool, 
 
 -spec available_worker(atom(), timeout()) -> noproc | timeout | atom().
 available_worker(QueueManager, Timeout) ->
-  try gen_server:call(QueueManager, available_worker, Timeout) of
+  Expires =
+    case Timeout of
+      infinity -> infinity;
+      Timeout -> now_in_microseconds() + Timeout*1000
+    end,
+  try gen_server:call(QueueManager, {available_worker, Expires}, Timeout) of
     {ok, Worker} -> Worker;
     {error, Error} -> throw(Error)
   catch
@@ -47,23 +52,53 @@ available_worker(QueueManager, Timeout) ->
       timeout
   end.
 
+-spec worker_ready(atom(), atom()) -> ok.
+worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_ready, Worker}).
+
+%% @doc This function is needed just to handle
+%%      the use of other strategies combined with
+%%      available_worker
+-spec worker_busy(atom(), atom()) -> ok.
+worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 -spec init(wpool:name()) -> {ok, state()}.
-init(WPool) -> {ok, #state{wpool = WPool, clients = queue:new(), workers = queue:new()}}.
+init(WPool) -> {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new()}}.
 
--spec handle_cast(term(), state()) -> {noreply, state()}.
-handle_cast(_Cast, State) -> {noreply, State}.
+-spec handle_cast({worker_busy|worker_ready, atom()}, state()) -> {noreply, state()}.
+handle_cast({worker_busy, Worker}, State) ->
+  {noreply, State#state{workers = gb_sets:delete_any(Worker, State#state.workers)}};
+handle_cast({worker_ready, Worker}, State) ->
+  case queue:out(State#state.clients) of
+    {empty, _Clients} ->
+      {noreply, State#state{workers = gb_sets:add(Worker, State#state.workers)}};
+    {{value, {Client = {ClientPid, _}, Expires}}, Clients} ->
+      case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
+        true ->
+          _ = gen_server:reply(Client, {ok, Worker}),
+          {noreply, State#state{clients = Clients}};
+        false ->
+          handle_cast({worker_ready, Worker}, State#state{clients = Clients})
+      end
+  end.
 
 -type from() :: {pid(), reference()}.
--spec handle_call(available_worker, from(), state()) -> {reply, {ok, atom()}, state()} | {noreply, state()}.
-handle_call(available_worker, From, State) ->
-  case queue:out(State#state.workers) of
-    {empty, _Workers} ->
-      {noreply, State#state{clients = queue:in(From, State#state.clients)}};
-    {{value, Worker}, Workers} ->
-      {reply, {ok, Worker}, State#state{workers = Workers}}
+-spec handle_call({available_worker, infinit|pos_integer()}, from(), state()) -> {reply, {ok, atom()}, state()} | {noreply, state()}.
+handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
+  case gb_sets:is_empty(State#state.workers) of
+    true ->
+      {noreply, State#state{clients = queue:in({Client, Expires}, State#state.clients)}};
+    false ->
+      {Worker, Workers} = gb_sets:take_smallest(State#state.workers),
+      %NOTE: It could've been a while since this call was made, so we check
+      case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
+        true ->
+          {reply, {ok, Worker}, State#state{workers = Workers}};
+        false ->
+          {noreply, State}
+      end
   end.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
@@ -83,3 +118,5 @@ return_error(_Reason, {empty, _Q}) -> ok;
 return_error(Reason, {{value, From}, Q}) ->
   _  = gen_server:reply(From, {error, {queue_shutdown, Reason}}),
   return_error(Reason, Q).
+
+now_in_microseconds() -> timer:now_diff(os:timestamp(), {0,0,0}).
