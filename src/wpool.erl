@@ -99,11 +99,9 @@ call(Sup, Call, available_worker, Timeout) ->
     % Since the Timeout is a general constraint, we have to deduce the time
     % we spent waiting for a worker, and if it took it too much, no_workers
     % exception should have been thrown
-    NewTimeout =
-        case Timeout - round(Elapsed/1000) of
-            NT when NT < 0 -> 0; % This is a trick to make wpool_process throw the proper exception
-            NT -> NT
-        end,
+    % It may end up lower than 0, but not much lower, so we use abs to send
+    % wpool_process a valid timeout value
+    NewTimeout = abs(Timeout - round(Elapsed/1000)),
     wpool_process:call(Worker, Call, NewTimeout);
 call(Sup, Call, Strategy, Timeout) -> wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 

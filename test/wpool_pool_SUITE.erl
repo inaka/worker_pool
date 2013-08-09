@@ -57,7 +57,8 @@ wait_and_self(Time) ->
 -spec available_worker(config()) -> _.
 available_worker(_Config) ->
 	Pool = available_worker,
-	try wpool:cast(not_a_pool, x, available_worker)
+	try wpool:call(not_a_pool, x, available_worker) of
+		Result -> no_result = Result
 	catch
 		_:no_workers -> ok
 	end,
@@ -85,8 +86,8 @@ available_worker(_Config) ->
 		_:Error -> no_workers = Error
 	end,
 
-	lager:critical("Let's wait 5 secs"),
-	timer:sleep(5000 + ?WORKERS * 100),
+	lager:critical("Let's wait until all workers are free"),
+	wpool:call(Pool, {erlang, self, []}, available_worker, infinity),
 
 	lager:critical("Now they all should be free"),
 	lager:critical("We get half of them working for a while"),
@@ -100,7 +101,8 @@ available_worker(_Config) ->
 -spec best_worker(config()) -> _.
 best_worker(_Config) ->
 	Pool = best_worker,
-	try wpool:cast(not_a_pool, x, best_worker)
+	try wpool:call(not_a_pool, x, best_worker) of
+		Result -> no_result = Result
 	catch
 		_:no_workers -> ok
 	end,
@@ -130,7 +132,8 @@ best_worker(_Config) ->
 next_worker(_Config) ->
 	Pool = next_worker,
 
-	try wpool:cast(not_a_pool, x, next_worker)
+	try wpool:call(not_a_pool, x, next_worker) of
+		Result -> no_result = Result
 	catch
 		_:no_workers -> ok
 	end,
@@ -151,7 +154,8 @@ next_worker(_Config) ->
 random_worker(_Config) ->
     Pool = random_worker,
 
-    try wpool:cast(not_a_pool, x)
+    try wpool:call(not_a_pool, x) of
+		Result -> no_result = Result
     catch
         _:no_workers -> ok
     end,
