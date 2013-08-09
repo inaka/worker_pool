@@ -104,7 +104,7 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
   end.
 
 -type from() :: {pid(), reference()}.
--spec handle_call({available_worker, infinit|pos_integer()}, from(), state()) -> {reply, {ok, atom()}, state()} | {noreply, state()}.
+-spec handle_call({available_worker, infinity|pos_integer()}, from(), state()) -> {reply, {ok, atom()}, state()} | {noreply, state()}.
 handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
   case gb_sets:is_empty(State#state.workers) of
     true ->
