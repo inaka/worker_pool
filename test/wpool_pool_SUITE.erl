@@ -63,7 +63,7 @@ available_worker(_Config) ->
 		_:no_workers -> ok
 	end,
 
-	lager:critical("Put them all to work, each request should go to a different worker"),
+	lager:notice("Put them all to work, each request should go to a different worker"),
 	[wpool:cast(Pool, {timer, sleep, [5000]}, available_worker) || _ <- lists:seq(1, ?WORKERS)],
 	timer:sleep(500),
 	[0] = sets:to_list(
@@ -71,7 +71,7 @@ available_worker(_Config) ->
 				[proplists:get_value(message_queue_len, WS)
 					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
-	lager:critical("Now send another round of messages, the workers queues should still be empty"),
+	lager:notice("Now send another round of messages, the workers queues should still be empty"),
 	[wpool:cast(Pool, {timer, sleep, [100 * I]}, available_worker) || I <- lists:seq(1, ?WORKERS)],
 	timer:sleep(500),
 	[0] = sets:to_list(
@@ -79,21 +79,21 @@ available_worker(_Config) ->
 				[proplists:get_value(message_queue_len, WS)
 					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
-	lager:critical("If we can't wait we get no workers"),
+	lager:notice("If we can't wait we get no workers"),
 	try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
 		R -> should_fail = R
 	catch
 		_:Error -> no_workers = Error
 	end,
 
-	lager:critical("Let's wait until all workers are free"),
+	lager:notice("Let's wait until all workers are free"),
 	wpool:call(Pool, {erlang, self, []}, available_worker, infinity),
 
-	lager:critical("Now they all should be free"),
-	lager:critical("We get half of them working for a while"),
+	lager:notice("Now they all should be free"),
+	lager:notice("We get half of them working for a while"),
 	[wpool:cast(Pool, {timer, sleep, [60000]}, available_worker) || _ <- lists:seq(1, ?WORKERS, 2)],
 
-	lager:critical("We run tons of calls, and none is blocked, because all of them are handled by different workers"),
+	lager:notice("We run tons of calls, and none is blocked, because all of them are handled by different workers"),
 	Workers = [wpool:call(Pool, {erlang, self, []}, available_worker, 5000) || _ <- lists:seq(1, 20 * ?WORKERS)],
 	UniqueWorkers = sets:to_list(sets:from_list(Workers)),
 	{?WORKERS, UniqueWorkers, true} = {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)}.
