@@ -62,7 +62,7 @@ overrun(_Config) ->
 
 -spec stop_pool(config()) -> _.
 stop_pool(_Config) ->
-	{ok, PoolPid} = wpool:start_sup_pool(?MODULE),
+	{ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 1}]),
 	true = erlang:is_process_alive(PoolPid),
 	ok = wpool:stop_pool(?MODULE),
 	false = erlang:is_process_alive(PoolPid),
@@ -76,7 +76,7 @@ stats(_Config) ->
 	catch _:no_workers -> ok
 	end,
 
-	{ok, PoolPid} = wpool:start_pool(?MODULE),
+	{ok, PoolPid} = wpool:start_pool(?MODULE, [{workers, 10}]),
 	true = is_pid(PoolPid),
 
 	% Checks ...
@@ -86,21 +86,21 @@ stats(_Config) ->
 	Options = Get(options, InitStats),
 	infinity = Get(overrun_warning, Options),
 	{error_logger, warning_report} = Get(overrun_handler, Options),
-	100 = Get(workers, Options),
-	100 = Get(size, InitStats),
+	10 = Get(workers, Options),
+	10 = Get(size, InitStats),
 	1 = Get(next_worker, InitStats),
 	{wpool_worker, undefined} = Get(worker, Options),
 	InitWorkers = Get(workers, InitStats),
-	100 = length(InitWorkers),
+	10 = length(InitWorkers),
 	[begin
 		WorkerStats = Get(I, InitWorkers),
 		0 = Get(message_queue_len, WorkerStats),
 		[] = lists:keydelete(message_queue_len, 1, lists:keydelete(memory, 1, WorkerStats))
-	 end || I <- lists:seq(1, 100)],
+	 end || I <- lists:seq(1, 10)],
 
 	% Start a long task on every worker
 	Sleep = {timer, sleep, [10000]},
-	[wpool:cast(?MODULE, Sleep, next_worker) || _ <- lists:seq(1, 100)],
+	[wpool:cast(?MODULE, Sleep, next_worker) || _ <- lists:seq(1, 10)],
 
 	timer:sleep(100),
 
@@ -109,10 +109,10 @@ stats(_Config) ->
 	?MODULE = Get(pool, WorkingStats),
 	PoolPid = Get(supervisor, WorkingStats),
 	Options = Get(options, WorkingStats),
-	100 = Get(size, WorkingStats),
+	10 = Get(size, WorkingStats),
 	1 = Get(next_worker, WorkingStats),
 	WorkingWorkers = Get(workers, WorkingStats),
-	100 = length(WorkingWorkers),
+	10 = length(WorkingWorkers),
 	[begin
 		WorkerStats = Get(I, WorkingWorkers),
 		0 = Get(message_queue_len, WorkerStats),
@@ -120,7 +120,7 @@ stats(_Config) ->
 		{timer, sleep, 1, _} = Get(current_location, WorkerStats),
 		{cast, Sleep} = Get(task, WorkerStats),
 		true = is_number(Get(runtime, WorkerStats))
-	 end || I <- lists:seq(1, 100)],
+	 end || I <- lists:seq(1, 10)],
 
 	wpool:stop_pool(?MODULE),
 	try wpool:stats(?MODULE)

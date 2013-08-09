@@ -17,15 +17,16 @@
 
 -type config() :: [{atom(), term()}].
 
--define(WORKERS, 5).
+-define(WORKERS, 6).
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
--export([best_worker/1, next_worker/1, random_worker/1]).
+-export([best_worker/1, next_worker/1, random_worker/1, available_worker/1]).
+-export([wait_and_self/1]).
 
 -spec all() -> [atom()].
 all() -> [Fun || {Fun, 1} <- module_info(exports),
-				 not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+				 not lists:member(Fun, [init_per_suite, end_per_suite, module_info, wait_and_self])].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -47,10 +48,61 @@ end_per_testcase(TestCase, Config) ->
 	wpool:stop_pool(TestCase),
 	Config.
 
+-spec wait_and_self(pos_integer()) -> pid().
+wait_and_self(Time) ->
+	timer:sleep(Time),
+	{registered_name, Self} = process_info(self(), registered_name),
+	Self.
+
+-spec available_worker(config()) -> _.
+available_worker(_Config) ->
+	Pool = available_worker,
+	try wpool:call(not_a_pool, x) of
+		Result -> no_result = Result
+	catch
+		_:no_workers -> ok
+	end,
+
+	lager:notice("Put them all to work, each request should go to a different worker"),
+	[wpool:cast(Pool, {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
+	timer:sleep(500),
+	[0] = sets:to_list(
+			sets:from_list(
+				[proplists:get_value(message_queue_len, WS)
+					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+
+	lager:notice("Now send another round of messages, the workers queues should still be empty"),
+	[wpool:cast(Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
+	timer:sleep(500),
+	[0] = sets:to_list(
+			sets:from_list(
+				[proplists:get_value(message_queue_len, WS)
+					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+
+	lager:notice("If we can't wait we get no workers"),
+	try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
+		R -> should_fail = R
+	catch
+		_:Error -> no_workers = Error
+	end,
+
+	lager:notice("Let's wait until all workers are free"),
+	wpool:call(Pool, {erlang, self, []}, available_worker, infinity),
+
+	lager:notice("Now they all should be free"),
+	lager:notice("We get half of them working for a while"),
+	[wpool:cast(Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
+
+	lager:notice("We run tons of calls, and none is blocked, because all of them are handled by different workers"),
+	Workers = [wpool:call(Pool, {erlang, self, []}, available_worker, 5000) || _ <- lists:seq(1, 20 * ?WORKERS)],
+	UniqueWorkers = sets:to_list(sets:from_list(Workers)),
+	{?WORKERS, UniqueWorkers, true} = {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)}.
+
 -spec best_worker(config()) -> _.
 best_worker(_Config) ->
 	Pool = best_worker,
-	try wpool:cast(not_a_pool, x, best_worker)
+	try wpool:call(not_a_pool, x, best_worker) of
+		Result -> no_result = Result
 	catch
 		_:no_workers -> ok
 	end,
@@ -80,7 +132,8 @@ best_worker(_Config) ->
 next_worker(_Config) ->
 	Pool = next_worker,
 
-	try wpool:cast(not_a_pool, x, next_worker)
+	try wpool:call(not_a_pool, x, next_worker) of
+		Result -> no_result = Result
 	catch
 		_:no_workers -> ok
 	end,
@@ -101,21 +154,22 @@ next_worker(_Config) ->
 random_worker(_Config) ->
     Pool = random_worker,
 
-    try wpool:cast(not_a_pool, x)
+    try wpool:call(not_a_pool, x, random_worker) of
+		Result -> no_result = Result
     catch
         _:no_workers -> ok
     end,
 
     %% Ask for a random worker's identity 20x more than the number of workers and
     %% expect to get an answer from every worker at least once.
-    Serial = [wpool:call(Pool, {erlang, self, []}) || _ <- lists:seq(1, 20 * ?WORKERS)],
+    Serial = [wpool:call(Pool, {erlang, self, []}, random_worker) || _ <- lists:seq(1, 20 * ?WORKERS)],
     ?WORKERS = sets:size(sets:from_list(Serial)),
 
     %% Now do the same with a freshly spawned process for each request to ensure
     %% randomness isn't reset with each spawn of the process_dictionary
     Self = self(),
     [spawn(fun() ->
-                   Worker_Id = wpool:call(Pool, {erlang, self, []}),
+                   Worker_Id = wpool:call(Pool, {erlang, self, []}, random_worker),
                    Self ! {worker, Worker_Id}
            end) || _ <- lists:seq(1, 20 * ?WORKERS)],
     Concurrent = collect_results(20 * ?WORKERS, []),

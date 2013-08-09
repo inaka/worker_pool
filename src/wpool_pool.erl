@@ -24,7 +24,8 @@
 
 %% API
 -export([start_link/2, create_table/0]).
--export([best_worker/1, random_worker/1, next_worker/1]).
+-export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
+-export([cast_to_available_worker/2]).
 -export([stats/1]).
 
 %% Supervisor callbacks
@@ -72,6 +73,25 @@ next_worker(Sup) ->
         Next -> worker_name(Sup, Next)
     end.
 
+%% @doc Picks the first available worker.
+%%      If all workers are busy, waits for Timeout ms until one is free
+%% @throws no_workers
+-spec available_worker(wpool:name(), timeout()) -> atom().
+available_worker(Sup, Timeout) ->
+    case wpool_queue_manager:available_worker(queue_manager_name(Sup), Timeout) of
+        timeout -> throw(no_workers);
+        noproc -> throw(no_workers);
+        Worker -> Worker
+    end.
+
+%% @doc Casts a message to the first available worker.
+%%      Since we can wait forever for a wpool:cast to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the cast when it gets the worker
+-spec cast_to_available_worker(wpool:name(), term()) -> ok.
+cast_to_available_worker(Sup, Cast) ->
+    wpool_queue_manager:cast_to_available_worker(queue_manager_name(Sup), Cast).
+
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
 -spec stats(wpool:name()) -> wpool:stats().
@@ -117,10 +137,15 @@ init({Name, Options}) ->
     Strategy            = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
     TimeChecker         = time_checker_name(Name),
+    QueueManager        = queue_manager_name(Name),
     _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1, opts = Options}),
     {ok, {Strategy,
-          [{TimeChecker, {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}, permanent, brutal_kill, worker, [wpool_time_checker]} |
-            [{worker_name(Name, I), {wpool_process, start_link, [{local, worker_name(Name, I)}, Worker, InitArgs, [{time_checker, TimeChecker}|Options]]},
+          [{TimeChecker, {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}, permanent, brutal_kill, worker, [wpool_time_checker]},
+           {QueueManager, {wpool_queue_manager, start_link, [Name, QueueManager]}, permanent, brutal_kill, worker, [wpool_queue_manager]} |
+            [{worker_name(Name, I),
+                {wpool_process, start_link,
+                 [worker_name(Name, I), Worker, InitArgs,
+                  [{queue_manager, QueueManager}, {time_checker, TimeChecker}|Options]]},
               permanent, 5000, worker, [Worker]}
                 || I <- lists:seq(1, Workers)]
            ]}}.
@@ -130,6 +155,7 @@ init({Name, Options}) ->
 %% ===================================================================
 worker_name(Sup, I) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ [$-| integer_to_list(I)]).
 time_checker_name(Sup) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
+queue_manager_name(Sup) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
 
 min_message_queue(Wpool) ->
     %% Moving the beginning of the list to some random point to ensure that clients
@@ -211,8 +237,8 @@ build_wpool(Name) ->
         Children ->
             case proplists:get_value(active, Children, 0) of
                 0 -> undefined;
-                Size -> % NOTE: We deduce 1 from Size to acount for the time checker
-                    Wpool = #wpool{name = Name, size = Size - 1, next = 1, opts = []},
+                Size -> % NOTE: We deduce 2 from Size to acount for the time checker and queue manager
+                    Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
                     store_wpool(Wpool)
             end
     catch

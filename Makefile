@@ -4,7 +4,7 @@ all:
 	rebar get-deps && rebar compile
 
 erl:
-	rebar compile
+	rebar skip_deps=true compile
 
 clean:
 	rebar clean
@@ -34,7 +34,7 @@ run: erl
 
 test: erl
 	mkdir -p log/ct
-	rebar skip_deps=true ct
+	rebar skip_deps=true ct --verbose 3
 	open log/ct/index.html
 
 doc: erl
