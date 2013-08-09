@@ -29,6 +29,7 @@
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2, stop_pool/1]).
 -export([call/2, cast/2, call/3, cast/3, call/4]).
 -export([stats/1]).
+-export([default_strategy/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ADMIN API
@@ -78,9 +79,13 @@ start_sup_pool(Name, Options) -> wpool_sup:start_pool(Name, Options ++ ?DEFAULTS
 -spec stop_pool(name()) -> ok.
 stop_pool(Name) -> wpool_sup:stop_pool(Name).
 
-%% @equiv call(Sup, Call, random_worker)
+%% @doc Default strategy
+-spec default_strategy() -> available_worker.
+default_strategy() -> available_worker.
+
+%% @equiv call(Sup, Call, default_strategy())
 -spec call(name(), term()) -> term().
-call(Sup, Call) -> call(Sup, Call, random_worker).
+call(Sup, Call) -> call(Sup, Call, default_strategy()).
 
 %% @equiv call(Sup, Call, Strategy, 5000)
 -spec call(name(), term(), strategy()) -> term().
@@ -105,9 +110,9 @@ call(Sup, Call, available_worker, Timeout) ->
     wpool_process:call(Worker, Call, NewTimeout);
 call(Sup, Call, Strategy, Timeout) -> wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
-%% @equiv cast(Sup, Cast, random_worker)
+%% @equiv cast(Sup, Cast, default_strategy())
 -spec cast(name(), term()) -> ok.
-cast(Sup, Cast) -> cast(Sup, Cast, random_worker).
+cast(Sup, Cast) -> cast(Sup, Cast, default_strategy()).
 
 %% @doc Picks a server and issues the cast to it
 -spec cast(name(), term(), strategy()) -> ok.
