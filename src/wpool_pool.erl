@@ -17,10 +17,11 @@
 
 -behaviour(supervisor).
 
--record(wpool, {name :: wpool:name(),
-                size :: pos_integer(),
-                next :: pos_integer(),
-                opts :: [wpool:option()]}).
+-record(wpool, {name     :: wpool:name(),
+                size     :: pos_integer(),
+                next     :: pos_integer(),
+                opts     :: [wpool:option()],
+                qmanager :: atom()}).
 
 %% API
 -export([start_link/2, create_table/0]).
@@ -117,12 +118,14 @@ stats(Sup) ->
                             end,
                         {T + MQL, [{N, WS} | L]}
                     end, {0, []}, lists:seq(1, Wpool#wpool.size)),
+            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.qmanager),
+            PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
             [{pool,                     Sup},
              {supervisor,               erlang:whereis(Sup)},
              {options,                  Wpool#wpool.opts},
              {size,                     Wpool#wpool.size},
              {next_worker,              Wpool#wpool.next},
-             {total_message_queue_len,  Total},
+             {total_message_queue_len,  Total + PendingTasks},
              {workers,                  WorkerStats}]
     end.
 
@@ -138,7 +141,7 @@ init({Name, Options}) ->
     OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
     TimeChecker         = time_checker_name(Name),
     QueueManager        = queue_manager_name(Name),
-    _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1, opts = Options}),
+    _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1, opts = Options, qmanager = QueueManager}),
     {ok, {Strategy,
           [{TimeChecker, {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}, permanent, brutal_kill, worker, [wpool_time_checker]},
            {QueueManager, {wpool_queue_manager, start_link, [Name, QueueManager]}, permanent, brutal_kill, worker, [wpool_queue_manager]} |

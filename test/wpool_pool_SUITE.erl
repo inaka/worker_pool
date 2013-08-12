@@ -74,11 +74,13 @@ available_worker(_Config) ->
 	lager:notice("Now send another round of messages, the workers queues should still be empty"),
 	[wpool:cast(Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
 	timer:sleep(500),
+	Stats1 = wpool:stats(Pool),
 	[0] = sets:to_list(
 			sets:from_list(
 				[proplists:get_value(message_queue_len, WS)
-					|| {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
-
+					|| {_, WS} <- proplists:get_value(workers, Stats1)])),
+	% Check that we have ?WORKERS pending tasks
+	?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
 	lager:notice("If we can't wait we get no workers"),
 	try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
 		R -> should_fail = R
@@ -89,9 +91,17 @@ available_worker(_Config) ->
 	lager:notice("Let's wait until all workers are free"),
 	wpool:call(Pool, {erlang, self, []}, available_worker, infinity),
 
+	% Check we have no pending tasks
+	Stats2 = wpool:stats(Pool),
+	0 = proplists:get_value(total_message_queue_len, Stats2),
+
 	lager:notice("Now they all should be free"),
 	lager:notice("We get half of them working for a while"),
 	[wpool:cast(Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
+
+	% Check we have no pending tasks
+	Stats3 = wpool:stats(Pool),
+	0 = proplists:get_value(total_message_queue_len, Stats3),
 
 	lager:notice("We run tons of calls, and none is blocked, because all of them are handled by different workers"),
 	Workers = [wpool:call(Pool, {erlang, self, []}, available_worker, 5000) || _ <- lists:seq(1, 20 * ?WORKERS)],

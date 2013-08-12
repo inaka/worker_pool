@@ -25,6 +25,7 @@
 %% api
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2, worker_ready/2, worker_busy/2]).
+-export([stats/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -68,11 +69,19 @@ worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_read
 -spec worker_busy(atom(), atom()) -> ok.
 worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
 
+%% @doc Returns statistics for this queue.
+-spec stats(atom()) -> proplists:proplist().
+stats(QueueManager) ->
+  {dictionary, Dict} = process_info(erlang:whereis(QueueManager), dictionary),
+  [{pending_tasks, proplists:get_value(pending_tasks, Dict)}].
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 -spec init(wpool:name()) -> {ok, state()}.
-init(WPool) -> {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new()}}.
+init(WPool) ->
+  put(pending_tasks, 0),
+  {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new()}}.
 
 -spec handle_cast({worker_busy|worker_ready, atom()}, state()) -> {noreply, state()}.
 handle_cast({worker_busy, Worker}, State) ->
@@ -82,9 +91,11 @@ handle_cast({worker_ready, Worker}, State) ->
     {empty, _Clients} ->
       {noreply, State#state{workers = gb_sets:add(Worker, State#state.workers)}};
     {{value, {cast, Cast}}, Clients} ->
+       dec_pending_tasks(),
        ok = wpool_process:cast(Worker, Cast),
        {noreply, State#state{clients = Clients}};
     {{value, {Client = {ClientPid, _}, Expires}}, Clients} ->
+      dec_pending_tasks(),
       case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
         true ->
           _ = gen_server:reply(Client, {ok, Worker}),
@@ -96,6 +107,7 @@ handle_cast({worker_ready, Worker}, State) ->
 handle_cast({cast_to_available_worker, Cast}, State) ->
   case gb_sets:is_empty(State#state.workers) of
     true ->
+      inc_pending_tasks(),
       {noreply, State#state{clients = queue:in({cast, Cast}, State#state.clients)}};
     false ->
       {Worker, Workers} = gb_sets:take_smallest(State#state.workers),
@@ -108,6 +120,7 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
 handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
   case gb_sets:is_empty(State#state.workers) of
     true ->
+      inc_pending_tasks(),
       {noreply, State#state{clients = queue:in({Client, Expires}, State#state.clients)}};
     false ->
       {Worker, Workers} = gb_sets:take_smallest(State#state.workers),
@@ -133,6 +146,12 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%===================================================================
 %%% private
 %%%===================================================================
+inc_pending_tasks() -> inc(pending_tasks).
+dec_pending_tasks() -> dec(pending_tasks).
+
+inc(Key) -> put(Key, get(Key) + 1).
+dec(Key) -> put(Key, get(Key) - 1).
+
 return_error(_Reason, {empty, _Q}) -> ok;
 return_error(Reason, {{value, {cast, Cast}}, Q}) ->
   lager:error("Cast lost on terminate ~p: ~p", [Reason, Cast]),
