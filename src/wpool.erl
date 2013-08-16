@@ -27,7 +27,7 @@
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2, stop_pool/1]).
--export([call/2, cast/2, call/3, cast/3, call/4]).
+-export([call/2, cast/2, call/3, cast/3, call/4, call/5]).
 -export([stats/1]).
 -export([default_strategy/0]).
 
@@ -109,6 +109,13 @@ call(Sup, Call, available_worker, Timeout) ->
     NewTimeout = abs(Timeout - round(Elapsed/1000)),
     wpool_process:call(Worker, Call, NewTimeout);
 call(Sup, Call, Strategy, Timeout) -> wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
+
+-type available_worker_timeout() :: timeout().
+-spec call(name(), term(), strategy(), available_worker_timeout(), timeout()) -> term().
+call(Sup, Call, available_worker, Worker_Timeout, Timeout) ->
+    Worker = wpool_pool:available_worker(Sup, Worker_Timeout),
+    wpool_process:call(Worker, Call, Timeout);
+call(Sup, Call, Strategy, _Worker_Timeout, Timeout) -> call(Sup, Call, Strategy, Timeout).
 
 %% @equiv cast(Sup, Cast, default_strategy())
 -spec cast(name(), term()) -> ok.
