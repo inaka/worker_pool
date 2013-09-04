@@ -33,7 +33,7 @@
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
--spec start_link({local, wpool:name()}, module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
+-spec start_link(wpool:name(), module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) -> gen_server:start_link({local, Name}, ?MODULE, {Name, Module, InitArgs, Options}, []).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
