@@ -48,7 +48,6 @@ stop() -> application:stop(worker_pool).
 %% @private
 -spec start(any(), any()) -> {ok, pid()} | {error, term()}.
 start(_StartType, _StartArgs) ->
-    ok = wpool_pool:create_table(),
     wpool_sup:start_link().
 
 %% @private
