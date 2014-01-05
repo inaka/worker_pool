@@ -62,32 +62,32 @@ available_worker(QueueManager, Timeout) ->
 %%      Since we can wait forever for a wpool:cast to be delivered
 %%      but we don't want the caller to be blocked, this function
 %%      just forwards the cast when it gets the worker
--spec cast_to_available_worker(atom(), term()) -> ok.
+-spec cast_to_available_worker(wpool:name(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) -> gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
--spec new_worker(atom(), atom()) -> ok.
+-spec new_worker(wpool:name(), atom()) -> ok.
 new_worker(QueueManager, Worker) -> gen_server:cast(QueueManager, {new_worker, Worker}).
 
--spec worker_ready(atom(), atom()) -> ok.
+-spec worker_ready(wpool:name(), atom()) -> ok.
 worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_ready, Worker}).
 
 %% @doc This function is needed just to handle
 %%      the use of other strategies combined with
 %%      available_worker
--spec worker_busy(atom(), atom()) -> ok.
+-spec worker_busy(wpool:name(), atom()) -> ok.
 worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
 
 %% @doc Return the list of currently existing worker pools.
--spec pools() -> [atom()].
+-spec pools() -> [wpool:name()].
 pools() ->
     ets:foldl(fun(#wpool{name=Pool_Name}, Pools) -> [Pool_Name | Pools] end, [], wpool_pool).
                       
 %% @doc Returns statistics for this queue.
--spec stats(atom()) -> proplists:proplist().
-stats(Queue_Manager) ->
-    {dictionary, Dict} = process_info(erlang:whereis(Queue_Manager), dictionary),
-    Available = gen_server:call(Queue_Manager, available_worker_count),
-    Busy      = gen_server:call(Queue_Manager, busy_worker_count),
+-spec stats(wpool:name()) -> proplists:proplist().
+stats(QueueManager) ->
+    {dictionary, Dict} = process_info(erlang:whereis(QueueManager), dictionary),
+    Available = gen_server:call(QueueManager, available_worker_count),
+    Busy      = gen_server:call(QueueManager, busy_worker_count),
     [
      {pending_tasks,     proplists:get_value(pending_tasks, Dict)},
      {available_workers, Available},
