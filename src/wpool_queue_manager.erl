@@ -80,7 +80,10 @@ worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy,
 %% @doc Return the list of currently existing worker pools.
 -spec pools() -> [wpool:name()].
 pools() ->
-    ets:foldl(fun(#wpool{name=Pool_Name}, Pools) -> [Pool_Name | Pools] end, [], wpool_pool).
+    ets:foldl(fun(#wpool{name=Pool_Name, qmanager=Queue_Mgr}, Pools) ->
+                      This_Pool = [{pool, Pool_Name}, {queue_manager, Queue_Mgr}],
+                      [This_Pool | Pools]
+              end, [], wpool_pool).
                       
 %% @doc Returns statistics for this queue.
 -spec stats(wpool:name()) -> proplists:proplist().
