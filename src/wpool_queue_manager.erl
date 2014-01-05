@@ -19,7 +19,8 @@
 
 %% api
 -export([start_link/2]).
--export([available_worker/2, cast_to_available_worker/2, worker_ready/2, worker_busy/2]).
+-export([available_worker/2, cast_to_available_worker/2,
+         new_worker/2, worker_ready/2, worker_busy/2]).
 -export([pools/0, stats/1]).
 
 %% gen_server callbacks
@@ -27,9 +28,11 @@
 
 -include("wpool.hrl").
 
--record(state, {wpool   :: wpool:name(),
-                clients :: queue(),
-                workers :: gb_set()}).
+-record(state, {wpool        :: wpool:name(),
+                clients      :: queue(),
+                workers      :: gb_set(),
+                worker_count :: non_neg_integer()
+               }).
 -type state() :: #state{}.
 
 %%%===================================================================
@@ -62,6 +65,9 @@ available_worker(QueueManager, Timeout) ->
 -spec cast_to_available_worker(atom(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) -> gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
+-spec new_worker(atom(), atom()) -> ok.
+new_worker(QueueManager, Worker) -> gen_server:cast(QueueManager, {new_worker, Worker}).
+
 -spec worker_ready(atom(), atom()) -> ok.
 worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_ready, Worker}).
 
@@ -78,9 +84,15 @@ pools() ->
                       
 %% @doc Returns statistics for this queue.
 -spec stats(atom()) -> proplists:proplist().
-stats(QueueManager) ->
-  {dictionary, Dict} = process_info(erlang:whereis(QueueManager), dictionary),
-  [{pending_tasks, proplists:get_value(pending_tasks, Dict)}].
+stats(Queue_Manager) ->
+    {dictionary, Dict} = process_info(erlang:whereis(Queue_Manager), dictionary),
+    Available = gen_server:call(Queue_Manager, available_worker_count),
+    Busy      = gen_server:call(Queue_Manager, busy_worker_count),
+    [
+     {pending_tasks,     proplists:get_value(pending_tasks, Dict)},
+     {available_workers, Available},
+     {busy_workers,      Busy}
+    ].
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -88,11 +100,13 @@ stats(QueueManager) ->
 -spec init(wpool:name()) -> {ok, state()}.
 init(WPool) ->
   put(pending_tasks, 0),
-  {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new()}}.
+  {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new(), worker_count = 0}}.
 
 -spec handle_cast({worker_busy|worker_ready, atom()}, state()) -> {noreply, state()}.
 handle_cast({worker_busy, Worker}, State) ->
   {noreply, State#state{workers = gb_sets:delete_any(Worker, State#state.workers)}};
+handle_cast({new_worker, Worker}, #state{worker_count=WC} = State) ->
+    handle_cast({worker_ready, Worker}, State#state{worker_count=WC+1});
 handle_cast({worker_ready, Worker}, State) ->
   case queue:out(State#state.clients) of
     {empty, _Clients} ->
@@ -123,7 +137,13 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
   end.
 
 -type from() :: {pid(), reference()}.
--spec handle_call({available_worker, infinity|pos_integer()}, from(), state()) -> {reply, {ok, atom()}, state()} | {noreply, state()}.
+-type call_request() :: {available_worker, infinity|pos_integer()}
+                      | available_worker_count
+                      | busy_worker_count.
+
+-spec handle_call(call_request(), from(), state())
+                 -> {reply, {ok, atom()}, state()} | {noreply, state()}.
+
 handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
   case gb_sets:is_empty(State#state.workers) of
     true ->
@@ -138,7 +158,11 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
         false ->
           {noreply, State}
       end
-  end.
+  end;
+handle_call(available_worker_count, _From, #state{workers=Available_Workers} = State) ->
+    {reply, gb_sets:size(Available_Workers), State};
+handle_call(busy_worker_count, _From, #state{worker_count=WC, workers=Available_Workers} = State) ->
+    {reply, WC - gb_sets:size(Available_Workers), State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.

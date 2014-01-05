@@ -52,7 +52,7 @@ cast(Process, Cast) -> gen_server:cast(Process, Cast).
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
     {ok, State} ->
-      ok = notify_queue_manager(worker_ready, Name, Options),
+      ok = notify_queue_manager(new_worker, Name, Options),
       {ok, #state{name = Name, mod = Mod, state = State, options = Options}};
     ignore -> {stop, can_not_ignore};
     Error -> Error
