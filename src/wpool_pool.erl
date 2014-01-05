@@ -17,12 +17,6 @@
 
 -behaviour(supervisor).
 
--record(wpool, {name     :: wpool:name(),
-                size     :: pos_integer(),
-                next     :: pos_integer(),
-                opts     :: [wpool:option()],
-                qmanager :: atom()}).
-
 %% API
 -export([start_link/2, create_table/0]).
 -export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
@@ -31,6 +25,8 @@
 
 %% Supervisor callbacks
 -export([init/1]).
+
+-include("wpool.hrl").
 
 %% ===================================================================
 %% API functions

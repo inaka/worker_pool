@@ -17,18 +17,20 @@
 
 -behaviour(gen_server).
 
+%% api
+-export([start_link/2]).
+-export([available_worker/2, cast_to_available_worker/2, worker_ready/2, worker_busy/2]).
+-export([pools/0, stats/1]).
+
+%% gen_server callbacks
+-export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
+
+-include("wpool.hrl").
+
 -record(state, {wpool   :: wpool:name(),
                 clients :: queue(),
                 workers :: gb_set()}).
 -type state() :: #state{}.
-
-%% api
--export([start_link/2]).
--export([available_worker/2, cast_to_available_worker/2, worker_ready/2, worker_busy/2]).
--export([stats/1]).
-
-%% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
 
 %%%===================================================================
 %%% API
@@ -69,6 +71,11 @@ worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_read
 -spec worker_busy(atom(), atom()) -> ok.
 worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
 
+%% @doc Return the list of currently existing worker pools.
+-spec pools() -> [atom()].
+pools() ->
+    ets:foldl(fun(#wpool{name=Pool_Name}, Pools) -> [Pool_Name | Pools] end, [], wpool_pool).
+                      
 %% @doc Returns statistics for this queue.
 -spec stats(atom()) -> proplists:proplist().
 stats(QueueManager) ->
