@@ -38,7 +38,8 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec start_link(wpool:name(), atom()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link(wpool:name(), atom())
+                -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) -> gen_server:start_link({local, Name}, ?MODULE, WPool, []).
 
 -spec available_worker(atom(), timeout()) -> noproc | timeout | atom().
@@ -63,7 +64,8 @@ available_worker(QueueManager, Timeout) ->
 %%      but we don't want the caller to be blocked, this function
 %%      just forwards the cast when it gets the worker
 -spec cast_to_available_worker(wpool:name(), term()) -> ok.
-cast_to_available_worker(QueueManager, Cast) -> gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
+cast_to_available_worker(QueueManager, Cast) ->
+    gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
 -spec new_worker(wpool:name(), atom()) -> ok.
 new_worker(QueueManager, Worker) -> gen_server:cast(QueueManager, {new_worker, Worker}).
@@ -88,13 +90,12 @@ pools() ->
 %% @doc Returns statistics for this queue.
 -spec stats(wpool:name()) -> proplists:proplist().
 stats(QueueManager) ->
-    {dictionary, Dict} = process_info(erlang:whereis(QueueManager), dictionary),
-    Available = gen_server:call(QueueManager, available_worker_count),
-    Busy      = gen_server:call(QueueManager, busy_worker_count),
+    {Available_Workers, Busy_Workers, Pending_Tasks}
+        = gen_server:call(QueueManager, worker_counts),
     [
-     {pending_tasks,     proplists:get_value(pending_tasks, Dict)},
-     {available_workers, Available},
-     {busy_workers,      Busy}
+     {pending_tasks,     Pending_Tasks},
+     {available_workers, Available_Workers},
+     {busy_workers,      Busy_Workers}
     ].
 
 %%%===================================================================
@@ -103,7 +104,7 @@ stats(QueueManager) ->
 -spec init(wpool:name()) -> {ok, state()}.
 init(WPool) ->
   put(pending_tasks, 0),
-  {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new(), worker_count = 0}}.
+  {ok, #state{wpool=WPool, clients=queue:new(), workers=gb_sets:new(), worker_count=0}}.
 
 -spec handle_cast({worker_busy|worker_ready, atom()}, state()) -> {noreply, state()}.
 handle_cast({worker_busy, Worker}, State) ->
@@ -140,9 +141,7 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
   end.
 
 -type from() :: {pid(), reference()}.
--type call_request() :: {available_worker, infinity|pos_integer()}
-                      | available_worker_count
-                      | busy_worker_count.
+-type call_request() :: {available_worker, infinity|pos_integer()} | worker_counts.
 
 -spec handle_call(call_request(), from(), state())
                  -> {reply, {ok, atom()}, state()} | {noreply, state()}.
@@ -162,10 +161,11 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
           {noreply, State}
       end
   end;
-handle_call(available_worker_count, _From, #state{workers=Available_Workers} = State) ->
-    {reply, gb_sets:size(Available_Workers), State};
-handle_call(busy_worker_count, _From, #state{worker_count=WC, workers=Available_Workers} = State) ->
-    {reply, WC - gb_sets:size(Available_Workers), State}.
+handle_call(worker_counts, _From,
+            #state{worker_count=All_Workers, workers=Available_Workers} = State) ->
+    Available = gb_sets:size(Available_Workers),
+    Busy = All_Workers - Available,
+    {reply, {Available, Busy, get(pending_tasks)}, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.
