@@ -1,4 +1,5 @@
 RUN := erl -pa ebin -pa deps/*/ebin -smp enable -s lager -boot start_sasl ${ERL_ARGS}
+HOST := `hostname`
 
 all:
 	rebar get-deps && rebar compile
@@ -23,12 +24,12 @@ xref: all
 	rebar skip_deps=true --verbose xref
 
 shell: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname`; \
+	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@${HOST}; \
 	else ${RUN}; \
 	fi
 
 run: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@`hostname` -s wpool; \
+	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@${HOST} -s wpool; \
 	else ${RUN} -s wpool; \
 	fi
 
