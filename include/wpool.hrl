@@ -1,6 +1,9 @@
 
+-type queue_mgr() :: atom().
+
 -record(wpool, {name     :: wpool:name(),
                 size     :: pos_integer(),
                 next     :: pos_integer(),
                 opts     :: [wpool:option()],
-                qmanager :: atom()}).
+                qmanager :: queue_mgr()
+               }).

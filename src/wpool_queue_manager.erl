@@ -38,11 +38,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec start_link(wpool:name(), atom())
+-spec start_link(wpool:name(), queue_mgr())
                 -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) -> gen_server:start_link({local, Name}, ?MODULE, WPool, []).
 
--spec available_worker(atom(), timeout()) -> noproc | timeout | atom().
+-spec available_worker(queue_mgr(), timeout()) -> noproc | timeout | atom().
 available_worker(QueueManager, Timeout) ->
   Expires =
     case Timeout of
@@ -63,32 +63,35 @@ available_worker(QueueManager, Timeout) ->
 %%      Since we can wait forever for a wpool:cast to be delivered
 %%      but we don't want the caller to be blocked, this function
 %%      just forwards the cast when it gets the worker
--spec cast_to_available_worker(wpool:name(), term()) -> ok.
+-spec cast_to_available_worker(queue_mgr(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) ->
     gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
--spec new_worker(wpool:name(), atom()) -> ok.
+-spec new_worker(queue_mgr(), atom()) -> ok.
 new_worker(QueueManager, Worker) -> gen_server:cast(QueueManager, {new_worker, Worker}).
 
--spec worker_ready(wpool:name(), atom()) -> ok.
+-spec worker_ready(queue_mgr(), atom()) -> ok.
 worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_ready, Worker}).
 
 %% @doc This function is needed just to handle
 %%      the use of other strategies combined with
 %%      available_worker
--spec worker_busy(wpool:name(), atom()) -> ok.
+-spec worker_busy(queue_mgr(), atom()) -> ok.
 worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
 
 %% @doc Return the list of currently existing worker pools.
--spec pools() -> [wpool:name()].
+-type pool_prop()  :: {pool, wpool:name()}.
+-type qm_prop()    :: {queue_manager, queue_mgr()}.
+-type pool_props() :: [pool_prop() | qm_prop()].      % Not quite strict enough.
+-spec pools() -> [pool_props()].
 pools() ->
     ets:foldl(fun(#wpool{name=Pool_Name, qmanager=Queue_Mgr}, Pools) ->
                       This_Pool = [{pool, Pool_Name}, {queue_manager, Queue_Mgr}],
                       [This_Pool | Pools]
               end, [], wpool_pool).
-                      
+
 %% @doc Returns statistics for this queue.
--spec stats(wpool:name()) -> proplists:proplist().
+-spec stats(queue_mgr()) -> proplists:proplist().
 stats(QueueManager) ->
     {Available_Workers, Busy_Workers, Pending_Tasks}
         = gen_server:call(QueueManager, worker_counts),
