@@ -21,7 +21,7 @@
 -export([start_link/2, create_table/0]).
 -export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
 -export([cast_to_available_worker/2]).
--export([stats/1, wpool_size/1]).
+-export([stats/1, wpool_size/1, worker_names/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -126,6 +126,13 @@ stats(Sup) ->
              {next_worker,              Wpool#wpool.next},
              {total_message_queue_len,  Total + PendingTasks},
              {workers,                  WorkerStats}]
+    end.
+
+-spec worker_names(wpool:name()) -> [atom()].
+worker_names(Pool_Name) ->
+    case find_wpool(Pool_Name) of
+        undefined         -> [];
+        #wpool{size=Size} -> [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
     end.
 
 %% ===================================================================
