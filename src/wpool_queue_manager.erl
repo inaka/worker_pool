@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/2]).
+-export([pools/0, stats/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -103,10 +103,12 @@ pools() ->
               end, [], wpool_pool).
 
 %% @doc Returns statistics for this queue.
--spec stats(queue_mgr(), wpool:name()) -> proplists:proplist().
-stats(QueueManager, Pool_Name) ->
-    {Pool_Size, Available_Workers, Busy_Workers, Pending_Tasks}
-        = gen_server:call(QueueManager, {worker_counts, Pool_Name}),
+-spec stats(wpool:name()) -> proplists:proplist().
+stats(Pool_Name) ->
+    [#wpool{qmanager=Queue_Manager, size=Pool_Size}]
+        = ets:lookup(wpool_pool, Pool_Name),
+    {Available_Workers, Busy_Workers, Pending_Tasks}
+        = gen_server:call(Queue_Manager, worker_counts),
     [
      {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
@@ -182,12 +184,11 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
         false -> {noreply, State}
       end
   end;
-handle_call({worker_counts, Pool_Name}, _From,
+handle_call(worker_counts, _From,
             #state{worker_count=All_Workers, workers=Available_Workers} = State) ->
-    Pool_Size = wpool_pool:wpool_size(Pool_Name),
     Available = gb_sets:size(Available_Workers),
     Busy = All_Workers - Available,
-    {reply, {Pool_Size, Available, Busy, get(pending_tasks)}, State}.
+    {reply, {Available, Busy, get(pending_tasks)}, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.
