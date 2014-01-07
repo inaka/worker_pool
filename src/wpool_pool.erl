@@ -117,7 +117,7 @@ stats(Sup) ->
                             end,
                         {T + MQL, [{N, WS} | L]}
                     end, {0, []}, lists:seq(1, Wpool#wpool.size)),
-            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.qmanager, Wpool#wpool.name),
+            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
             PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
             [{pool,                     Sup},
              {supervisor,               erlang:whereis(Sup)},
