@@ -117,11 +117,17 @@ stats(Pool_Name) ->
     ].
 
 %% @doc Return the currently executing function in the queue manager.
--spec process_info(wpool:name(), atom()) -> tuple().
+-spec process_info(wpool:name(), atom()) -> proplists:proplist().
 process_info(Pool_Name, Info_Type) ->
     [#wpool{qmanager=Queue_Manager}] = ets:lookup(wpool_pool, Pool_Name),
     Mgr_Info = erlang:process_info(whereis(Queue_Manager), Info_Type),
-    Workers_Info = proplists:get_value(workers, wpool_pool:stats(Pool_Name)),
+    Workers = wpool_pool:worker_names(Pool_Name),
+    Workers_Info = [{Worker, {Worker_Pid, erlang:process_info(Worker_Pid, Info_Type)}}
+                    || Worker <- Workers,
+                       begin
+                           Worker_Pid = whereis(Worker),
+                           is_process_alive(Worker_Pid)
+                       end],
     [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
 
 %%%===================================================================
