@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1]).
+-export([pools/0, stats/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -187,7 +187,7 @@ handle_call({worker_counts, Pool_Name}, _From,
     Pool_Size = wpool_pool:wpool_size(Pool_Name),
     Available = gb_sets:size(Available_Workers),
     Busy = All_Workers - Available,
-    {reply, {Available, Busy, get(pending_tasks)}, State}.
+    {reply, {Pool_Size, Available, Busy, get(pending_tasks)}, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.
