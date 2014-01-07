@@ -93,17 +93,22 @@ worker_dead(QueueManager, Worker) ->
 -type pool_props() :: [pool_prop() | qm_prop()].      % Not quite strict enough.
 -spec pools() -> [pool_props()].
 pools() ->
-    ets:foldl(fun(#wpool{name=Pool_Name, qmanager=Queue_Mgr}, Pools) ->
-                      This_Pool = [{pool, Pool_Name}, {queue_manager, Queue_Mgr}],
+    ets:foldl(fun(#wpool{name=Pool_Name, size=Pool_Size, qmanager=Queue_Mgr}, Pools) ->
+                      This_Pool = [
+                                   {pool,          Pool_Name},
+                                   {pool_size,     Pool_Size},
+                                   {queue_manager, Queue_Mgr}
+                                  ],
                       [This_Pool | Pools]
               end, [], wpool_pool).
 
 %% @doc Returns statistics for this queue.
--spec stats(queue_mgr()) -> proplists:proplist().
-stats(QueueManager) ->
-    {Available_Workers, Busy_Workers, Pending_Tasks}
-        = gen_server:call(QueueManager, worker_counts),
+-spec stats(queue_mgr(), wpool:name()) -> proplists:proplist().
+stats(QueueManager, Pool_Name) ->
+    {Pool_Size, Available_Workers, Busy_Workers, Pending_Tasks}
+        = gen_server:call(QueueManager, {worker_counts, Pool_Name}),
     [
+     {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
      {available_workers, Available_Workers},
      {busy_workers,      Busy_Workers}
@@ -122,7 +127,6 @@ init(WPool) ->
 handle_cast({new_worker, Worker}, #state{worker_count=WC} = State) ->
     handle_cast({worker_ready, Worker}, State#state{worker_count=WC+1});
 handle_cast({worker_dead, Worker}, #state{worker_count=WC, workers=Workers} = State) ->
-    error_logger:error_msg("Deleting ~p from ~p~n", [Worker, Workers]),
   New_Workers = gb_sets:delete_any(Worker, Workers),
   {noreply, State#state{worker_count=WC-1, workers=New_Workers}};
 handle_cast({worker_busy, Worker}, #state{workers=Workers} = State) ->
@@ -178,8 +182,9 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
         false -> {noreply, State}
       end
   end;
-handle_call(worker_counts, _From,
+handle_call({worker_counts, Pool_Name}, _From,
             #state{worker_count=All_Workers, workers=Available_Workers} = State) ->
+    Pool_Size = wpool_pool:wpool_size(Pool_Name),
     Available = gb_sets:size(Available_Workers),
     Busy = All_Workers - Available,
     {reply, {Available, Busy, get(pending_tasks)}, State}.

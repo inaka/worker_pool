@@ -21,7 +21,7 @@
 -export([start_link/2, create_table/0]).
 -export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
 -export([cast_to_available_worker/2]).
--export([stats/1]).
+-export([stats/1, wpool_size/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -117,7 +117,7 @@ stats(Sup) ->
                             end,
                         {T + MQL, [{N, WS} | L]}
                     end, {0, []}, lists:seq(1, Wpool#wpool.size)),
-            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.qmanager),
+            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.qmanager, Wpool#wpool.name),
             PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
             [{pool,                     Sup},
              {supervisor,               erlang:whereis(Sup)},
