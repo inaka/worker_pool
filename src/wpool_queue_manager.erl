@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1]).
+-export([pools/0, stats/1, process_info/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -115,6 +115,14 @@ stats(Pool_Name) ->
      {available_workers, Available_Workers},
      {busy_workers,      Busy_Workers}
     ].
+
+%% @doc Return the currently executing function in the queue manager.
+-spec process_info(wpool:name(), atom()) -> tuple().
+process_info(Pool_Name, Info_Type) ->
+    [#wpool{qmanager=Queue_Manager}] = ets:lookup(wpool_pool, Pool_Name),
+    Mgr_Info = erlang:process_info(whereis(Queue_Manager), Info_Type),
+    Workers_Info = proplists:get_value(workers, wpool_pool:stats(Pool_Name)),
+    [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
 
 %%%===================================================================
 %%% gen_server callbacks
