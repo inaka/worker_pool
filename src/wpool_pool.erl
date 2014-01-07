@@ -197,6 +197,7 @@ move_wpool(Name) ->
             end
     end.
 
+-spec wpool_size(atom()) -> non_neg_integer().
 wpool_size(Name) ->
     try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
         Wpool_Size ->
