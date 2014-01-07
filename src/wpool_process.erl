@@ -51,18 +51,18 @@ cast(Process, Cast) -> gen_server:cast(Process, Cast).
 -spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, #state{}}.
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
-    {ok, State} ->
+    {ok, Mod_State} ->
       ok = notify_queue_manager(new_worker, Name, Options),
-      {ok, #state{name = Name, mod = Mod, state = State, options = Options}};
+      {ok, #state{name = Name, mod = Mod, state = Mod_State, options = Options}};
     ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
 
 %% @private
 -spec terminate(atom(), #state{}) -> term().
-terminate(Reason, State) ->
-  ok = notify_queue_manager(worker_dead, State#state.name, State#state.options),
-  (State#state.mod):terminate(Reason, State#state.state).
+terminate(Reason, #state{mod=Mod, state=Mod_State, name=Name, options=Options} = _State) ->
+  ok = notify_queue_manager(worker_dead, Name, Options),
+  Mod:terminate(Reason, Mod_State).
 
 %% @private
 -spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {error, term()}.

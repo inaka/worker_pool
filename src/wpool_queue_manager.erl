@@ -122,6 +122,7 @@ init(WPool) ->
 handle_cast({new_worker, Worker}, #state{worker_count=WC} = State) ->
     handle_cast({worker_ready, Worker}, State#state{worker_count=WC+1});
 handle_cast({worker_dead, Worker}, #state{worker_count=WC, workers=Workers} = State) ->
+    error_logger:error_msg("Deleting ~p from ~p~n", [Worker, Workers]),
   New_Workers = gb_sets:delete_any(Worker, Workers),
   {noreply, State#state{worker_count=WC-1, workers=New_Workers}};
 handle_cast({worker_busy, Worker}, #state{workers=Workers} = State) ->
@@ -163,19 +164,18 @@ handle_cast({cast_to_available_worker, Cast},
 -spec handle_call(call_request(), from(), state())
                  -> {reply, {ok, atom()}, state()} | {noreply, state()}.
 
-handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
-  case gb_sets:is_empty(State#state.workers) of
+handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
+            #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
-      {noreply, State#state{clients = queue:in({Client, Expires}, State#state.clients)}};
+      {noreply, State#state{clients = queue:in({Client, Expires}, Clients)}};
     false ->
-      {Worker, Workers} = gb_sets:take_smallest(State#state.workers),
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
       %NOTE: It could've been a while since this call was made, so we check
       case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
-        true ->
-          {reply, {ok, Worker}, State#state{workers = Workers}};
-        false ->
-          {noreply, State}
+        true  -> {reply, {ok, Worker}, State#state{workers = New_Workers}};
+        false -> {noreply, State}
       end
   end;
 handle_call(worker_counts, _From,
@@ -188,8 +188,8 @@ handle_call(worker_counts, _From,
 handle_info(_Info, State) -> {noreply, State}.
 
 -spec terminate(atom(), state()) -> ok.
-terminate(Reason, State) ->
-  return_error(Reason, queue:out(State#state.clients)).
+terminate(Reason, #state{clients=Clients} = _State) ->
+  return_error(Reason, queue:out(Clients)).
 
 -spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
