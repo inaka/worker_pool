@@ -20,7 +20,7 @@
 %% api
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
-         new_worker/2, worker_ready/2, worker_busy/2]).
+         new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
 -export([pools/0, stats/1]).
 
 %% gen_server callbacks
@@ -67,17 +67,25 @@ available_worker(QueueManager, Timeout) ->
 cast_to_available_worker(QueueManager, Cast) ->
     gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
+%% @doc Mark a brand new worker as available
 -spec new_worker(queue_mgr(), atom()) -> ok.
-new_worker(QueueManager, Worker) -> gen_server:cast(QueueManager, {new_worker, Worker}).
+new_worker(QueueManager, Worker) ->
+    gen_server:cast(QueueManager, {new_worker, Worker}).
 
+%% @doc Mark a worker as available
 -spec worker_ready(queue_mgr(), atom()) -> ok.
-worker_ready(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_ready, Worker}).
+worker_ready(QueueManager, Worker) ->
+    gen_server:cast(QueueManager, {worker_ready, Worker}).
 
-%% @doc This function is needed just to handle
-%%      the use of other strategies combined with
-%%      available_worker
+%% @doc Mark a worker as no longer available
 -spec worker_busy(queue_mgr(), atom()) -> ok.
-worker_busy(QueueManager, Worker) -> gen_server:cast(QueueManager, {worker_busy, Worker}).
+worker_busy(QueueManager, Worker) ->
+    gen_server:cast(QueueManager, {worker_busy, Worker}).
+
+%% @doc Decrement the total number of workers
+-spec worker_dead(queue_mgr(), atom()) -> ok.
+worker_dead(QueueManager, Worker) ->
+    gen_server:cast(QueueManager, {worker_dead, Worker}).
 
 %% @doc Return the list of currently existing worker pools.
 -type pool_prop()  :: {pool, wpool:name()}.
@@ -109,38 +117,44 @@ init(WPool) ->
   put(pending_tasks, 0),
   {ok, #state{wpool=WPool, clients=queue:new(), workers=gb_sets:new(), worker_count=0}}.
 
--spec handle_cast({worker_busy|worker_ready, atom()}, state()) -> {noreply, state()}.
-handle_cast({worker_busy, Worker}, State) ->
-  {noreply, State#state{workers = gb_sets:delete_any(Worker, State#state.workers)}};
+-type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
+-spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, #state{worker_count=WC} = State) ->
     handle_cast({worker_ready, Worker}, State#state{worker_count=WC+1});
-handle_cast({worker_ready, Worker}, State) ->
-  case queue:out(State#state.clients) of
+handle_cast({worker_dead, Worker}, #state{worker_count=WC, workers=Workers} = State) ->
+  New_Workers = gb_sets:delete_any(Worker, Workers),
+  {noreply, State#state{worker_count=WC-1, workers=New_Workers}};
+handle_cast({worker_busy, Worker}, #state{workers=Workers} = State) ->
+  {noreply, State#state{workers = gb_sets:delete_any(Worker, Workers)}};
+handle_cast({worker_ready, Worker}, #state{workers=Workers, clients=Clients} = State) ->
+  case queue:out(Clients) of
     {empty, _Clients} ->
-      {noreply, State#state{workers = gb_sets:add(Worker, State#state.workers)}};
-    {{value, {cast, Cast}}, Clients} ->
+      {noreply, State#state{workers = gb_sets:add(Worker, Workers)}};
+    {{value, {cast, Cast}}, New_Clients} ->
        dec_pending_tasks(),
        ok = wpool_process:cast(Worker, Cast),
-       {noreply, State#state{clients = Clients}};
-    {{value, {Client = {ClientPid, _}, Expires}}, Clients} ->
+       {noreply, State#state{clients = New_Clients}};
+    {{value, {Client = {ClientPid, _}, Expires}}, New_Clients} ->
       dec_pending_tasks(),
-      case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
+      New_State = State#state{clients = New_Clients},
+      case is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
         true ->
           _ = gen_server:reply(Client, {ok, Worker}),
-          {noreply, State#state{clients = Clients}};
+          {noreply, New_State};
         false ->
-          handle_cast({worker_ready, Worker}, State#state{clients = Clients})
+          handle_cast({worker_ready, Worker}, New_State)
       end
   end;
-handle_cast({cast_to_available_worker, Cast}, State) ->
-  case gb_sets:is_empty(State#state.workers) of
+handle_cast({cast_to_available_worker, Cast},
+            #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
-      {noreply, State#state{clients = queue:in({cast, Cast}, State#state.clients)}};
+      {noreply, State#state{clients = queue:in({cast, Cast}, Clients)}};
     false ->
-      {Worker, Workers} = gb_sets:take_smallest(State#state.workers),
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
       ok = wpool_process:cast(Worker, Cast),
-      {noreply, State#state{workers = Workers}}
+      {noreply, State#state{workers = New_Workers}}
   end.
 
 -type from() :: {pid(), reference()}.

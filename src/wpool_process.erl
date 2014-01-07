@@ -61,7 +61,7 @@ init({Name, Mod, InitArgs, Options}) ->
 %% @private
 -spec terminate(atom(), #state{}) -> term().
 terminate(Reason, State) ->
-  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options), % So it's not considered available anymore
+  ok = notify_queue_manager(worker_dead, State#state.name, State#state.options),
   (State#state.mod):terminate(Reason, State#state.state).
 
 %% @private
