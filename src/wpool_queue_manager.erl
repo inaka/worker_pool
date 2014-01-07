@@ -30,8 +30,7 @@
 
 -record(state, {wpool        :: wpool:name(),
                 clients      :: queue(),
-                workers      :: gb_set(),
-                worker_count :: non_neg_integer()
+                workers      :: gb_set()
                }).
 -type state() :: #state{}.
 
@@ -107,8 +106,9 @@ pools() ->
 stats(Pool_Name) ->
     [#wpool{qmanager=Queue_Manager, size=Pool_Size}]
         = ets:lookup(wpool_pool, Pool_Name),
-    {Available_Workers, Busy_Workers, Pending_Tasks}
+    {Available_Workers, Pending_Tasks}
         = gen_server:call(Queue_Manager, worker_counts),
+    Busy_Workers = Pool_Size - Available_Workers,
     [
      {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
@@ -122,15 +122,15 @@ stats(Pool_Name) ->
 -spec init(wpool:name()) -> {ok, state()}.
 init(WPool) ->
   put(pending_tasks, 0),
-  {ok, #state{wpool=WPool, clients=queue:new(), workers=gb_sets:new(), worker_count=0}}.
+  {ok, #state{wpool=WPool, clients=queue:new(), workers=gb_sets:new()}}.
 
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
-handle_cast({new_worker, Worker}, #state{worker_count=WC} = State) ->
-    handle_cast({worker_ready, Worker}, State#state{worker_count=WC+1});
-handle_cast({worker_dead, Worker}, #state{worker_count=WC, workers=Workers} = State) ->
+handle_cast({new_worker, Worker}, State) ->
+    handle_cast({worker_ready, Worker}, State);
+handle_cast({worker_dead, Worker}, #state{workers=Workers} = State) ->
   New_Workers = gb_sets:delete_any(Worker, Workers),
-  {noreply, State#state{worker_count=WC-1, workers=New_Workers}};
+  {noreply, State#state{workers=New_Workers}};
 handle_cast({worker_busy, Worker}, #state{workers=Workers} = State) ->
   {noreply, State#state{workers = gb_sets:delete_any(Worker, Workers)}};
 handle_cast({worker_ready, Worker}, #state{workers=Workers, clients=Clients} = State) ->
@@ -185,10 +185,9 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
       end
   end;
 handle_call(worker_counts, _From,
-            #state{worker_count=All_Workers, workers=Available_Workers} = State) ->
+            #state{workers=Available_Workers} = State) ->
     Available = gb_sets:size(Available_Workers),
-    Busy = All_Workers - Available,
-    {reply, {Available, Busy, get(pending_tasks)}, State}.
+    {reply, {Available, get(pending_tasks)}, State}.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.

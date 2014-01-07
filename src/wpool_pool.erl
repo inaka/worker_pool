@@ -197,7 +197,7 @@ move_wpool(Name) ->
             end
     end.
 
--spec wpool_size(atom()) -> non_neg_integer().
+-spec wpool_size(atom()) -> non_neg_integer() | undefined.
 wpool_size(Name) ->
     try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
         Wpool_Size ->
@@ -240,7 +240,7 @@ build_wpool(Name) ->
         Children ->
             case proplists:get_value(active, Children, 0) of
                 0 -> undefined;
-                Size -> % NOTE: We deduce 2 from Size to acount for the time checker and queue manager
+                Size -> % NOTE: We deduct 2 from Size to acount for the time checker and queue manager
                     Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
                     store_wpool(Wpool)
             end
