@@ -41,8 +41,7 @@ start_pool(Name, Options) -> supervisor:start_child(?MODULE, [Name, Options]).
 stop_pool(Name) ->
 	case erlang:whereis(Name) of
 		undefined -> ok;
-		Pid ->
-			supervisor:terminate_child(?MODULE, Pid)
+		Pid       -> supervisor:terminate_child(?MODULE, Pid)
 	end.
 
 %%----------------------------------------------------------------------
