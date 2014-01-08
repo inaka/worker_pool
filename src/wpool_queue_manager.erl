@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1, process_info/2]).
+-export([pools/0, stats/1, proc_info/1, proc_info/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -116,9 +116,17 @@ stats(Pool_Name) ->
      {busy_workers,      Busy_Workers}
     ].
 
+%% @doc Return a default set of process_info about workers.
+-spec proc_info(wpool:name()) -> proplists:proplist().
+proc_info(Pool_Name) ->
+    Key_Info = [current_location, status,
+                stack_size, total_heap_size, memory,
+                reductions, message_queue_len],
+    proc_info(Pool_Name, Key_Info).
+
 %% @doc Return the currently executing function in the queue manager.
--spec process_info(wpool:name(), atom()) -> proplists:proplist().
-process_info(Pool_Name, Info_Type) ->
+-spec proc_info(wpool:name(), atom() | [atom()]) -> proplists:proplist().
+proc_info(Pool_Name, Info_Type) ->
     [#wpool{qmanager=Queue_Manager}] = ets:lookup(wpool_pool, Pool_Name),
     Mgr_Info = erlang:process_info(whereis(Queue_Manager), Info_Type),
     Workers = wpool_pool:worker_names(Pool_Name),
