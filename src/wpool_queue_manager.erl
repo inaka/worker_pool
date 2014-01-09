@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1, proc_info/1, proc_info/2]).
+-export([pools/0, stats/1, proc_info/1, proc_info/2, trace/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -112,7 +112,7 @@ stats(Pool_Name) ->
         = gen_server:call(Queue_Manager, worker_counts),
     Busy_Workers = Pool_Size - Available_Workers,
     [
-     {pool_age,          age_in_seconds(Born)},
+     {pool_age_in_secs,  age_in_seconds(Born)},
      {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
      {available_workers, Available_Workers},
@@ -149,6 +149,14 @@ proc_info(Pool_Name, Info_Type) ->
                            Keep
                        end],
     [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
+
+%% @doc Turn pool tracing on and off.
+-spec trace(wpool:name(), boolean()) -> ok.
+trace(Pool_Name, How) ->
+    Workers = wpool_pool:worker_names(Pool_Name),
+    [erlang:trace(Worker_Pid, How, [timestamp, 'receive', send])
+     || Worker <- Workers, is_process_alive(Worker_Pid = whereis(Worker))],
+    ok.
 
 %%%===================================================================
 %%% gen_server callbacks
