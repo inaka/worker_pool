@@ -152,10 +152,11 @@ proc_info(Pool_Name, Info_Type) ->
 
 %% @doc Turn pool tracing on and off.
 -spec trace(wpool:name(), boolean()) -> ok.
-trace(Pool_Name, How) ->
+trace(Pool_Name, Trace_On) ->
     Workers = wpool_pool:worker_names(Pool_Name),
-    [erlang:trace(Worker_Pid, How, [timestamp, 'receive', send])
+    [erlang:trace(Worker_Pid, Trace_On, [timestamp, 'receive', send])
      || Worker <- Workers, is_process_alive(Worker_Pid = whereis(Worker))],
+    Trace_On =:= true andalso timer:apply_after(5000, ?MODULE, trace, [Pool_Name, false]),
     ok.
 
 %%%===================================================================
