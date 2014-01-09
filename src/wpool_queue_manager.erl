@@ -150,14 +150,76 @@ proc_info(Pool_Name, Info_Type) ->
                        end],
     [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
 
+
+-define(DEFAULT_TRACE_TIMEOUT, 5000).
+-define(TRACE_KEY, wpool_trace).
+
 %% @doc Turn pool tracing on and off.
 -spec trace(wpool:name(), boolean()) -> ok.
-trace(Pool_Name, Trace_On) ->
+trace(Pool_Name, true) ->
+    lager:error("[~p] Tracing turned on for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
+    trace(Pool_Name, true, Tracer_Pid, ?DEFAULT_TRACE_TIMEOUT);
+trace(Pool_Name, false) ->
+    trace(Pool_Name, false, no_pid, 0).
+
+-spec trace(wpool:name(), boolean(), pid() | no_pid, non_neg_integer()) -> ok.
+trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
     Workers = wpool_pool:worker_names(Pool_Name),
-    [erlang:trace(Worker_Pid, Trace_On, [timestamp, 'receive', send])
-     || Worker <- Workers, is_process_alive(Worker_Pid = whereis(Worker))],
-    Trace_On =:= true andalso timer:apply_after(5000, ?MODULE, trace, [Pool_Name, false]),
+    Trace_Options = [timestamp, 'receive', send],
+    [case Trace_On of
+         true  -> erlang:trace(Worker_Pid, true,  [{tracer, Tracer_Pid} | Trace_Options]);
+         false -> erlang:trace(Worker_Pid, false, Trace_Options)
+     end || Worker <- Workers, is_process_alive(Worker_Pid = whereis(Worker))],
+    trace_off(Pool_Name, Trace_On, Tracer_Pid, Timeout).
+
+trace_off(Pool_Name, false, _Tracer_Pid, _Timeout) ->
+    lager:error("[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    ok;
+trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
+    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false]),
+    _ = erlang:send_after(Timeout, Tracer_Pid, quit),
+    lager:error("[~p] Tracing off scheduled in ~p msec for worker_pool ~p",
+                [?TRACE_KEY, Timeout, Pool_Name]),
     ok.
+
+%% @doc Collect trace timing results to report succinct run times.
+-spec trace_timer(wpool:name()) -> {pid(), reference()}.
+trace_timer(Pool_Name) ->
+    {Pid, Reference} = spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
+    register(wpool_trace_timer, Pid),
+    lager:error("[~p] Tracer pid started for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    {Pid, Reference}.
+
+-spec report_trace_times(wpool:name()) -> ok.
+report_trace_times(Pool_Name) ->
+    receive
+        quit -> summarize_pending_times();
+        {trace_ts, Worker, 'receive', {'$gen_call', From, Request}, Time_Started} ->
+            Props = {start, Time_Started, request, Request, worker, Worker},
+            undefined = put({?TRACE_KEY, From}, Props),
+            report_trace_times(Pool_Name);
+        {trace_ts, Worker, send, {Ref, Result}, From_Pid, Time_Finished} ->
+            case erase({?TRACE_KEY, {From_Pid, Ref}}) of
+                undefined -> ok;
+                {start, Time_Started, request, Request, worker, Worker} ->
+                    Elapsed = timer:now_diff(Time_Finished, Time_Started),
+                    lager:error("[~p] ~p usec: ~p  request: ~p  reply: ~p",
+                                [?TRACE_KEY, Worker, Elapsed, Request, Result])
+            end,
+            report_trace_times(Pool_Name);
+        _Sys_Or_Other_Msg ->
+            report_trace_times(Pool_Name)
+    end.
+
+summarize_pending_times() ->
+    Now = os:timestamp(),
+    Fmt_Msg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
+    [lager:error(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
+     || {{?TRACE_KEY, _From}, {start, Time_Started, request, Request, worker, Worker}} <- get(),
+        (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
+    ok.
+
 
 %%%===================================================================
 %%% gen_server callbacks
