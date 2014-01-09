@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1, proc_info/1, proc_info/2, trace/2]).
+-export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -153,6 +153,11 @@ proc_info(Pool_Name, Info_Type) ->
 
 -define(DEFAULT_TRACE_TIMEOUT, 5000).
 -define(TRACE_KEY, wpool_trace).
+
+%% @doc Default tracing for 5 seconds to track worker pool execution times to error.log.
+-spec trace(wpool:name()) -> ok.
+trace(Pool_Name) ->
+    trace(Pool_Name, true).
 
 %% @doc Turn pool tracing on and off.
 -spec trace(wpool:name(), boolean()) -> ok.
