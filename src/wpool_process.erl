@@ -21,10 +21,12 @@
 -record(state, {name    :: atom(),
                 mod     :: atom(),
                 state   :: term(),
-                options :: [{time_checker|queue_manager, atom()} | wpool:option()]}).
+                options :: [{time_checker|queue_manager, atom()} | wpool:option()],
+                born = os:timestamp() :: erlang:timestamp()
+               }).
 
 %% api
--export([start_link/4, call/3, cast/2]).
+-export([start_link/4, call/3, cast/2, age/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -43,6 +45,10 @@ call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 %% @equiv gen_server:cast(Process, Cast)
 -spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
+
+%% @doc Report how old a process is.
+-spec age(wpool:name() | pid()) -> non_neg_integer().
+age(Process) -> gen_server:call(Process, age).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -112,6 +118,8 @@ handle_cast(Cast, State) ->
 -type from() :: {pid(), reference()}.
 %% @private
 -spec handle_call(term(), from(), #state{}) -> {reply, term(), #state{}}.
+handle_call(age, _From, #state{born=Born} = State) ->
+    {reply, timer:now_diff(os:timestamp(), Born), State};
 handle_call(Call, From, State) ->
   Task = task_init({call, Call},
                    proplists:get_value(time_checker, State#state.options, undefined),

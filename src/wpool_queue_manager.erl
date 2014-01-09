@@ -28,9 +28,10 @@
 
 -include("wpool.hrl").
 
--record(state, {wpool        :: wpool:name(),
-                clients      :: queue(),
-                workers      :: gb_set()
+-record(state, {wpool                 :: wpool:name(),
+                clients               :: queue(),
+                workers               :: gb_set(),
+                born = os:timestamp() :: erlang:timestamp()
                }).
 -type state() :: #state{}.
 
@@ -92,9 +93,10 @@ worker_dead(QueueManager, Worker) ->
 -type pool_props() :: [pool_prop() | qm_prop()].      % Not quite strict enough.
 -spec pools() -> [pool_props()].
 pools() ->
-    ets:foldl(fun(#wpool{name=Pool_Name, size=Pool_Size, qmanager=Queue_Mgr}, Pools) ->
+    ets:foldl(fun(#wpool{name=Pool_Name, size=Pool_Size, qmanager=Queue_Mgr, born=Born}, Pools) ->
                       This_Pool = [
                                    {pool,          Pool_Name},
+                                   {pool_age,      age_in_microseconds(Born)},
                                    {pool_size,     Pool_Size},
                                    {queue_manager, Queue_Mgr}
                                   ],
@@ -104,12 +106,13 @@ pools() ->
 %% @doc Returns statistics for this queue.
 -spec stats(wpool:name()) -> proplists:proplist().
 stats(Pool_Name) ->
-    [#wpool{qmanager=Queue_Manager, size=Pool_Size}]
+    [#wpool{qmanager=Queue_Manager, size=Pool_Size, born=Born}]
         = ets:lookup(wpool_pool, Pool_Name),
     {Available_Workers, Pending_Tasks}
         = gen_server:call(Queue_Manager, worker_counts),
     Busy_Workers = Pool_Size - Available_Workers,
     [
+     {pool_age,          age_in_microseconds(Born)},
      {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
      {available_workers, Available_Workers},
@@ -130,11 +133,15 @@ proc_info(Pool_Name, Info_Type) ->
     [#wpool{qmanager=Queue_Manager}] = ets:lookup(wpool_pool, Pool_Name),
     Mgr_Info = erlang:process_info(whereis(Queue_Manager), Info_Type),
     Workers = wpool_pool:worker_names(Pool_Name),
-    Workers_Info = [{Worker, {Worker_Pid, erlang:process_info(Worker_Pid, Info_Type)}}
+    Workers_Info = [{Worker, {Worker_Pid, [Age | erlang:process_info(Worker_Pid, Info_Type)]}}
                     || Worker <- Workers,
                        begin
                            Worker_Pid = whereis(Worker),
-                           is_process_alive(Worker_Pid)
+                           {Age, Keep} = case is_process_alive(Worker_Pid) of
+                                             false -> {0, false};
+                                             true  -> {wpool_process:age(Worker_Pid), true}
+                                         end,
+                           Keep
                        end],
     [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
 
@@ -238,4 +245,6 @@ return_error(Reason, {{value, {From, _Expires}}, Q}) ->
   _  = gen_server:reply(From, {error, {queue_shutdown, Reason}}),
   return_error(Reason, queue:out(Q)).
 
-now_in_microseconds() -> timer:now_diff(os:timestamp(), {0,0,0}).
+now_in_microseconds()     -> timer:now_diff(os:timestamp(), {0,0,0}).
+age_in_microseconds(Born) -> timer:now_diff(os:timestamp(), Born).
+    
