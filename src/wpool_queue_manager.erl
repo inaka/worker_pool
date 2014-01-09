@@ -96,7 +96,7 @@ pools() ->
     ets:foldl(fun(#wpool{name=Pool_Name, size=Pool_Size, qmanager=Queue_Mgr, born=Born}, Pools) ->
                       This_Pool = [
                                    {pool,          Pool_Name},
-                                   {pool_age,      age_in_microseconds(Born)},
+                                   {pool_age,      age_in_seconds(Born)},
                                    {pool_size,     Pool_Size},
                                    {queue_manager, Queue_Mgr}
                                   ],
@@ -112,7 +112,7 @@ stats(Pool_Name) ->
         = gen_server:call(Queue_Manager, worker_counts),
     Busy_Workers = Pool_Size - Available_Workers,
     [
-     {pool_age,          age_in_microseconds(Born)},
+     {pool_age,          age_in_seconds(Born)},
      {pool_size,         Pool_Size},
      {pending_tasks,     Pending_Tasks},
      {available_workers, Available_Workers},
@@ -130,17 +130,22 @@ proc_info(Pool_Name) ->
 %% @doc Return the currently executing function in the queue manager.
 -spec proc_info(wpool:name(), atom() | [atom()]) -> proplists:proplist().
 proc_info(Pool_Name, Info_Type) ->
-    [#wpool{qmanager=Queue_Manager}] = ets:lookup(wpool_pool, Pool_Name),
-    Mgr_Info = erlang:process_info(whereis(Queue_Manager), Info_Type),
+    [#wpool{qmanager=Queue_Manager, born=Mgr_Born}] = ets:lookup(wpool_pool, Pool_Name),
+    Age_In_Secs = age_in_seconds(Mgr_Born),
+    QM_Pid = whereis(Queue_Manager),
+    Mgr_Info = [{age_in_seconds, Age_In_Secs} | erlang:process_info(QM_Pid, Info_Type)],
     Workers = wpool_pool:worker_names(Pool_Name),
     Workers_Info = [{Worker, {Worker_Pid, [Age | erlang:process_info(Worker_Pid, Info_Type)]}}
                     || Worker <- Workers,
                        begin
                            Worker_Pid = whereis(Worker),
-                           {Age, Keep} = case is_process_alive(Worker_Pid) of
-                                             false -> {0, false};
-                                             true  -> {wpool_process:age(Worker_Pid), true}
-                                         end,
+                           {Age, Keep}
+                               = case is_process_alive(Worker_Pid) of
+                                     false -> {0, false};
+                                     true  ->
+                                         Secs_Old = wpool_process:age(Worker_Pid) div 1000000,
+                                         {{age_in_seconds, Secs_Old}, true}
+                                 end,
                            Keep
                        end],
     [{queue_manager, Mgr_Info}, {workers, Workers_Info}].
@@ -245,6 +250,7 @@ return_error(Reason, {{value, {From, _Expires}}, Q}) ->
   _  = gen_server:reply(From, {error, {queue_shutdown, Reason}}),
   return_error(Reason, queue:out(Q)).
 
-now_in_microseconds()     -> timer:now_diff(os:timestamp(), {0,0,0}).
-age_in_microseconds(Born) -> timer:now_diff(os:timestamp(), Born).
+now_in_microseconds() -> timer:now_diff(os:timestamp(), {0,0,0}).
+
+age_in_seconds(Born) -> timer:now_diff(os:timestamp(), Born) div 1000000.
     
