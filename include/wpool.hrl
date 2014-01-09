@@ -5,5 +5,6 @@
                 size     :: pos_integer(),
                 next     :: pos_integer(),
                 opts     :: [wpool:option()],
-                qmanager :: queue_mgr()
+                qmanager :: queue_mgr(),
+                born = os:timestamp() :: erlang:timestamp()
                }).
