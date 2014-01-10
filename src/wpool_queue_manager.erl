@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/2]).
+-export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/3]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -157,15 +157,15 @@ proc_info(Pool_Name, Info_Type) ->
 %% @doc Default tracing for 5 seconds to track worker pool execution times to error.log.
 -spec trace(wpool:name()) -> ok.
 trace(Pool_Name) ->
-    trace(Pool_Name, true).
+    trace(Pool_Name, true, ?DEFAULT_TRACE_TIMEOUT).
 
 %% @doc Turn pool tracing on and off.
--spec trace(wpool:name(), boolean()) -> ok.
-trace(Pool_Name, true) ->
+-spec trace(wpool:name(), boolean(), pos_integer()) -> ok.
+trace(Pool_Name, true, Timeout) ->
     lager:info("[~p] Tracing turned on for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
     {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
-    trace(Pool_Name, true, Tracer_Pid, ?DEFAULT_TRACE_TIMEOUT);
-trace(Pool_Name, false) ->
+    trace(Pool_Name, true, Tracer_Pid, Timeout);
+trace(Pool_Name, false, _Timeout) ->
     trace(Pool_Name, false, no_pid, 0).
 
 -spec trace(wpool:name(), boolean(), pid() | no_pid, non_neg_integer()) -> ok.
