@@ -21,7 +21,7 @@
 -export([start_link/2]).
 -export([available_worker/2, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
--export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/2]).
+-export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/3]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
@@ -157,15 +157,15 @@ proc_info(Pool_Name, Info_Type) ->
 %% @doc Default tracing for 5 seconds to track worker pool execution times to error.log.
 -spec trace(wpool:name()) -> ok.
 trace(Pool_Name) ->
-    trace(Pool_Name, true).
+    trace(Pool_Name, true, ?DEFAULT_TRACE_TIMEOUT).
 
 %% @doc Turn pool tracing on and off.
--spec trace(wpool:name(), boolean()) -> ok.
-trace(Pool_Name, true) ->
-    lager:error("[~p] Tracing turned on for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+-spec trace(wpool:name(), boolean(), pos_integer()) -> ok.
+trace(Pool_Name, true, Timeout) ->
+    lager:info("[~p] Tracing turned on for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
     {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
-    trace(Pool_Name, true, Tracer_Pid, ?DEFAULT_TRACE_TIMEOUT);
-trace(Pool_Name, false) ->
+    trace(Pool_Name, true, Tracer_Pid, Timeout);
+trace(Pool_Name, false, _Timeout) ->
     trace(Pool_Name, false, no_pid, 0).
 
 -spec trace(wpool:name(), boolean(), pid() | no_pid, non_neg_integer()) -> ok.
@@ -179,13 +179,13 @@ trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
     trace_off(Pool_Name, Trace_On, Tracer_Pid, Timeout).
 
 trace_off(Pool_Name, false, _Tracer_Pid, _Timeout) ->
-    lager:error("[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    lager:info("[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
     ok;
 trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
-    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false]),
+    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false, Timeout]),
     _ = erlang:send_after(Timeout, Tracer_Pid, quit),
-    lager:error("[~p] Tracing off scheduled in ~p msec for worker_pool ~p",
-                [?TRACE_KEY, Timeout, Pool_Name]),
+    lager:info("[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
+                [?TRACE_KEY, Tracer_Pid, Timeout, Pool_Name]),
     ok.
 
 %% @doc Collect trace timing results to report succinct run times.
@@ -193,13 +193,13 @@ trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
 trace_timer(Pool_Name) ->
     {Pid, Reference} = spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
     register(wpool_trace_timer, Pid),
-    lager:error("[~p] Tracer pid started for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    lager:info("[~p] Tracer pid ~p started for worker_pool ~p", [?TRACE_KEY, Pid, Pool_Name]),
     {Pid, Reference}.
 
 -spec report_trace_times(wpool:name()) -> ok.
 report_trace_times(Pool_Name) ->
     receive
-        quit -> summarize_pending_times();
+        quit -> summarize_pending_times(Pool_Name);
         {trace_ts, Worker, 'receive', {'$gen_call', From, Request}, Time_Started} ->
             Props = {start, Time_Started, request, Request, worker, Worker},
             undefined = put({?TRACE_KEY, From}, Props),
@@ -209,7 +209,7 @@ report_trace_times(Pool_Name) ->
                 undefined -> ok;
                 {start, Time_Started, request, Request, worker, Worker} ->
                     Elapsed = timer:now_diff(Time_Finished, Time_Started),
-                    lager:error("[~p] ~p usec: ~p  request: ~p  reply: ~p",
+                    lager:info("[~p] ~p usec: ~p  request: ~p  reply: ~p",
                                 [?TRACE_KEY, Worker, Elapsed, Request, Result])
             end,
             report_trace_times(Pool_Name);
@@ -217,12 +217,13 @@ report_trace_times(Pool_Name) ->
             report_trace_times(Pool_Name)
     end.
 
-summarize_pending_times() ->
+summarize_pending_times(Pool_Name) ->
     Now = os:timestamp(),
     Fmt_Msg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
-    [lager:error(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
+    [lager:info(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
      || {{?TRACE_KEY, _From}, {start, Time_Started, request, Request, worker, Worker}} <- get(),
         (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
+    lager:info("[~p] Tracer pid ~p ended for worker_pool ~p", [?TRACE_KEY, self(), Pool_Name]),
     ok.
 
 
