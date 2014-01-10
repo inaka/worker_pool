@@ -15,11 +15,11 @@
 -module(wpool_shutdown).
 -author('jay@tigertext.com').
 
--export([final_task/1]).
+-export([final_task/2]).
 
 %% @doc Final task to execute before shutting down the node.
--spec final_task(pos_integer()) -> ok.
-final_task(Time_Allowed) ->
-    wpool_queue_manager:trace(tt_devapi_events_db_worker, true, Time_Allowed),
+-spec final_task(wpool:name(), pos_integer()) -> ok.
+final_task(Pool_Name, Time_Allowed) ->
+    wpool_queue_manager:trace(Pool_Name, true, Time_Allowed),
     timer:sleep(Time_Allowed),
     ok.

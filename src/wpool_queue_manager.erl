@@ -199,7 +199,7 @@ trace_timer(Pool_Name) ->
 -spec report_trace_times(wpool:name()) -> ok.
 report_trace_times(Pool_Name) ->
     receive
-        quit -> summarize_pending_times();
+        quit -> summarize_pending_times(Pool_Name);
         {trace_ts, Worker, 'receive', {'$gen_call', From, Request}, Time_Started} ->
             Props = {start, Time_Started, request, Request, worker, Worker},
             undefined = put({?TRACE_KEY, From}, Props),
@@ -217,12 +217,13 @@ report_trace_times(Pool_Name) ->
             report_trace_times(Pool_Name)
     end.
 
-summarize_pending_times() ->
+summarize_pending_times(Pool_Name) ->
     Now = os:timestamp(),
     Fmt_Msg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
     [lager:info(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
      || {{?TRACE_KEY, _From}, {start, Time_Started, request, Request, worker, Worker}} <- get(),
         (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
+    lager:info("[~p] Tracer pid ~p ended for worker_pool ~p", [?TRACE_KEY, self(), Pool_Name]),
     ok.
 
 
