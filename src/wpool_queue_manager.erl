@@ -182,10 +182,10 @@ trace_off(Pool_Name, false, _Tracer_Pid, _Timeout) ->
     lager:info("[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
     ok;
 trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
-    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false]),
+    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false, Timeout]),
     _ = erlang:send_after(Timeout, Tracer_Pid, quit),
-    lager:info("[~p] Tracing off scheduled in ~p msec for worker_pool ~p",
-                [?TRACE_KEY, Timeout, Pool_Name]),
+    lager:info("[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
+                [?TRACE_KEY, Tracer_Pid, Timeout, Pool_Name]),
     ok.
 
 %% @doc Collect trace timing results to report succinct run times.
@@ -193,7 +193,7 @@ trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
 trace_timer(Pool_Name) ->
     {Pid, Reference} = spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
     register(wpool_trace_timer, Pid),
-    lager:info("[~p] Tracer pid started for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+    lager:info("[~p] Tracer pid ~p started for worker_pool ~p", [?TRACE_KEY, Pid, Pool_Name]),
     {Pid, Reference}.
 
 -spec report_trace_times(wpool:name()) -> ok.
