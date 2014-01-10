@@ -11,3 +11,4 @@ logs
 erl_crash.dump
 *.beam
 *.log
+*~
