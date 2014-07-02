@@ -17,20 +17,16 @@
 
 -behaviour(supervisor).
 
--record(wpool, {name     :: wpool:name(),
-                size     :: pos_integer(),
-                next     :: pos_integer(),
-                opts     :: [wpool:option()],
-                qmanager :: atom()}).
-
 %% API
 -export([start_link/2, create_table/0]).
 -export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
 -export([cast_to_available_worker/2]).
--export([stats/1]).
+-export([stats/1, wpool_size/1, worker_names/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
+
+-include("wpool.hrl").
 
 %% ===================================================================
 %% API functions
@@ -38,8 +34,11 @@
 %% @doc Creates the ets table that will hold the information about currently active pools
 -spec create_table() -> ok.
 create_table() ->
-    lager:info("Creating wpool ETS table"),
-    ?MODULE = ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
+    case ets:info(?MODULE, named_table) of
+        true      -> already_created;
+        undefined -> lager:info("Creating wpool ETS table"),
+                     ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}])
+    end,
     ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
@@ -118,7 +117,7 @@ stats(Sup) ->
                             end,
                         {T + MQL, [{N, WS} | L]}
                     end, {0, []}, lists:seq(1, Wpool#wpool.size)),
-            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.qmanager),
+            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
             PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
             [{pool,                     Sup},
              {supervisor,               erlang:whereis(Sup)},
@@ -127,6 +126,13 @@ stats(Sup) ->
              {next_worker,              Wpool#wpool.next},
              {total_message_queue_len,  Total + PendingTasks},
              {workers,                  WorkerStats}]
+    end.
+
+-spec worker_names(wpool:name()) -> [atom()].
+worker_names(Pool_Name) ->
+    case find_wpool(Pool_Name) of
+        undefined         -> [];
+        #wpool{size=Size} -> [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
     end.
 
 %% ===================================================================
@@ -198,6 +204,7 @@ move_wpool(Name) ->
             end
     end.
 
+-spec wpool_size(atom()) -> non_neg_integer() | undefined.
 wpool_size(Name) ->
     try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
         Wpool_Size ->
@@ -240,7 +247,7 @@ build_wpool(Name) ->
         Children ->
             case proplists:get_value(active, Children, 0) of
                 0 -> undefined;
-                Size -> % NOTE: We deduce 2 from Size to acount for the time checker and queue manager
+                Size -> % NOTE: We deduct 2 from Size to acount for the time checker and queue manager
                     Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
                     store_wpool(Wpool)
             end
