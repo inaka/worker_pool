@@ -29,8 +29,8 @@
 -include("wpool.hrl").
 
 -record(state, {wpool                 :: wpool:name(),
-                clients               :: queue:queue({cast|{pid(), _}, term()}),
-                workers               :: gb_sets:set(atom()),
+                clients               :: queue(),
+                workers               :: gb_set(),
                 born = os:timestamp() :: erlang:timestamp()
                }).
 -type state() :: #state{}.
