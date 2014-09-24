@@ -108,7 +108,9 @@ available_worker(_Config) ->
   [wpool:cast(Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
 
   % Check we have no pending tasks
+  timer:sleep(1000),
   Stats3 = wpool:stats(Pool),
+  lager:alert("~p", [Stats3]),
   0 = proplists:get_value(total_message_queue_len, Stats3),
 
   lager:notice(
@@ -133,7 +135,7 @@ best_worker(_Config) ->
   %% Fill up their message queues...
   [ wpool:cast(Pool, {timer, sleep, [60000]}, best_worker)
    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(500),
+  timer:sleep(1000),
   [0] = sets:to_list(
       sets:from_list(
         [proplists:get_value(message_queue_len, WS)
