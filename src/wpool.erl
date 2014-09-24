@@ -11,8 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
-%% @doc Worker pool main interface. Use functions provided by this module to manage your pools of workers
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Worker pool main interface. Use functions provided by this module to manage your pools of workers
 -module(wpool).
 -author('elbrujohalcon@inaka.net').
 
