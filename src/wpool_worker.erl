@@ -11,7 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @doc Default instance for {@link wpool_process}
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Default instance for {@link wpool_process}
 -module(wpool_worker).
 -author('elbrujohalcon@inaka.net').
 

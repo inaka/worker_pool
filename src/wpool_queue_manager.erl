@@ -11,7 +11,9 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @hidden
+%%% @hidden
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Queue manager for available_worker strategy.
 -module(wpool_queue_manager).
 -author('elbrujohalcon@inaka.net').
 
@@ -41,10 +43,12 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%% @private
 -spec start_link(wpool:name(), queue_mgr())
                 -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) -> gen_server:start_link({local, Name}, ?MODULE, WPool, []).
 
+%% @doc returns the first available worker in the pool
 -spec available_worker(queue_mgr(), timeout()) -> noproc | timeout | atom().
 available_worker(QueueManager, Timeout) ->
   Expires =
@@ -247,12 +251,14 @@ summarize_pending_times(Pool_Name) ->
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
+%% @private
 -spec init(wpool:name()) -> {ok, state()}.
 init(WPool) ->
   put(pending_tasks, 0),
   {ok, #state{wpool=WPool, clients=queue:new(), workers=gb_sets:new()}}.
 
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
+%% @private
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
     handle_cast({worker_ready, Worker}, State);
@@ -294,7 +300,7 @@ handle_cast({cast_to_available_worker, Cast},
 
 -type from() :: {pid(), reference()}.
 -type call_request() :: {available_worker, infinity|pos_integer()} | worker_counts.
-
+%% @private
 -spec handle_call(call_request(), from(), state())
                  -> {reply, {ok, atom()}, state()} | {noreply, state()}.
 
@@ -317,13 +323,16 @@ handle_call(worker_counts, _From,
     Available = gb_sets:size(Available_Workers),
     {reply, {Available, get(pending_tasks)}, State}.
 
+%% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(_Info, State) -> {noreply, State}.
 
+%% @private
 -spec terminate(atom(), state()) -> ok.
 terminate(Reason, #state{clients=Clients} = _State) ->
   return_error(Reason, queue:out(Clients)).
 
+%% @private
 -spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 

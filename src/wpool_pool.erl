@@ -11,7 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @doc A pool of workers. If you want to put it in your supervisor tree, remember it's a supervisor.
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc A pool of workers. If you want to put it in your supervisor tree, remember it's a supervisor.
 -module(wpool_pool).
 -author('elbrujohalcon@inaka.net').
 
