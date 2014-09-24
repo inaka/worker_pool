@@ -46,7 +46,7 @@ call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 -spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
 
-%% @doc Report how old a process is.
+%% @doc Report how old a process is in <b>microseconds</b>
 -spec age(wpool:name() | pid()) -> non_neg_integer().
 age(Process) -> gen_server:call(Process, age).
 

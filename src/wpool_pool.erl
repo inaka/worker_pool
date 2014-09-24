@@ -128,11 +128,32 @@ stats(Sup) ->
              {workers,                  WorkerStats}]
     end.
 
+%% @doc Returns the names of the workers in the pool
 -spec worker_names(wpool:name()) -> [atom()].
 worker_names(Pool_Name) ->
     case find_wpool(Pool_Name) of
         undefined         -> [];
         #wpool{size=Size} -> [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
+    end.
+
+%% @doc the number of workers in the pool
+-spec wpool_size(atom()) -> non_neg_integer() | undefined.
+wpool_size(Name) ->
+    try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
+        Wpool_Size ->
+            case erlang:whereis(Name) of
+                undefined ->
+                    ets:delete(?MODULE, Name),
+                    undefined;
+                _ ->
+                    Wpool_Size
+            end
+    catch
+        _:badarg ->
+            case build_wpool(Name) of
+                undefined -> undefined;
+                Wpool -> Wpool#wpool.size
+            end
     end.
 
 %% ===================================================================
@@ -201,25 +222,6 @@ move_wpool(Name) ->
             case build_wpool(Name) of
                 undefined -> undefined;
                 Wpool -> Wpool#wpool.next
-            end
-    end.
-
--spec wpool_size(atom()) -> non_neg_integer() | undefined.
-wpool_size(Name) ->
-    try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
-        Wpool_Size ->
-            case erlang:whereis(Name) of
-                undefined ->
-                    ets:delete(?MODULE, Name),
-                    undefined;
-                _ ->
-                    Wpool_Size
-            end
-    catch
-        _:badarg ->
-            case build_wpool(Name) of
-                undefined -> undefined;
-                Wpool -> Wpool#wpool.size
             end
     end.
 
