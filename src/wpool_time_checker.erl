@@ -27,14 +27,17 @@
 -export([start_link/3]).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
+-export([init/1, terminate/2, code_change/3,
+         handle_call/3, handle_cast/2, handle_info/2]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 %% @private
--spec start_link(wpool:name(), atom(), {atom(), atom()}) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_link(WPool, Name, Handler) -> gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
+-spec start_link(wpool:name(), atom(), {atom(), atom()}) ->
+  {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_link(WPool, Name, Handler) ->
+  gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -68,23 +71,25 @@ handle_call(_Call, _From, State) -> {reply, ok, State}.
 handle_info({check, Pid, TaskId, Runtime}, State) ->
   case erlang:process_info(Pid, dictionary) of
     {dictionary, Values} ->
-      case proplists:get_value(wpool_task, Values) of
-        {TaskId, _, Task} ->
-          {Mod, Fun} = State#state.handler,
-          catch Mod:Fun([{alert,  overrun},
-                         {pool,   State#state.wpool},
-                         {worker, Pid},
-                         {task,   Task},
-                         {runtime,Runtime}]),
-          case 2 * Runtime of
-            NewOverrunTime when NewOverrunTime =< 4294967295 ->
-              erlang:send_after(Runtime, self(), {check, Pid, TaskId, NewOverrunTime}),
-              ok;
-            _ -> ok
-          end;
-        _ -> ok
-      end;
+      run_task(
+        TaskId, proplists:get_value(wpool_task, Values), Pid,
+        State#state.wpool, State#state.handler, Runtime);
     _ -> ok
   end,
   {noreply, State};
 handle_info(_Info, State) -> {noreply, State}.
+
+run_task(TaskId, {TaskId, _, Task}, Pid, Pool, {Mod, Fun}, Runtime) ->
+  catch Mod:Fun([{alert,   overrun},
+                 {pool,    Pool},
+                 {worker,  Pid},
+                 {task,    Task},
+                 {runtime, Runtime}]),
+  case 2 * Runtime of
+    NewOverrunTime when NewOverrunTime =< 4294967295 ->
+      erlang:send_after(
+        Runtime, self(), {check, Pid, TaskId, NewOverrunTime}),
+      ok;
+    _ -> ok
+  end;
+run_task(_TaskId, _Value, _Pid, _Pool, _Handler, _Runtime) -> ok.

@@ -24,17 +24,17 @@
 
 -spec all() -> [atom()].
 all() -> [Fun || {Fun, 1} <- module_info(exports),
-				 not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+         not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-	wpool:start(),
-	Config.
+  wpool:start(),
+  Config.
 
 -spec end_per_suite(config()) -> config().
 end_per_suite(Config) ->
-	wpool:stop(),
-	Config.
+  wpool:stop(),
+  Config.
 
 -spec ok() -> ?MODULE.
 ok() -> ?MODULE.
@@ -43,21 +43,25 @@ error() -> throw(?MODULE).
 
 -spec call(config()) -> _.
 call(_Config) ->
-	{ok, _Pid} = wpool:start_sup_pool(?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
-	?MODULE = wpool_worker:call(?MODULE, ?MODULE, ok, []),
-	try wpool_worker:call(?MODULE, ?MODULE, error, []) of
-		R -> no_result = R
-	catch
-		throw:?MODULE -> ok
-	end,
-	{error, invalid_request} = wpool:call(?MODULE, error),
-	ok = wpool:stop_pool(?MODULE).
+  {ok, _Pid} =
+    wpool:start_sup_pool(
+      ?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
+  ?MODULE = wpool_worker:call(?MODULE, ?MODULE, ok, []),
+  try wpool_worker:call(?MODULE, ?MODULE, error, []) of
+    R -> no_result = R
+  catch
+    throw:?MODULE -> ok
+  end,
+  {error, invalid_request} = wpool:call(?MODULE, error),
+  ok = wpool:stop_pool(?MODULE).
 
 -spec cast(config()) -> _.
 cast(_Config) ->
-	{ok, _Pid} = wpool:start_sup_pool(?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
-	ok = wpool_worker:cast(?MODULE, ?MODULE, ok, []),
-	ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
-	ok = wpool:cast(?MODULE, x),
-	timer:sleep(1000),
-	ok = wpool:stop_pool(?MODULE).
+  {ok, _Pid} =
+    wpool:start_sup_pool(
+      ?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
+  ok = wpool_worker:cast(?MODULE, ?MODULE, ok, []),
+  ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
+  ok = wpool:cast(?MODULE, x),
+  timer:sleep(1000),
+  ok = wpool:stop_pool(?MODULE).

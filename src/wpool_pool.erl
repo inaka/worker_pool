@@ -12,7 +12,8 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc A pool of workers. If you want to put it in your supervisor tree, remember it's a supervisor.
+%%% @doc A pool of workers. If you want to put it in your supervisor tree,
+%%%      remember it's a supervisor.
 -module(wpool_pool).
 -author('elbrujohalcon@inaka.net').
 
@@ -32,22 +33,27 @@
 %% ===================================================================
 %% API functions
 %% ===================================================================
-%% @doc Creates the ets table that will hold the information about currently active pools
+%% @doc Creates the ets table that will hold the information about active pools
 -spec create_table() -> ok.
 create_table() ->
-    case ets:info(?MODULE, named_table) of
-        true      -> already_created;
-        undefined -> lager:info("Creating wpool ETS table"),
-                     ets:new(?MODULE, [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}])
-    end,
-    ok.
+  case ets:info(?MODULE, named_table) of
+    true      -> already_created;
+    undefined ->
+      lager:info("Creating wpool ETS table"),
+      ets:new(
+        ?MODULE,
+        [public, named_table, set,
+         {read_concurrency, true}, {keypos, #wpool.name}])
+  end,
+  ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
--spec start_link(wpool:name(), [wpool:option()]) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_link(Name, Options) -> supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
+-spec start_link(wpool:name(), [wpool:option()]) ->
+        {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_link(Name, Options) ->
+  supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
 
 %% @doc Picks the worker with the smaller queue of messages.
-%%      Based on [http://lethain.com/load-balancing-across-erlang-process-groups/]
 %% @throws no_workers
 -spec best_worker(wpool:name()) -> atom().
 best_worker(Sup) ->
@@ -60,10 +66,11 @@ best_worker(Sup) ->
 %% @throws no_workers
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
-    case wpool_size(Sup) of
-        undefined  -> throw(no_workers);
-        Wpool_Size -> _ = random:seed(now()), worker_name(Sup, random:uniform(Wpool_Size))
-    end.
+  case wpool_size(Sup) of
+    undefined  -> throw(no_workers);
+    Wpool_Size ->
+      _ = random:seed(now()), worker_name(Sup, random:uniform(Wpool_Size))
+  end.
 
 %% @doc Picks the next worker in a round robin fashion
 %% @throws no_workers
@@ -79,7 +86,8 @@ next_worker(Sup) ->
 %% @throws no_workers
 -spec available_worker(wpool:name(), timeout()) -> atom().
 available_worker(Sup, Timeout) ->
-    case wpool_queue_manager:available_worker(queue_manager_name(Sup), Timeout) of
+    case wpool_queue_manager:available_worker(
+          queue_manager_name(Sup), Timeout) of
         timeout -> throw(no_workers);
         noproc -> throw(no_workers);
         Worker -> Worker
@@ -97,45 +105,58 @@ cast_to_available_worker(Sup, Cast) ->
 %% @throws no_workers
 -spec stats(wpool:name()) -> wpool:stats().
 stats(Sup) ->
-    case find_wpool(Sup) of
-        undefined -> throw(no_workers);
-        Wpool ->
-            {Total, WorkerStats} =
-                lists:foldl(
-                    fun(N, {T, L}) ->
-                        Worker = erlang:whereis(worker_name(Sup, N)),
-                        [{message_queue_len, MQL} = MQLT, Memory, Function, Location, {dictionary, Dictionary}] =
-                            erlang:process_info(Worker, [message_queue_len, memory, current_function, current_location, dictionary]),
-                        WS =
-                            case {Function, proplists:get_value(wpool_task, Dictionary)} of
-                                {{current_function, {gen_server, loop, 6}}, undefined} -> [MQLT, Memory];
-                                {{current_function, {erlang, hibernate, _}}, undefined} -> [MQLT, Memory];
-                                {_, undefined} -> [MQLT, Memory, Function, Location];
-                                {_, {_TaskId, Started, Task}} ->
-                                    [MQLT, Memory, Function, Location,
-                                     {task, Task},
-                                     {runtime, calendar:datetime_to_gregorian_seconds(calendar:universal_time()) - Started}]
-                            end,
-                        {T + MQL, [{N, WS} | L]}
-                    end, {0, []}, lists:seq(1, Wpool#wpool.size)),
-            ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
-            PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
-            [{pool,                     Sup},
-             {supervisor,               erlang:whereis(Sup)},
-             {options,                  Wpool#wpool.opts},
-             {size,                     Wpool#wpool.size},
-             {next_worker,              Wpool#wpool.next},
-             {total_message_queue_len,  Total + PendingTasks},
-             {workers,                  WorkerStats}]
-    end.
+  case find_wpool(Sup) of
+    undefined -> throw(no_workers);
+    Wpool ->
+      stats(Wpool, Sup)
+  end.
+
+stats(Wpool, Sup) ->
+  {Total, WorkerStats} =
+    lists:foldl(
+      fun(N, {T, L}) ->
+        Worker = erlang:whereis(worker_name(Sup, N)),
+        [ {message_queue_len, MQL} = MQLT
+        , Memory, Function, Location, {dictionary, Dictionary}] =
+          erlang:process_info(
+            Worker,
+            [ message_queue_len, memory, current_function
+            , current_location, dictionary]),
+        Time =
+          calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+        WS =
+          case {Function, proplists:get_value(wpool_task, Dictionary)} of
+            {{current_function, {gen_server, loop, 6}}, undefined} ->
+              [MQLT, Memory];
+            {{current_function, {erlang, hibernate, _}}, undefined} ->
+              [MQLT, Memory];
+            {_, undefined} ->
+              [MQLT, Memory, Function, Location];
+            {_, {_TaskId, Started, Task}} ->
+              [MQLT, Memory, Function, Location,
+               {task, Task},
+               {runtime, Time - Started}]
+          end,
+        {T + MQL, [{N, WS} | L]}
+      end, {0, []}, lists:seq(1, Wpool#wpool.size)),
+  ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
+  PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
+  [{pool,                     Sup},
+   {supervisor,               erlang:whereis(Sup)},
+   {options,                  Wpool#wpool.opts},
+   {size,                     Wpool#wpool.size},
+   {next_worker,              Wpool#wpool.next},
+   {total_message_queue_len,  Total + PendingTasks},
+   {workers,                  WorkerStats}].
 
 %% @doc Returns the names of the workers in the pool
 -spec worker_names(wpool:name()) -> [atom()].
 worker_names(Pool_Name) ->
-    case find_wpool(Pool_Name) of
-        undefined         -> [];
-        #wpool{size=Size} -> [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
-    end.
+  case find_wpool(Pool_Name) of
+    undefined -> [];
+    #wpool{size=Size} ->
+      [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
+  end.
 
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
@@ -161,51 +182,77 @@ wpool_size(Name) ->
 %% Supervisor callbacks
 %% ===================================================================
 %% @private
--spec init({wpool:name(), [wpool:option()]}) -> {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()}, [supervisor:child_spec()]}}.
+-spec init({wpool:name(), [wpool:option()]}) ->
+        {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()},
+              [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    {Worker, InitArgs}  = proplists:get_value(worker, Options, {wpool_worker, undefined}),
-    Workers             = proplists:get_value(workers, Options, 100),
-    Strategy            = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
-    OverrunHandler      = proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
-    TimeChecker         = time_checker_name(Name),
-    QueueManager        = queue_manager_name(Name),
-    _Wpool = store_wpool(#wpool{name = Name, size = Workers, next = 1, opts = Options, qmanager = QueueManager}),
-    {ok, {Strategy,
-          [{TimeChecker, {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}, permanent, brutal_kill, worker, [wpool_time_checker]},
-           {QueueManager, {wpool_queue_manager, start_link, [Name, QueueManager]}, permanent, brutal_kill, worker, [wpool_queue_manager]} |
-            [{worker_name(Name, I),
-                {wpool_process, start_link,
-                 [worker_name(Name, I), Worker, InitArgs,
-                  [{queue_manager, QueueManager}, {time_checker, TimeChecker}|Options]]},
-              permanent, 5000, worker, [Worker]}
-                || I <- lists:seq(1, Workers)]
-           ]}}.
+  {Worker, InitArgs} =
+    proplists:get_value(worker, Options, {wpool_worker, undefined}),
+  Workers = proplists:get_value(workers, Options, 100),
+  Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
+  OverrunHandler =
+    proplists:get_value(
+      overrun_handler, Options, {error_logger, warning_report}),
+  TimeChecker = time_checker_name(Name),
+  QueueManager = queue_manager_name(Name),
+  _Wpool =
+    store_wpool(
+      #wpool{ name = Name
+            , size = Workers
+            , next = 1
+            , opts = Options
+            , qmanager = QueueManager
+            }),
+  TimeCheckerSpec =
+    {TimeChecker,
+     {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]},
+     permanent, brutal_kill, worker, [wpool_time_checker]},
+  QueueManagerSpec =
+    {QueueManager,
+     {wpool_queue_manager, start_link, [Name, QueueManager]},
+     permanent, brutal_kill, worker, [wpool_queue_manager]},
+  {ok, {Strategy,
+        [TimeCheckerSpec, QueueManagerSpec
+        | [{worker_name(Name, I),
+              {wpool_process, start_link,
+               [worker_name(Name, I), Worker, InitArgs,
+                [ {queue_manager, QueueManager}, {time_checker, TimeChecker}
+                | Options]]},
+            permanent, 5000, worker, [Worker]}
+              || I <- lists:seq(1, Workers)]
+         ]}}.
 
 %% ===================================================================
 %% Private functions
 %% ===================================================================
-worker_name(Sup, I) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ [$-| integer_to_list(I)]).
-time_checker_name(Sup) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
-queue_manager_name(Sup) -> list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
+worker_name(Sup, I) ->
+  list_to_atom(
+    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ [$-| integer_to_list(I)]).
+time_checker_name(Sup) ->
+  list_to_atom(
+    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
+queue_manager_name(Sup) ->
+  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
 
 min_message_queue(Wpool) ->
-    %% Moving the beginning of the list to some random point to ensure that clients
-    %% do not always start asking for process_info to the processes that are most
-    %% likely to have bigger message queues
-    First = random:uniform(Wpool#wpool.size),
-    min_message_queue(0, Wpool#wpool{next = First}, []).
+  %% Moving the beginning of the list to a random point to ensure that clients
+  %% do not always start asking for process_info to the processes that are most
+  %% likely to have bigger message queues
+  First = random:uniform(Wpool#wpool.size),
+  min_message_queue(0, Wpool#wpool{next = First}, []).
 min_message_queue(Size, #wpool{size = Size}, Found) ->
-    {_, Worker} = lists:min(Found),
-    Worker;
+  {_, Worker} = lists:min(Found),
+  Worker;
 min_message_queue(Checked, Wpool, Found) ->
-    Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
-    case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
-        {message_queue_len, 0} -> Worker;
-        {message_queue_len, L} ->
-            NextWpool = Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1},
-            min_message_queue(Checked + 1, NextWpool, [{L, Worker} | Found]);
-        Error -> throw(Error)
-    end.
+  Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
+  case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
+    {message_queue_len, 0} -> Worker;
+    {message_queue_len, L} ->
+      NextWpool =
+        Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1},
+      min_message_queue(Checked + 1, NextWpool, [{L, Worker} | Found]);
+    Error -> throw(Error)
+  end.
 
 %% ===================================================================
 %% ETS functions
@@ -242,20 +289,21 @@ find_wpool(Name) ->
             build_wpool(Name)
     end.
 
-%% @doc We use this function not to report an error if for some reason we've lost the record
-%%      on the ets table. This SHOULDN'T be called too many times
+%% @doc We use this function not to report an error if for some reason we've
+%%      lost the record on the ets table. This SHOULDN'T be called too much
 build_wpool(Name) ->
-    lager:warning("Building a #wpool record for ~p. Something must have failed.", [Name]),
-    try supervisor:count_children(Name) of
-        Children ->
-            case proplists:get_value(active, Children, 0) of
-                0 -> undefined;
-                Size -> % NOTE: We deduct 2 from Size to acount for the time checker and queue manager
-                    Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
-                    store_wpool(Wpool)
-            end
-    catch
-        _:Error ->
-            lager:warning("Wpool ~p not found: ~p", [Name, Error]),
-            undefined
-    end.
+  lager:warning(
+    "Building a #wpool record for ~p. Something must have failed.", [Name]),
+  try supervisor:count_children(Name) of
+    Children ->
+      case proplists:get_value(active, Children, 0) of
+        0 -> undefined;
+        Size -> % NOTE: We deduct 2 for the time checker and queue manager
+          Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
+          store_wpool(Wpool)
+      end
+  catch
+    _:Error ->
+      lager:warning("Wpool ~p not found: ~p", [Name, Error]),
+      undefined
+  end.

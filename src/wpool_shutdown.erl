@@ -12,7 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Jay Nelson <jay@tigertext.com>
-%%% @doc A module containing the final task to execute before shutting down the node.
+%%% @doc A module containing the final task to execute before node shutdown
 -module(wpool_shutdown).
 -author('jay@tigertext.com').
 
