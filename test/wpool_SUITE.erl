@@ -34,7 +34,8 @@ all() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  wpool:start(),
+  ok = lager:start(),
+  ok = wpool:start(),
   Config.
 
 -spec end_per_suite(config()) -> config().
