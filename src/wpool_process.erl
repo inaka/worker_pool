@@ -11,8 +11,9 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @doc Decorator over {@link gen_server} that lets {@link wpool_pool}
-%%      control certain aspects of the execution
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Decorator over {@link gen_server} that lets {@link wpool_pool}
+%%%      control certain aspects of the execution
 -module(wpool_process).
 -author('elbrujohalcon@inaka.net').
 
@@ -46,7 +47,7 @@ call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 -spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) -> gen_server:cast(Process, Cast).
 
-%% @doc Report how old a process is.
+%% @doc Report how old a process is in <b>microseconds</b>
 -spec age(wpool:name() | pid()) -> non_neg_integer().
 age(Process) -> gen_server:call(Process, age).
 

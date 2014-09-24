@@ -11,8 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
-%% @doc Worker pool main interface. Use functions provided by this module to manage your pools of workers
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Worker pool main interface. Use functions provided by this module to manage your pools of workers
 -module(wpool).
 -author('elbrujohalcon@inaka.net').
 
@@ -109,6 +109,9 @@ call(Sup, Call, available_worker, Timeout) ->
     wpool_process:call(Worker, Call, NewTimeout);
 call(Sup, Call, Strategy, Timeout) -> wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
+%% @doc Picks a server and issues the call to it.
+%%      For all strategies except available_worker, Worker_Timeout is ignored
+%%      For available_worker Worker_Timeout is the time used choosing a worker
 -type available_worker_timeout() :: timeout().
 -spec call(name(), term(), strategy(), available_worker_timeout(), timeout()) -> term().
 call(Sup, Call, available_worker, Worker_Timeout, Timeout) ->

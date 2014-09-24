@@ -40,3 +40,6 @@ test: erl
 
 doc: erl
 	rebar skip_deps=true doc
+
+erldocs: erl
+	erldocs . -o doc/

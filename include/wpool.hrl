@@ -1,10 +1,8 @@
 
--type queue_mgr() :: atom().
-
 -record(wpool, {name     :: wpool:name(),
                 size     :: pos_integer(),
                 next     :: pos_integer(),
                 opts     :: [wpool:option()],
-                qmanager :: queue_mgr(),
+                qmanager :: wpool_queue_manager:queue_mgr(),
                 born = os:timestamp() :: erlang:timestamp()
                }).

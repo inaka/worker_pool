@@ -11,7 +11,9 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @hidden
+%%% @hidden
+%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
+%%% @doc Time checker process to detect overruns on a worker pool
 -module(wpool_time_checker).
 -author('elbrujohalcon@inaka.net').
 
@@ -30,31 +32,38 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+%% @private
 -spec start_link(wpool:name(), atom(), {atom(), atom()}) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Handler) -> gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
+%% @private
 -spec init({wpool:name(), {atom(), atom()}}) -> {ok, state()}.
 init({WPool, Handler}) -> {ok, #state{wpool = WPool, handler = Handler}}.
 
+%% @private
 -spec terminate(atom(), state()) -> ok.
 terminate(_Reason, _State) -> ok.
 
+%% @private
 -spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
+%% @private
 -spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast(_Cast, State) -> {noreply, State}.
 
 -type from() :: {pid(), reference()}.
+%% @private
 -spec handle_call(term(), from(), state()) -> {reply, ok, state()}.
 handle_call(_Call, _From, State) -> {reply, ok, State}.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
+%% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({check, Pid, TaskId, Runtime}, State) ->
   case erlang:process_info(Pid, dictionary) of
