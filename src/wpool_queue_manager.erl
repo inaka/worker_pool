@@ -157,23 +157,20 @@ proc_info(Pool_Name, Info_Type) ->
         | erlang:process_info(QM_Pid, Info_Type)],
       Workers = wpool_pool:worker_names(Pool_Name),
       Workers_Info =
-        [{Worker, 
-          {Worker_Pid, [Age | erlang:process_info(Worker_Pid, Info_Type)]}}
-         || Worker <- Workers,
-            begin
+        [{Worker, worker_info(Worker_Pid, Info_Type)}
+         || Worker <- Workers
+          , begin
               Worker_Pid = whereis(Worker),
-              {Age, Keep} =
-                case is_process_alive(Worker_Pid) of
-                  false -> {0, false};
-                  true  ->
-                    Secs_Old = wpool_process:age(Worker_Pid) div 1000000,
-                    {{age_in_seconds, Secs_Old}, true}
-                end,
-              Keep
-            end],
+              is_process_alive(Worker_Pid)
+            end
+        ],
       [{queue_manager, Mgr_Info}, {workers, Workers_Info}]
   end.
 
+worker_info(Worker_Pid, Info_Type) ->
+  Secs_Old = wpool_process:age(Worker_Pid) div 1000000,
+  {Worker_Pid, 
+    [{age_in_seconds, Secs_Old} | erlang:process_info(Worker_Pid, Info_Type)]}.
 
 -define(DEFAULT_TRACE_TIMEOUT, 5000).
 -define(TRACE_KEY, wpool_trace).
