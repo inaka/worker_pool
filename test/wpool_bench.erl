@@ -13,12 +13,12 @@ run_tasks(TaskGroups, Strategy, Options) ->
   try lists:foldl(
         fun(Task, Acc) -> run_task(Task, Strategy, Acc) end,
         [], Tasks) of
-          [] ->
-            lager:warning("No times"),
-            0.0;
-          Times ->
-            lager:notice("Times: ~p", [Times]),
-            lists:sum(Times) / length(Times)
+    [] ->
+      lager:warning("No times"),
+      0.0;
+    Times ->
+      lager:notice("Times: ~p", [Times]),
+      lists:sum(Times) / length(Times)
   after
     wpool:stop_pool(?MODULE)
   end.

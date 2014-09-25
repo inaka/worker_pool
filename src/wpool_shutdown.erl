@@ -21,8 +21,8 @@
 %% @doc Final task to execute before shutting down the node.
 -spec final_task(wpool:name(), pos_integer()) -> ok.
 final_task(Pool_Name, Time_Allowed) ->
-    case wpool_queue_manager:trace(Pool_Name, true, Time_Allowed) of
-        {error, Error} -> lager:error("~p failed with ~p", [?MODULE, Error]);
-        ok             -> timer:sleep(Time_Allowed)
-    end,
-    ok.
+  case wpool_queue_manager:trace(Pool_Name, true, Time_Allowed) of
+    {error, Error} -> lager:error("~p failed with ~p", [?MODULE, Error]);
+    ok             -> timer:sleep(Time_Allowed)
+  end,
+  ok.

@@ -74,27 +74,27 @@ available_worker(QueueManager, Timeout) ->
 %%      just forwards the cast when it gets the worker
 -spec cast_to_available_worker(queue_mgr(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) ->
-    gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
+  gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
 %% @doc Mark a brand new worker as available
 -spec new_worker(queue_mgr(), atom()) -> ok.
 new_worker(QueueManager, Worker) ->
-    gen_server:cast(QueueManager, {new_worker, Worker}).
+  gen_server:cast(QueueManager, {new_worker, Worker}).
 
 %% @doc Mark a worker as available
 -spec worker_ready(queue_mgr(), atom()) -> ok.
 worker_ready(QueueManager, Worker) ->
-    gen_server:cast(QueueManager, {worker_ready, Worker}).
+  gen_server:cast(QueueManager, {worker_ready, Worker}).
 
 %% @doc Mark a worker as no longer available
 -spec worker_busy(queue_mgr(), atom()) -> ok.
 worker_busy(QueueManager, Worker) ->
-    gen_server:cast(QueueManager, {worker_busy, Worker}).
+  gen_server:cast(QueueManager, {worker_busy, Worker}).
 
 %% @doc Decrement the total number of workers
 -spec worker_dead(queue_mgr(), atom()) -> ok.
 worker_dead(QueueManager, Worker) ->
-    gen_server:cast(QueueManager, {worker_dead, Worker}).
+  gen_server:cast(QueueManager, {worker_dead, Worker}).
 
 %% @doc Return the list of currently existing worker pools.
 -type pool_prop()  :: {pool, wpool:name()}.
@@ -102,47 +102,47 @@ worker_dead(QueueManager, Worker) ->
 -type pool_props() :: [pool_prop() | qm_prop()].      % Not quite strict enough.
 -spec pools() -> [pool_props()].
 pools() ->
-    ets:foldl(
-      fun(#wpool{ name=Pool_Name
-                , size=Pool_Size
-                , qmanager=Queue_Mgr
-                , born=Born
-                }, Pools) ->
-          This_Pool = [
-                       {pool,          Pool_Name},
-                       {pool_age,      age_in_seconds(Born)},
-                       {pool_size,     Pool_Size},
-                       {queue_manager, Queue_Mgr}
-                      ],
-          [This_Pool | Pools]
-      end, [], wpool_pool).
+  ets:foldl(
+    fun(#wpool{ name=Pool_Name
+              , size=Pool_Size
+              , qmanager=Queue_Mgr
+              , born=Born
+              }, Pools) ->
+      This_Pool = [
+                   {pool,          Pool_Name},
+                   {pool_age,      age_in_seconds(Born)},
+                   {pool_size,     Pool_Size},
+                   {queue_manager, Queue_Mgr}
+                  ],
+      [This_Pool | Pools]
+    end, [], wpool_pool).
 
 %% @doc Returns statistics for this queue.
 -spec stats(wpool:name()) ->
   proplists:proplist() | {error, {invalid_pool, wpool:name()}}.
 stats(Pool_Name) ->
-    case ets:lookup(wpool_pool, Pool_Name) of
-        [] -> {error, {invalid_pool, Pool_Name}};
-        [#wpool{qmanager=Queue_Manager, size=Pool_Size, born=Born}] ->
-            {Available_Workers, Pending_Tasks}
-                = gen_server:call(Queue_Manager, worker_counts),
-            Busy_Workers = Pool_Size - Available_Workers,
-            [
-             {pool_age_in_secs,  age_in_seconds(Born)},
-             {pool_size,         Pool_Size},
-             {pending_tasks,     Pending_Tasks},
-             {available_workers, Available_Workers},
-             {busy_workers,      Busy_Workers}
-            ]
-    end.
+  case ets:lookup(wpool_pool, Pool_Name) of
+    [] -> {error, {invalid_pool, Pool_Name}};
+    [#wpool{qmanager=Queue_Manager, size=Pool_Size, born=Born}] ->
+        {Available_Workers, Pending_Tasks}
+            = gen_server:call(Queue_Manager, worker_counts),
+        Busy_Workers = Pool_Size - Available_Workers,
+        [
+         {pool_age_in_secs,  age_in_seconds(Born)},
+         {pool_size,         Pool_Size},
+         {pending_tasks,     Pending_Tasks},
+         {available_workers, Available_Workers},
+         {busy_workers,      Busy_Workers}
+        ]
+  end.
 
 %% @doc Return a default set of process_info about workers.
 -spec proc_info(wpool:name()) -> proplists:proplist().
 proc_info(Pool_Name) ->
-    Key_Info = [current_location, status,
-                stack_size, total_heap_size, memory,
-                reductions, message_queue_len],
-    proc_info(Pool_Name, Key_Info).
+  Key_Info = [current_location, status,
+              stack_size, total_heap_size, memory,
+              reductions, message_queue_len],
+  proc_info(Pool_Name, Key_Info).
 
 %% @doc Return the currently executing function in the queue manager.
 -spec proc_info(wpool:name(), atom() | [atom()]) -> proplists:proplist().
@@ -179,27 +179,27 @@ worker_info(Worker_Pid, Info_Type) ->
 %%      to error.log.
 -spec trace(wpool:name()) -> ok.
 trace(Pool_Name) ->
-    trace(Pool_Name, true, ?DEFAULT_TRACE_TIMEOUT).
+  trace(Pool_Name, true, ?DEFAULT_TRACE_TIMEOUT).
 
 %% @doc Turn pool tracing on and off.
 -spec trace(wpool:name(), boolean(), pos_integer()) ->
   ok | {error, {invalid_pool, wpool:name()}}.
 trace(Pool_Name, true, Timeout) ->
-    case ets:lookup(wpool_pool, Pool_Name) of
-        [] -> {error, {invalid_pool, Pool_Name}};
-        [#wpool{}] ->
-            lager:info(
-              "[~p] Tracing turned on for worker_pool ~p",
-              [?TRACE_KEY, Pool_Name]),
-            {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
-            trace(Pool_Name, true, Tracer_Pid, Timeout)
-    end;
+  case ets:lookup(wpool_pool, Pool_Name) of
+    [] -> {error, {invalid_pool, Pool_Name}};
+    [#wpool{}] ->
+      lager:info(
+        "[~p] Tracing turned on for worker_pool ~p",
+        [?TRACE_KEY, Pool_Name]),
+      {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
+      trace(Pool_Name, true, Tracer_Pid, Timeout)
+  end;
 trace(Pool_Name, false, _Timeout) ->
-    case ets:lookup(wpool_pool, Pool_Name) of
-        [] -> {error, {invalid_pool, Pool_Name}};
-        [#wpool{}] ->
-            trace(Pool_Name, false, no_pid, 0)
-    end.
+  case ets:lookup(wpool_pool, Pool_Name) of
+    [] -> {error, {invalid_pool, Pool_Name}};
+    [#wpool{}] ->
+      trace(Pool_Name, false, no_pid, 0)
+  end.
 
 -spec trace(wpool:name(), boolean(), pid() | no_pid, non_neg_integer()) -> ok.
 trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
@@ -214,49 +214,48 @@ trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
   trace_off(Pool_Name, Trace_On, Tracer_Pid, Timeout).
 
 trace_off(Pool_Name, false, _Tracer_Pid, _Timeout) ->
-    lager:info(
-      "[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
-    ok;
+  lager:info(
+    "[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
+  ok;
 trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
-    _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false, Timeout]),
-    _ = erlang:send_after(Timeout, Tracer_Pid, quit),
-    lager:info(
-      "[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
-      [?TRACE_KEY, Tracer_Pid, Timeout, Pool_Name]),
-    ok.
+  _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false, Timeout]),
+  _ = erlang:send_after(Timeout, Tracer_Pid, quit),
+  lager:info(
+    "[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
+    [?TRACE_KEY, Tracer_Pid, Timeout, Pool_Name]),
+  ok.
 
 %% @doc Collect trace timing results to report succinct run times.
 -spec trace_timer(wpool:name()) -> {pid(), reference()}.
 trace_timer(Pool_Name) ->
-    {Pid, Reference} =
-      spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
-    register(wpool_trace_timer, Pid),
-    lager:info(
-      "[~p] Tracer pid ~p started for worker_pool ~p",
-      [?TRACE_KEY, Pid, Pool_Name]),
-    {Pid, Reference}.
+  {Pid, Reference} =
+    spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
+  register(wpool_trace_timer, Pid),
+  lager:info(
+    "[~p] Tracer pid ~p started for worker_pool ~p",
+    [?TRACE_KEY, Pid, Pool_Name]),
+  {Pid, Reference}.
 
 -spec report_trace_times(wpool:name()) -> ok.
 report_trace_times(Pool_Name) ->
-    receive
-        quit -> summarize_pending_times(Pool_Name);
-        {trace_ts, Worker,
-          'receive', {'$gen_call', From, Request}, Time_Started} ->
-            Props = {start, Time_Started, request, Request, worker, Worker},
-            undefined = put({?TRACE_KEY, From}, Props),
-            report_trace_times(Pool_Name);
-        {trace_ts, Worker, send, {Ref, Result}, From_Pid, Time_Finished} ->
-            case erase({?TRACE_KEY, {From_Pid, Ref}}) of
-                undefined -> ok;
-                {start, Time_Started, request, Request, worker, Worker} ->
-                    Elapsed = timer:now_diff(Time_Finished, Time_Started),
-                    lager:info("[~p] ~p usec: ~p  request: ~p  reply: ~p",
-                                [?TRACE_KEY, Worker, Elapsed, Request, Result])
-            end,
-            report_trace_times(Pool_Name);
-        _Sys_Or_Other_Msg ->
-            report_trace_times(Pool_Name)
-    end.
+  receive
+    quit -> summarize_pending_times(Pool_Name);
+    {trace_ts, Worker, 'receive', {'$gen_call', From, Request}, Time_Started} ->
+      Props = {start, Time_Started, request, Request, worker, Worker},
+      undefined = put({?TRACE_KEY, From}, Props),
+      report_trace_times(Pool_Name);
+    {trace_ts, Worker, send, {Ref, Result}, From_Pid, Time_Finished} ->
+      case erase({?TRACE_KEY, {From_Pid, Ref}}) of
+        undefined -> ok;
+        {start, Time_Started, request, Request, worker, Worker} ->
+          Elapsed = timer:now_diff(Time_Finished, Time_Started),
+          lager:info("[~p] ~p usec: ~p  request: ~p  reply: ~p",
+                      [?TRACE_KEY, Worker, Elapsed, Request, Result])
+      end,
+      report_trace_times(Pool_Name);
+    _Sys_Or_Other_Msg ->
+      report_trace_times(Pool_Name)
+  end.
 
 summarize_pending_times(Pool_Name) ->
   Now = os:timestamp(),
@@ -284,7 +283,7 @@ init(WPool) ->
 %% @private
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
-    handle_cast({worker_ready, Worker}, State);
+  handle_cast({worker_ready, Worker}, State);
 handle_cast({worker_dead, Worker}, #state{workers=Workers} = State) ->
   New_Workers = gb_sets:delete_any(Worker, Workers),
   {noreply, State#state{workers=New_Workers}};
@@ -347,8 +346,8 @@ handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
   end;
 handle_call(worker_counts, _From,
             #state{workers=Available_Workers} = State) ->
-    Available = gb_sets:size(Available_Workers),
-    {reply, {Available, get(pending_tasks)}, State}.
+  Available = gb_sets:size(Available_Workers),
+  {reply, {Available, get(pending_tasks)}, State}.
 
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
