@@ -63,8 +63,7 @@ stop() -> application:stop(worker_pool).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @private
 -spec start(any(), any()) -> {ok, pid()} | {error, term()}.
-start(_StartType, _StartArgs) ->
-    wpool_sup:start_link().
+start(_StartType, _StartArgs) -> wpool_sup:start_link().
 
 %% @private
 -spec stop(any()) -> ok.
@@ -138,8 +137,8 @@ call(Sup, Call, Strategy, Timeout) ->
 -spec call(name(), term(), strategy(), available_worker_timeout(), timeout()) ->
         term().
 call(Sup, Call, available_worker, Worker_Timeout, Timeout) ->
-    Worker = wpool_pool:available_worker(Sup, Worker_Timeout),
-    wpool_process:call(Worker, Call, Timeout);
+  Worker = wpool_pool:available_worker(Sup, Worker_Timeout),
+  wpool_process:call(Worker, Call, Timeout);
 call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
   call(Sup, Call, Strategy, Timeout).
 
@@ -151,7 +150,8 @@ cast(Sup, Cast) -> cast(Sup, Cast, default_strategy()).
 -spec cast(name(), term(), strategy()) -> ok.
 cast(Sup, Cast, available_worker) ->
   wpool_pool:cast_to_available_worker(Sup, Cast);
-cast(Sup, Cast, Strategy) -> wpool_process:cast(wpool_pool:Strategy(Sup), Cast).
+cast(Sup, Cast, Strategy) ->
+  wpool_process:cast(wpool_pool:Strategy(Sup), Cast).
 
 %% @doc Retrieves a snapshot of the pool stats
 -spec stats(name()) -> stats().
