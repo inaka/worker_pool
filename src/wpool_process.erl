@@ -22,22 +22,28 @@
 -record(state, {name    :: atom(),
                 mod     :: atom(),
                 state   :: term(),
-                options :: [{time_checker|queue_manager, atom()} | wpool:option()],
+                options :: [{time_checker|queue_manager, atom()}
+                         | wpool:option()],
                 born = os:timestamp() :: erlang:timestamp()
                }).
+-type state() :: #state{}.
 
 %% api
 -export([start_link/4, call/3, cast/2, age/1]).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2]).
+-export([init/1, terminate/2, code_change/3,
+         handle_call/3, handle_cast/2, handle_info/2]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
--spec start_link(wpool:name(), module(), term(), [wpool:option()]) -> {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
-start_link(Name, Module, InitArgs, Options) -> gen_server:start_link({local, Name}, ?MODULE, {Name, Module, InitArgs, Options}, []).
+-spec start_link(wpool:name(), module(), term(), [wpool:option()]) ->
+        {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
+start_link(Name, Module, InitArgs, Options) ->
+  gen_server:start_link(
+    {local, Name}, ?MODULE, {Name, Module, InitArgs, Options}, []).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
@@ -55,24 +61,28 @@ age(Process) -> gen_server:call(Process, age).
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, #state{}}.
+-spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, state()}.
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
     {ok, Mod_State} ->
       ok = notify_queue_manager(new_worker, Name, Options),
-      {ok, #state{name = Name, mod = Mod, state = Mod_State, options = Options}};
+      {ok, #state{ name = Name
+                 , mod = Mod
+                 , state = Mod_State
+                 , options = Options}};
     ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
 
 %% @private
--spec terminate(atom(), #state{}) -> term().
-terminate(Reason, #state{mod=Mod, state=Mod_State, name=Name, options=Options} = _State) ->
+-spec terminate(atom(), state()) -> term().
+terminate(Reason,
+          #state{mod=Mod, state=Mod_State, name=Name, options=Options}) ->
   ok = notify_queue_manager(worker_dead, Name, Options),
   Mod:terminate(Reason, Mod_State).
 
 %% @private
--spec code_change(string(), #state{}, any()) -> {ok, #state{}} | {error, term()}.
+-spec code_change(string(), state(), any()) -> {ok, state()} | {error, term()}.
 code_change(OldVsn, State, Extra) ->
   case (State#state.mod):code_change(OldVsn, State#state.state, Extra) of
     {ok, NewState} -> {ok, State#state{state = NewState}};
@@ -80,84 +90,119 @@ code_change(OldVsn, State, Extra) ->
   end.
 
 %% @private
--spec handle_info(any(), #state{}) -> {noreply, #state{}} | {stop, term(), #state{}}.
+-spec handle_info(any(), state()) ->
+  {noreply, state()} | {stop, term(), state()}.
 handle_info(Info, State) ->
   try (State#state.mod):handle_info(Info, State#state.state) of
-    {noreply, NewState} -> {noreply, State#state{state = NewState}};
-    {noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
-    {stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}}
+    {noreply, NewState} ->
+      {noreply, State#state{state = NewState}};
+    {noreply, NewState, Timeout} ->
+      {noreply, State#state{state = NewState}, Timeout};
+    {stop, Reason, NewState} ->
+      {stop, Reason, State#state{state = NewState}}
   catch
-    _:{noreply, NewState} -> {noreply, State#state{state = NewState}};
-    _:{noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
-    _:{stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}}
+    _:{noreply, NewState} ->
+      {noreply, State#state{state = NewState}};
+    _:{noreply, NewState, Timeout} ->
+      {noreply, State#state{state = NewState}, Timeout};
+    _:{stop, Reason, NewState} ->
+      {stop, Reason, State#state{state = NewState}}
   end.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 %% @private
--spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
+-spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast(Cast, State) ->
-  Task = task_init({cast, Cast},
-                   proplists:get_value(time_checker, State#state.options, undefined),
-                   proplists:get_value(overrun_warning, State#state.options, infinity)),
+  Task =
+    task_init(
+      {cast, Cast},
+      proplists:get_value(time_checker, State#state.options, undefined),
+      proplists:get_value(overrun_warning, State#state.options, infinity)),
   ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
     try (State#state.mod):handle_cast(Cast, State#state.state) of
-      {noreply, NewState} -> {noreply, State#state{state = NewState}};
-      {noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
-      {stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}}
+      {noreply, NewState} ->
+        {noreply, State#state{state = NewState}};
+      {noreply, NewState, Timeout} ->
+        {noreply, State#state{state = NewState}, Timeout};
+      {stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}}
     catch
-      _:{noreply, NewState} -> {noreply, State#state{state = NewState}};
-      _:{noreply, NewState, Timeout} -> {noreply, State#state{state = NewState}, Timeout};
-      _:{stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}}
+      _:{noreply, NewState} ->
+        {noreply, State#state{state = NewState}};
+      _:{noreply, NewState, Timeout} ->
+        {noreply, State#state{state = NewState}, Timeout};
+      _:{stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}}
     end,
   task_end(Task),
-  ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
+  ok =
+    notify_queue_manager(worker_ready, State#state.name, State#state.options),
   Reply.
 
 -type from() :: {pid(), reference()}.
 %% @private
--spec handle_call(term(), from(), #state{}) -> {reply, term(), #state{}}.
+-spec handle_call(term(), from(), state()) -> {reply, term(), state()}.
 handle_call(age, _From, #state{born=Born} = State) ->
     {reply, timer:now_diff(os:timestamp(), Born), State};
 handle_call(Call, From, State) ->
-  Task = task_init({call, Call},
-                   proplists:get_value(time_checker, State#state.options, undefined),
-                   proplists:get_value(overrun_warning, State#state.options, infinity)),
+  Task =
+    task_init(
+      {call, Call},
+      proplists:get_value(time_checker, State#state.options, undefined),
+      proplists:get_value(overrun_warning, State#state.options, infinity)),
   ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
     try (State#state.mod):handle_call(Call, From, State#state.state) of
-      {noreply, NewState} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      {noreply, NewState, _Timeout} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      {reply, Response, NewState} -> {reply, Response, State#state{state = NewState}};
-      {reply, Response, NewState, Timeout} -> {reply, Response, State#state{state = NewState}, Timeout};
-      {stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}};
-      {stop, Reason, Response, NewState} -> {stop, Reason, Response, State#state{state = NewState}}
+      {noreply, NewState} ->
+        {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      {noreply, NewState, _Timeout} ->
+        {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      {reply, Response, NewState} ->
+        {reply, Response, State#state{state = NewState}};
+      {reply, Response, NewState, Timeout} ->
+        {reply, Response, State#state{state = NewState}, Timeout};
+      {stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}};
+      {stop, Reason, Response, NewState} ->
+        {stop, Reason, Response, State#state{state = NewState}}
     catch
-      _:{noreply, NewState} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      _:{noreply, NewState, _Timeout} -> {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      _:{reply, Response, NewState} -> {reply, Response, State#state{state = NewState}};
-      _:{reply, Response, NewState, Timeout} -> {reply, Response, State#state{state = NewState}, Timeout};
-      _:{stop, Reason, NewState} -> {stop, Reason, State#state{state = NewState}};
-      _:{stop, Reason, Response, NewState} -> {stop, Reason, Response, State#state{state = NewState}}
+      _:{noreply, NewState} ->
+        {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      _:{noreply, NewState, _Timeout} ->
+        {stop, can_not_hold_a_reply, State#state{state = NewState}};
+      _:{reply, Response, NewState} ->
+        {reply, Response, State#state{state = NewState}};
+      _:{reply, Response, NewState, Timeout} ->
+        {reply, Response, State#state{state = NewState}, Timeout};
+      _:{stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}};
+      _:{stop, Reason, Response, NewState} ->
+        {stop, Reason, Response, State#state{state = NewState}}
     end,
   task_end(Task),
-  ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
+  ok =
+    notify_queue_manager(worker_ready, State#state.name, State#state.options),
   Reply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRIVATE FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @doc Marks Task as started in this worker
--spec task_init(term(), atom(), infinity | pos_integer()) -> undefined | reference().
+-spec task_init(term(), atom(), infinity | pos_integer()) ->
+        undefined | reference().
 task_init(Task, _TimeChecker, infinity) ->
-  erlang:put(wpool_task, {undefined, calendar:datetime_to_gregorian_seconds(calendar:universal_time()), Task}),
+  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+  erlang:put(wpool_task, {undefined, Time, Task}),
   undefined;
 task_init(Task, TimeChecker, OverrunTime) ->
   TaskId = erlang:make_ref(),
-  erlang:put(wpool_task, {TaskId, calendar:datetime_to_gregorian_seconds(calendar:universal_time()), Task}),
-  erlang:send_after(OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime}).
+  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+  erlang:put(wpool_task, {TaskId, Time, Task}),
+  erlang:send_after(
+    OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime}).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.
