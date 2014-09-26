@@ -99,7 +99,11 @@ stop_pool(Name) -> wpool_sup:stop_pool(Name).
 
 %% @doc Default strategy
 -spec default_strategy() -> available_worker.
-default_strategy() -> available_worker.
+default_strategy() ->
+  case application:get_env(worker_pool, default_strategy) of
+    undefined -> available_worker;
+    {ok, Strategy} -> Strategy
+  end.
 
 %% @equiv call(Sup, Call, default_strategy())
 -spec call(name(), term()) -> term().

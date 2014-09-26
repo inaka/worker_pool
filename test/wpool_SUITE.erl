@@ -20,6 +20,7 @@
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
 -export([stats/1, stop_pool/1, overrun/1]).
+-export([default_strategy/1]).
 -export([overrun_handler/1]).
 
 -spec all() -> [atom()].
@@ -141,3 +142,13 @@ stats(_Config) ->
   try wpool:stats(?MODULE)
   catch _:no_workers -> ok
   end.
+
+-spec default_strategy(config()) -> _.
+default_strategy(_Config) ->
+  application:unset_env(worker_pool, default_strategy),
+  available_worker = wpool:default_strategy(),
+  application:set_env(worker_pool, default_strategy, best_worker),
+  best_worker = wpool:default_strategy(),
+  application:unset_env(worker_pool, default_strategy),
+  available_worker = wpool:default_strategy(),
+  ok.
