@@ -12,8 +12,6 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @hidden
-%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Time checker process to detect overruns on a worker pool
 -module(wpool_time_checker).
 -author('elbrujohalcon@inaka.net').
 

@@ -11,9 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Worker Pool Main Supervisor
-%%% @end
+%%% @hidden
 -module(wpool_sup).
 -author('elbrujohalcon@inaka.net').
 

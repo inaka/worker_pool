@@ -11,8 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @author Jay Nelson <jay@tigertext.com>
-%%% @doc A module containing the final task to execute before node shutdown
+%%% @hidden
 -module(wpool_shutdown).
 -author('jay@tigertext.com').
 

@@ -12,8 +12,6 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @hidden
-%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Queue manager for available_worker strategy.
 -module(wpool_queue_manager).
 -author('elbrujohalcon@inaka.net').
 
