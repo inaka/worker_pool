@@ -63,3 +63,11 @@ If you want to see **worker_pool** in a _real life_ project, I recommend you to 
 ### Benchmarks
 
 **wpool** comes with a very basic [benchmarker](test/wpool_bench.erl) that let's you compare different strategies against the default `wpool_worker`. If you want to do the same in your project, you can use `wpool_bench` as a template and replace the worker and the tasks by your own ones.
+
+### Contact Us
+For **questions** or **general comments** regarding the use of this library, please use our public
+[hipchat room](https://www.hipchat.com/gpBpW3SsT).
+
+If you find any **bugs** or have a **problem** while using this library, please [open an issue](https://github.com/inaka/worker_pool/issues/new) in this repo (or a pull request :)).
+
+And you can check all of our open-source projects at [inaka.github.io](http://inaka.github.io)
