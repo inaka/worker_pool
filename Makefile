@@ -1,14 +1,15 @@
 RUN := erl -pa ebin -pa deps/*/ebin -smp enable -s lager -boot start_sasl ${ERL_ARGS}
 HOST := `hostname`
+REBAR ?= './rebar'
 
 all:
-	rebar get-deps && rebar compile
+	${REBAR} get-deps && ${REBAR} compile
 
 erl:
-	rebar skip_deps=true compile
+	${REBAR} skip_deps=true compile
 
 clean:
-	rebar clean
+	${REBAR} clean
 
 clean_logs:
 	rm -rf log*
@@ -21,7 +22,7 @@ analyze: erl
 	dialyzer --verbose -pa deps/*/ebin --plt ~/.wpool.plt -Werror_handling ebin
 
 xref: all
-	rebar skip_deps=true --verbose xref
+	${REBAR} skip_deps=true --verbose xref
 
 shell: erl
 	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@${HOST}; \
@@ -35,11 +36,11 @@ run: erl
 
 test: erl
 	mkdir -p log/ct
-	rebar skip_deps=true ct --verbose 3
+	${REBAR} skip_deps=true ct --verbose 3
 	open log/ct/index.html
 
 doc: erl
-	rebar skip_deps=true doc
+	${REBAR} skip_deps=true doc
 
 erldocs: erl
 	erldocs . -o doc/
