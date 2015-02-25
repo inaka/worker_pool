@@ -189,7 +189,7 @@ min_message_queue(Checked, Wpool, Found) ->
 %% ETS functions
 %% ===================================================================
 store_wpool(Wpool) ->
-    ets:info(?MODULE, named_table) of
+    case ets:info(?MODULE, named_table) of
         true -> lager:info("table is there");
         undefined -> lager:info("wpool ETS table not there")
     end,
