@@ -18,7 +18,7 @@
   {vsn, "1.0.1"},
   {id, "worker_pool"},
   {registered,   []},
-  {applications, [kernel,stdlib,lager]},
+  {applications, [kernel,stdlib]},
   {mod, {wpool, []}},
   {env, []}
  ]

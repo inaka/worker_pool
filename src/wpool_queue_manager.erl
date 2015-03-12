@@ -167,13 +167,13 @@ proc_info(Pool_Name, Info_Type) ->
 
 worker_info(Worker_Pid, Info_Type) ->
   Secs_Old = wpool_process:age(Worker_Pid) div 1000000,
-  {Worker_Pid, 
+  {Worker_Pid,
     [{age_in_seconds, Secs_Old} | erlang:process_info(Worker_Pid, Info_Type)]}.
 
 -define(DEFAULT_TRACE_TIMEOUT, 5000).
 -define(TRACE_KEY, wpool_trace).
 
-%% @doc Default tracing for 5 seconds to track worker pool execution times 
+%% @doc Default tracing for 5 seconds to track worker pool execution times
 %%      to error.log.
 -spec trace(wpool:name()) -> ok.
 trace(Pool_Name) ->
@@ -186,7 +186,7 @@ trace(Pool_Name, true, Timeout) ->
   case ets:lookup(wpool_pool, Pool_Name) of
     [] -> {error, {invalid_pool, Pool_Name}};
     [#wpool{}] ->
-      lager:info(
+      error_logger:info_msg(
         "[~p] Tracing turned on for worker_pool ~p",
         [?TRACE_KEY, Pool_Name]),
       {Tracer_Pid, _Ref} = trace_timer(Pool_Name),
@@ -212,13 +212,13 @@ trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
   trace_off(Pool_Name, Trace_On, Tracer_Pid, Timeout).
 
 trace_off(Pool_Name, false, _Tracer_Pid, _Timeout) ->
-  lager:info(
+  error_logger:info_msg(
     "[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, Pool_Name]),
   ok;
 trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
   _ = timer:apply_after(Timeout, ?MODULE, trace, [Pool_Name, false, Timeout]),
   _ = erlang:send_after(Timeout, Tracer_Pid, quit),
-  lager:info(
+  error_logger:info_msg(
     "[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
     [?TRACE_KEY, Tracer_Pid, Timeout, Pool_Name]),
   ok.
@@ -229,7 +229,7 @@ trace_timer(Pool_Name) ->
   {Pid, Reference} =
     spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
   register(wpool_trace_timer, Pid),
-  lager:info(
+  error_logger:info_msg(
     "[~p] Tracer pid ~p started for worker_pool ~p",
     [?TRACE_KEY, Pid, Pool_Name]),
   {Pid, Reference}.
@@ -247,8 +247,8 @@ report_trace_times(Pool_Name) ->
         undefined -> ok;
         {start, Time_Started, request, Request, worker, Worker} ->
           Elapsed = timer:now_diff(Time_Finished, Time_Started),
-          lager:info("[~p] ~p usec: ~p  request: ~p  reply: ~p",
-                      [?TRACE_KEY, Worker, Elapsed, Request, Result])
+          error_logger:info_msg("[~p] ~p usec: ~p  request: ~p  reply: ~p",
+                                [?TRACE_KEY, Worker, Elapsed, Request, Result])
       end,
       report_trace_times(Pool_Name);
     _Sys_Or_Other_Msg ->
@@ -258,11 +258,11 @@ report_trace_times(Pool_Name) ->
 summarize_pending_times(Pool_Name) ->
   Now = os:timestamp(),
   Fmt_Msg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
-  [lager:info(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
+  [error_logger:info_msg(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
    || { {?TRACE_KEY, _From}
       , {start, Time_Started, request, Request, worker, Worker}} <- get(),
       (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
-  lager:info(
+  error_logger:info_msg(
     "[~p] Tracer pid ~p ended for worker_pool ~p",
     [?TRACE_KEY, self(), Pool_Name]),
   ok.
@@ -371,7 +371,7 @@ dec(Key) -> put(Key, get(Key) - 1).
 
 return_error(_Reason, {empty, _Q}) -> ok;
 return_error(Reason, {{value, {cast, Cast}}, Q}) ->
-  lager:error("Cast lost on terminate ~p: ~p", [Reason, Cast]),
+  error_logger:error_msg("Cast lost on terminate ~p: ~p", [Reason, Cast]),
   return_error(Reason, queue:out(Q));
 return_error(Reason, {{value, {From, _Expires}}, Q}) ->
   _  = gen_server:reply(From, {error, {queue_shutdown, Reason}}),
