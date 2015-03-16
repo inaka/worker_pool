@@ -25,7 +25,7 @@
 
 -spec all() -> [atom()].
 all() ->
-  [Fun 
+  [Fun
    || {Fun, 1} <- module_info(exports)
     , Fun =/= init_per_suite
     , Fun =/= end_per_suite

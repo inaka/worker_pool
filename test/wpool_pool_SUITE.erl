@@ -68,7 +68,7 @@ available_worker(_Config) ->
     _:no_workers -> ok
   end,
 
-  lager:notice(
+  error_logger:info_msg(
     "Put them all to work, each request should go to a different worker"),
   [wpool:cast(Pool, {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
   timer:sleep(500),
@@ -77,7 +77,7 @@ available_worker(_Config) ->
         [proplists:get_value(message_queue_len, WS)
           || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
-  lager:notice(
+  error_logger:info_msg(
     "Now send another round of messages,
      the workers queues should still be empty"),
   [wpool:cast(Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
@@ -89,31 +89,31 @@ available_worker(_Config) ->
           || {_, WS} <- proplists:get_value(workers, Stats1)])),
   % Check that we have ?WORKERS pending tasks
   ?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
-  lager:notice("If we can't wait we get no workers"),
+  error_logger:info_msg("If we can't wait we get no workers"),
   try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
     _:Error -> no_workers = Error
   end,
 
-  lager:notice("Let's wait until all workers are free"),
+  error_logger:info_msg("Let's wait until all workers are free"),
   wpool:call(Pool, {erlang, self, []}, available_worker, infinity),
 
   % Check we have no pending tasks
   Stats2 = wpool:stats(Pool),
   0 = proplists:get_value(total_message_queue_len, Stats2),
 
-  lager:notice("Now they all should be free"),
-  lager:notice("We get half of them working for a while"),
+  error_logger:info_msg("Now they all should be free"),
+  error_logger:info_msg("We get half of them working for a while"),
   [wpool:cast(Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
 
   % Check we have no pending tasks
   timer:sleep(1000),
   Stats3 = wpool:stats(Pool),
-  lager:alert("~p", [Stats3]),
+  error_logger:warning_msg("~p", [Stats3]),
   0 = proplists:get_value(total_message_queue_len, Stats3),
 
-  lager:notice(
+  error_logger:info_msg(
     "We run tons of calls, and none is blocked,
      because all of them are handled by different workers"),
   Workers =
@@ -206,7 +206,7 @@ random_worker(_Config) ->
   ?WORKERS = sets:size(sets:from_list(Concurrent)).
 
 collect_results(0, Results) -> Results;
-collect_results(N, Results) -> 
+collect_results(N, Results) ->
   receive {worker, Worker_Id} -> collect_results(N-1, [Worker_Id | Results])
   after 100 -> timeout
   end.

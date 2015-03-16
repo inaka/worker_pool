@@ -72,13 +72,13 @@ handle_cast({M, F, A}, State) ->
       {noreply, State, hibernate}
   catch
     _:Error ->
-      lager:error(
+      error_logger:error_msg(
         "Error on ~p:~p~p >> ~p Backtrace ~p",
         [M, F, A, Error, erlang:get_stacktrace()]),
       {noreply, State, hibernate}
   end;
 handle_cast(Cast, State) ->
-  lager:error("Invalid cast:~p", [Cast]),
+  error_logger:error_msg("Invalid cast:~p", [Cast]),
   {noreply, State, hibernate}.
 
 -type from() :: {pid(), reference()}.
@@ -91,11 +91,11 @@ handle_call({M, F, A}, _From, State) ->
       {reply, {ok, R}, State, hibernate}
   catch
     _:Error ->
-      lager:error(
+      error_logger:error_msg(
         "Error on ~p:~p~p >> ~p Backtrace ~p",
         [M, F, A, Error, erlang:get_stacktrace()]),
       {reply, {error, Error}, State, hibernate}
   end;
 handle_call(Call, _From, State) ->
-  lager:error("Invalid call:~p", [Call]),
+  error_logger:error_msg("Invalid call:~p", [Call]),
   {reply, {error, invalid_request}, State, hibernate}.

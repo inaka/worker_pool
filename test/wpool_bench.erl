@@ -14,10 +14,10 @@ run_tasks(TaskGroups, Strategy, Options) ->
         fun(Task, Acc) -> run_task(Task, Strategy, Acc) end,
         [], Tasks) of
     [] ->
-      lager:warning("No times"),
+      error_logger:warning_msg("No times"),
       0.0;
     Times ->
-      lager:notice("Times: ~p", [Times]),
+      error_logger:info_msg("Times: ~p", [Times]),
       lists:sum(Times) / length(Times)
   after
     wpool:stop_pool(?MODULE)

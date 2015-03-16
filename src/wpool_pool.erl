@@ -39,7 +39,7 @@ create_table() ->
   case ets:info(?MODULE, named_table) of
     true      -> already_created;
     undefined ->
-      lager:info("Creating wpool ETS table"),
+      error_logger:info_msg("Creating wpool ETS table"),
       ets:new(
         ?MODULE,
         [public, named_table, set,
@@ -290,7 +290,7 @@ find_wpool(Name) ->
 %% @doc We use this function not to report an error if for some reason we've
 %%      lost the record on the ets table. This SHOULDN'T be called too much
 build_wpool(Name) ->
-  lager:warning(
+  error_logger:warning_msg(
     "Building a #wpool record for ~p. Something must have failed.", [Name]),
   try supervisor:count_children(Name) of
     Children ->
@@ -302,6 +302,6 @@ build_wpool(Name) ->
       end
   catch
     _:Error ->
-      lager:warning("Wpool ~p not found: ~p", [Name, Error]),
+      error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
       undefined
   end.
