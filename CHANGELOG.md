@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased](https://github.com/inaka/worker_pool/tree/HEAD)
+## [1.0.2](https://github.com/inaka/worker_pool/tree/1.0.2) (2015-03-16)
 
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.1...HEAD)
 
