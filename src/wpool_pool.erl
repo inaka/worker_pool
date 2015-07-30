@@ -64,12 +64,13 @@ best_worker(Sup) ->
 
 %% @doc Picks a random worker
 %% @throws no_workers
+
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
   case wpool_size(Sup) of
     undefined  -> throw(no_workers);
     Wpool_Size ->
-      _ = random:seed(now()),
+      _ = seed_random(),
       worker_name(Sup, random:uniform(Wpool_Size))
   end.
 
@@ -305,3 +306,9 @@ build_wpool(Name) ->
       error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
       undefined
   end.
+
+-ifdef(r_18).
+  seed_random() -> random:seed(timestamp()).
+-else.
+  seed_random() -> random:seed(now()).
+-endif.
