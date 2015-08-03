@@ -308,7 +308,7 @@ build_wpool(Name) ->
   end.
 
 -ifdef(r_18).
-  seed_random() -> random:seed(timestamp()).
+  seed_random() -> random:seed(erlang:timestamp()).
 -else.
   seed_random() -> random:seed(now()).
 -endif.
