@@ -1,8 +1,18 @@
 # Change Log
 
+## [1.0.3](https://github.com/inaka/worker_pool/tree/1.0.2) (2015-08-26)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.2...1.0.3)
+
+**Merged pull requests:**
+
+- added support for R18 and the deprecation of 'now' [\#26](https://github.com/inaka/worker_pool/pull/26) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
+
+- Fix platform_define string to 18 and calling timestamp(). [\#28](https://github.com/inaka/worker_pool/pull/28) ([josohf](https://github.com/josohf))
+
 ## [1.0.2](https://github.com/inaka/worker_pool/tree/1.0.2) (2015-03-16)
 
-[Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.1...HEAD)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.1...1.0.2)
 
 **Merged pull requests:**
 
