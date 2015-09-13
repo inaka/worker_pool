@@ -43,9 +43,7 @@ error() -> throw(?MODULE).
 
 -spec call(config()) -> _.
 call(_Config) ->
-  {ok, _Pid} =
-    wpool:start_sup_pool(
-      ?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
+  start_pool(),
   ?MODULE = wpool_worker:call(?MODULE, ?MODULE, ok, []),
   try wpool_worker:call(?MODULE, ?MODULE, error, []) of
     R -> no_result = R
@@ -57,11 +55,14 @@ call(_Config) ->
 
 -spec cast(config()) -> _.
 cast(_Config) ->
-  {ok, _Pid} =
-    wpool:start_sup_pool(
-      ?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]),
+  start_pool(),
   ok = wpool_worker:cast(?MODULE, ?MODULE, ok, []),
   ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
   ok = wpool:cast(?MODULE, x),
   timer:sleep(1000),
   ok = wpool:stop_pool(?MODULE).
+
+start_pool() ->
+  {ok, _Pid} =
+    wpool:start_sup_pool(
+      ?MODULE, [{workers, 1}, {worker, {wpool_worker, undefined}}]).
