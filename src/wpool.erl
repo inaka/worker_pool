@@ -27,7 +27,7 @@
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
                 | {worker, {Module::atom(), InitArg::term()}}.
--type strategy() :: best_worker 
+-type strategy() :: best_worker
                   | random_worker
                   | next_worker
                   | available_worker.
@@ -77,11 +77,11 @@ stop(_State) -> ok.
 start_pool(Name) -> start_pool(Name, []).
 
 %% @doc Starts (and links) a pool of N wpool_processes.
-%%      The result pid belongs to a supervisor (in case you want to add it to a 
+%%      The result pid belongs to a supervisor (in case you want to add it to a
 %%      supervisor tree)
 -spec start_pool(name(), [option()]) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_pool(Name, Options) -> wpool_pool:start_link(Name, Options ++ ?DEFAULTS).
+start_pool(Name, Options) -> wpool_pool:start_link(Name, all_opts(Options)).
 
 %% @equiv start_sup_pool(Name, [])
 -spec start_sup_pool(name()) -> {ok, pid()}.
@@ -91,7 +91,7 @@ start_sup_pool(Name) -> start_sup_pool(Name, []).
 -spec start_sup_pool(name(), [option()]) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_sup_pool(Name, Options) ->
-  wpool_sup:start_pool(Name, Options ++ ?DEFAULTS).
+  wpool_sup:start_pool(Name, all_opts(Options)).
 
 %% @doc Stops the pool
 -spec stop_pool(name()) -> ok.
@@ -160,3 +160,5 @@ cast(Sup, Cast, Strategy) ->
 %% @doc Retrieves a snapshot of the pool stats
 -spec stats(name()) -> stats().
 stats(Sup) -> wpool_pool:stats(Sup).
+
+all_opts(Options) -> Options ++ ?DEFAULTS.
