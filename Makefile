@@ -16,10 +16,10 @@ clean_logs:
 
 build_plt: erl
 	dialyzer --verbose --build_plt --apps kernel stdlib erts compiler hipe crypto \
-		edoc gs syntax_tools --output_plt ~/.wpool.plt -pa deps/*/ebin ebin
+		edoc gs syntax_tools --output_plt ~/.wpool.plt ebin
 
 analyze: erl
-	dialyzer --verbose -pa deps/*/ebin --plt ~/.wpool.plt -Werror_handling ebin
+	dialyzer --verbose --plt ~/.wpool.plt -Werror_handling ebin
 
 xref: all
 	${REBAR} skip_deps=true --verbose xref
