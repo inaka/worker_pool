@@ -28,7 +28,6 @@ all() -> [Fun || {Fun, 1} <- module_info(exports),
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
-  ok = lager:start(),
   ok = wpool:start(),
   Config.
 
