@@ -1,4 +1,4 @@
-RUN := erl -pa ebin -pa deps/*/ebin -smp enable -s lager -boot start_sasl ${ERL_ARGS}
+RUN := erl -pa ebin -pa deps/*/ebin -smp enable -boot start_sasl ${ERL_ARGS}
 HOST := `hostname`
 REBAR ?= './rebar'
 
