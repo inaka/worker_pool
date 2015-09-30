@@ -116,7 +116,7 @@ call(Sup, Call, Strategy) -> call(Sup, Call, Strategy, 5000).
 %% @doc Picks a server and issues the call to it.
 %%      For all strategies except available_worker, Timeout applies only to the
 %%      time spent on the actual call to the worker, because time spent finding
-%%      the woker in other strategies is negligible.
+%%      the worker in other strategies is negligible.
 %%      For available_worker the time used choosing a worker is also considered
 -spec call(name(), term(), strategy(), timeout()) -> term().
 call(Sup, Call, available_worker, infinity) ->
@@ -131,6 +131,8 @@ call(Sup, Call, available_worker, Timeout) ->
   % wpool_process a valid timeout value
   NewTimeout = abs(Timeout - round(Elapsed/1000)),
   wpool_process:call(Worker, Call, NewTimeout);
+call(Sup, Call, {hash_worker, HashKey}, Timeout) ->
+  wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
 call(Sup, Call, Strategy, Timeout) ->
   wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
@@ -143,6 +145,8 @@ call(Sup, Call, Strategy, Timeout) ->
 call(Sup, Call, available_worker, Worker_Timeout, Timeout) ->
   Worker = wpool_pool:available_worker(Sup, Worker_Timeout),
   wpool_process:call(Worker, Call, Timeout);
+call(Sup, Call, hash_worker, HashKey, Timeout) ->
+  wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
 call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
   call(Sup, Call, Strategy, Timeout).
 
@@ -154,6 +158,8 @@ cast(Sup, Cast) -> cast(Sup, Cast, default_strategy()).
 -spec cast(name(), term(), strategy()) -> ok.
 cast(Sup, Cast, available_worker) ->
   wpool_pool:cast_to_available_worker(Sup, Cast);
+cast(Sup, Cast, {hash_worker, HashKey}) ->
+  wpool_process:cast(wpool_pool:hash_worker(Sup, HashKey), Cast);
 cast(Sup, Cast, Strategy) ->
   wpool_process:cast(wpool_pool:Strategy(Sup), Cast).
 
