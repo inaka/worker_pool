@@ -21,7 +21,12 @@
 
 %% API
 -export([start_link/2, create_table/0]).
--export([best_worker/1, random_worker/1, next_worker/1, available_worker/2]).
+-export([ best_worker/1
+        , random_worker/1
+        , next_worker/1
+        , available_worker/2
+        , hash_worker/2
+        ]).
 -export([cast_to_available_worker/2]).
 -export([stats/1, wpool_size/1, worker_names/1]).
 
@@ -93,6 +98,19 @@ available_worker(Sup, Timeout) ->
     timeout -> throw(no_workers);
     noproc -> throw(no_workers);
     Worker -> Worker
+  end.
+
+%% @doc Picks a worker base on a hash result.
+%%      `phash2(Term, Range)` returns hash = integer, 0 <= hash < Range
+%%      so `1` must be added
+%% @throws no_workers
+-spec hash_worker(wpool:name(), term()) -> atom().
+hash_worker(Sup, HashKey) ->
+  case wpool_size(Sup) of
+    undefined -> throw(no_workers);
+    Wpool_Size ->
+      Index = 1 + erlang:phash2(HashKey, Wpool_Size),
+      worker_name(Sup, Index)
   end.
 
 %% @doc Casts a message to the first available worker.

@@ -22,7 +22,8 @@
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([best_worker/1, next_worker/1, random_worker/1, available_worker/1]).
+-export([best_worker/1, next_worker/1,
+         random_worker/1, available_worker/1, hash_worker/1]).
 -export([wait_and_self/1]).
 
 -spec all() -> [atom()].
@@ -203,6 +204,30 @@ random_worker(_Config) ->
          end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
   ?WORKERS = sets:size(sets:from_list(Concurrent)).
+
+-spec hash_worker(config()) -> _.
+hash_worker(_Config) ->
+  Pool = hash_worker,
+
+  try wpool:call(not_a_pool, x, hash_worker) of
+  Result -> no_result = Result
+  catch
+      _:no_workers -> ok
+  end,
+
+  %% Use two hash keys that has to different values (0, 1) to target only
+  %% two workers. Other workers should be missing.
+  Targeted =
+    [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I rem 2})
+     || I <- lists:seq(1, 20 * ?WORKERS)],
+  2 = sets:size(sets:from_list(Targeted)),
+
+  %% Now use many different hash keys. All workers should be hit.
+  Spread =
+    [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I})
+     || I <- lists:seq(1, 20 * ?WORKERS)],
+  ?WORKERS = sets:size(sets:from_list(Spread)).
+
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
