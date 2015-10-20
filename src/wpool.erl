@@ -22,21 +22,11 @@
                   , {workers, 100}, {worker, {wpool_worker, undefined}}
                   ]).
 
--type gen_server_dbg() :: trace
-                        | log
-                        | statistics
-                        | {log_to_file,FileName::term()}
-                        | {install,{Func::term(),FuncState::term()}}.
-
--type gen_server_dbgs() ::  [gen_server_dbg()].
--type gen_server_spawn_opts() :: [term()].
--type gen_server_opts() :: {debug, gen_server_dbgs()}
-                         | {timeout,infinity|pos_integer()}
-                         | {spawn_opt, gen_server_spawn_opts()}.
+-type name() :: atom().
 -type option() :: {overrun_warning, infinity|pos_integer()}
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
-                | {worker_opt, gen_server_opts()}
+                | {worker_opt, gen:options()}
                 | {worker, {Module::atom(), InitArg::term()}}.
 -type strategy() :: best_worker
                   | random_worker
