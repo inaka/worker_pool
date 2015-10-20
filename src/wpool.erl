@@ -20,12 +20,14 @@
 -define(DEFAULTS, [ {overrun_warning, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
                   , {workers, 100}, {worker, {wpool_worker, undefined}}
+                  , {worker_opt, []}
                   ]).
 
 -type name() :: atom().
 -type option() :: {overrun_warning, infinity|pos_integer()}
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
+                | {worker_opt, gen:options()}
                 | {worker, {Module::atom(), InitArg::term()}}.
 -type strategy() :: best_worker
                   | random_worker

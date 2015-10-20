@@ -42,8 +42,9 @@
 -spec start_link(wpool:name(), module(), term(), [wpool:option()]) ->
         {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
+  WorkerOpt = proplists:get_value(worker_opt, Options, []),
   gen_server:start_link(
-    {local, Name}, ?MODULE, {Name, Module, InitArgs, Options}, []).
+    {local, Name}, ?MODULE, {Name, Module, InitArgs, Options}, WorkerOpt).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
