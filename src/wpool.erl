@@ -20,6 +20,7 @@
 -define(DEFAULTS, [ {overrun_warning, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
                   , {workers, 100}, {worker, {wpool_worker, undefined}}
+                  , {worker_opt, []}
                   ]).
 
 -type name() :: atom().
