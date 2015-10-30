@@ -101,8 +101,8 @@ available_worker(Sup, Timeout) ->
   end.
 
 %% @doc Picks a worker base on a hash result.
-%%      `phash2(Term, Range)` returns hash = integer, 0 <= hash < Range
-%%      so `1` must be added
+%%      <pre>phash2(Term, Range)</pre> returns hash = integer,
+%%      0 &lt;= hash &lt; Range so <pre>1</pre> must be added
 %% @throws no_workers
 -spec hash_worker(wpool:name(), term()) -> atom().
 hash_worker(Sup, HashKey) ->
