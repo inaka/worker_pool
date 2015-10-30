@@ -49,4 +49,4 @@ init([]) ->
   ok = wpool_pool:create_table(),
   {ok, {{simple_one_for_one, 5, 60},
         [{wpool_pool, {wpool_pool, start_link, []},
-         transient, 2000, supervisor, dynamic}]}}.
+         permanent, 2000, supervisor, dynamic}]}}.
