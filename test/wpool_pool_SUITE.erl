@@ -25,6 +25,7 @@
 -export([best_worker/1, next_worker/1,
          random_worker/1, available_worker/1, hash_worker/1]).
 -export([wait_and_self/1]).
+-export([manager_crash/1]).
 
 -spec all() -> [atom()].
 all() ->
@@ -209,13 +210,13 @@ random_worker(_Config) ->
 hash_worker(_Config) ->
   Pool = hash_worker,
 
-  try wpool:call(not_a_pool, x, hash_worker) of
+  try wpool:call(not_a_pool, x, {hash_worker, 1}) of
   Result -> no_result = Result
   catch
       _:no_workers -> ok
   end,
 
-  %% Use two hash keys that has to different values (0, 1) to target only
+  %% Use two hash keys that have different values (0, 1) to target only
   %% two workers. Other workers should be missing.
   Targeted =
     [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I rem 2})
@@ -227,6 +228,25 @@ hash_worker(_Config) ->
     [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I})
      || I <- lists:seq(1, 20 * ?WORKERS)],
   ?WORKERS = sets:size(sets:from_list(Spread)).
+
+-spec manager_crash(config()) -> _.
+manager_crash(_Config) ->
+  Pool = manager_crash,
+  QueueManager = 'wpool_pool-manager_crash-queue-manager',
+
+  error_logger:info_msg("Check that the pool is working"),
+  {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker),
+  true = undefined =/= whereis(QueueManager),
+
+  error_logger:info_msg("Crash the pool manager"),
+  exit(whereis(QueueManager), kill),
+  timer:sleep(100),
+  true = undefined =/= whereis(QueueManager),
+
+  error_logger:info_msg("Check that the pool is working again"),
+  {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker),
+
+  ok.
 
 
 collect_results(0, Results) -> Results;

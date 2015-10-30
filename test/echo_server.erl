@@ -21,10 +21,11 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
+-dialyzer([no_behaviours]).
+
 %%%===================================================================
 %%% callbacks
 %%%===================================================================
-
 -spec init(Something) -> Something.
 init(Something) -> Something.
 

@@ -28,7 +28,7 @@
         , hash_worker/2
         ]).
 -export([cast_to_available_worker/2]).
--export([stats/1, wpool_size/1, worker_names/1]).
+-export([stats/1, wpool_size/1, worker_names/1, worker_name/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -202,18 +202,15 @@ wpool_size(Name) ->
 %% ===================================================================
 %% @private
 -spec init({wpool:name(), [wpool:option()]}) ->
-        {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()},
-              [supervisor:child_spec()]}}.
+        {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-  {Worker, InitArgs} =
-    proplists:get_value(worker, Options, {wpool_worker, undefined}),
   Workers = proplists:get_value(workers, Options, 100),
-  Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
   OverrunHandler =
     proplists:get_value(
       overrun_handler, Options, {error_logger, warning_report}),
   TimeChecker = time_checker_name(Name),
   QueueManager = queue_manager_name(Name),
+  ProcessSup = process_sup_name(Name),
   _Wpool =
     store_wpool(
       #wpool{ name = Name
@@ -230,21 +227,28 @@ init({Name, Options}) ->
     {QueueManager,
      {wpool_queue_manager, start_link, [Name, QueueManager]},
      permanent, brutal_kill, worker, [wpool_queue_manager]},
-  WorkerSpecs =
-    [{worker_name(Name, I),
-      {wpool_process, start_link,
-       [worker_name(Name, I), Worker, InitArgs,
-        [ {queue_manager, QueueManager}, {time_checker, TimeChecker}
-        | Options]]}, permanent, 5000, worker, [Worker]}
-    || I <- lists:seq(1, Workers)],
-  {ok, {Strategy, [TimeCheckerSpec, QueueManagerSpec | WorkerSpecs]}}.
+
+  WorkerOpts =
+    [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options],
+  ProcessSupSpec =
+    {ProcessSup,
+     {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]},
+     permanent, brutal_kill, supervisor, [wpool_process_sup]},
+
+  SupStrategy = {one_for_all, 5, 60},
+  {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, ProcessSupSpec]}}.
+
+%% @private
+-spec worker_name(wpool:name(), pos_integer()) -> atom().
+worker_name(Sup, I) ->
+  list_to_atom(
+    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ [$-| integer_to_list(I)]).
 
 %% ===================================================================
 %% Private functions
 %% ===================================================================
-worker_name(Sup, I) ->
-  list_to_atom(
-    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ [$-| integer_to_list(I)]).
+process_sup_name(Sup) ->
+  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-process-sup").
 time_checker_name(Sup) ->
   list_to_atom(
     ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
@@ -311,12 +315,12 @@ find_wpool(Name) ->
 build_wpool(Name) ->
   error_logger:warning_msg(
     "Building a #wpool record for ~p. Something must have failed.", [Name]),
-  try supervisor:count_children(Name) of
+  try supervisor:count_children(process_sup_name(Name)) of
     Children ->
       case proplists:get_value(active, Children, 0) of
         0 -> undefined;
-        Size -> % NOTE: We deduct 2 for the time checker and queue manager
-          Wpool = #wpool{name = Name, size = Size - 2, next = 1, opts = []},
+        Size ->
+          Wpool = #wpool{name = Name, size = Size, next = 1, opts = []},
           store_wpool(Wpool)
       end
   catch
