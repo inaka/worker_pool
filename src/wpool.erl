@@ -28,11 +28,13 @@
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
                 | {worker_opt, gen:options()}
-                | {worker, {Module::atom(), InitArg::term()}}.
+                | {worker, {Module::atom(), InitArg::term()}}
+                | {strategy, supervisor:strategy()}.
 -type strategy() :: best_worker
                   | random_worker
                   | next_worker
-                  | available_worker.
+                  | available_worker
+                  | {hash_worker, non_neg_integer()}.
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
                         | {memory, pos_integer()}
                         ].
@@ -100,7 +102,7 @@ start_sup_pool(Name, Options) ->
 stop_pool(Name) -> wpool_sup:stop_pool(Name).
 
 %% @doc Default strategy
--spec default_strategy() -> available_worker.
+-spec default_strategy() -> strategy().
 default_strategy() ->
   case application:get_env(worker_pool, default_strategy) of
     undefined -> available_worker;
