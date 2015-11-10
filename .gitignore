@@ -1,3 +1,5 @@
+_build/
+rebar.lock
 .rebar/
 all.coverdata
 .classpath
