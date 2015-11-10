@@ -20,6 +20,22 @@
   {registered,   []},
   {applications, [kernel,stdlib]},
   {mod, {wpool, []}},
-  {env, []}
+  {env, []},
+  {contributors, [ "Brujo Benavides"
+                 , "Jay Nelson"
+                 , "Martin Hald"
+                 , "George Ye"
+                 , "Hernán Rivas Acosta"
+                 , "Tobias Schlager"
+                 , "Josh Ragem"
+                 , "Marcelo Gornstein"
+                 , "Juan Facorro"
+                 , "Iñaki Garay"
+                 ]},
+  {licenses, ["Apache2"]},
+  {links, [ {"Github", "https://github.com/inaka/worker_pool"}
+          , {"Erldocs", "http://inaka.github.io/worker_pool/"}
+          , {"Blog Post", "http://inaka.net/blog/2014/09/25/worker-pool/"}
+          ]}
  ]
 }.
