@@ -1,3 +1,5 @@
+%% -*- coding: latin-1 -*-
+
 % This file is licensed to you under the Apache License,
 % Version 2.0 (the "License"); you may not use this file
 % except in compliance with the License.  You may obtain
@@ -21,17 +23,17 @@
   {applications, [kernel,stdlib]},
   {mod, {wpool, []}},
   {env, []},
-  {contributors, [ "Brujo Benavides"
-                 , "Jay Nelson"
-                 , "Martin Hald"
-                 , "George Ye"
-                 , "Hernán Rivas Acosta"
-                 , "Tobias Schlager"
-                 , "Josh Ragem"
-                 , "Marcelo Gornstein"
-                 , "Juan Facorro"
-                 , "Iñaki Garay"
-                 ]},
+  {maintainers, [ "Brujo Benavides"
+                , "Jay Nelson"
+                , "Martin Hald"
+                , "George Ye"
+                , "Hernán Rivas Acosta"
+                , "Tobias Schlager"
+                , "Josh Ragem"
+                , "Marcelo Gornstein"
+                , "Juan Facorro"
+                , "Iñaki Garay"
+                ]},
   {licenses, ["Apache2"]},
   {links, [ {"Github", "https://github.com/inaka/worker_pool"}
           , {"Erldocs", "http://inaka.github.io/worker_pool/"}
