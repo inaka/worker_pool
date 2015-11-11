@@ -23,17 +23,7 @@
   {applications, [kernel,stdlib]},
   {mod, {wpool, []}},
   {env, []},
-  {maintainers, [ "Brujo Benavides"
-                , "Jay Nelson"
-                , "Martin Hald"
-                , "George Ye"
-                , "Hernán Rivas Acosta"
-                , "Tobias Schlager"
-                , "Josh Ragem"
-                , "Marcelo Gornstein"
-                , "Juan Facorro"
-                , "Iñaki Garay"
-                ]},
+  {maintainers, ["Inaka", "TigerText"]},
   {licenses, ["Apache2"]},
   {links, [ {"Github", "https://github.com/inaka/worker_pool"}
           , {"Erldocs", "http://inaka.github.io/worker_pool/"}
