@@ -20,7 +20,7 @@
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([init/1, info/1, cast/1, call/1]).
+-export([init/1, init_timeout/1, info/1, cast/1, call/1]).
 
 -spec all() -> [atom()].
 all() -> [Fun || {Fun, 1} <- module_info(exports),
@@ -55,6 +55,16 @@ init(_Config) ->
     wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, []),
   {ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   wpool_process:cast(?MODULE, {stop, normal, state}).
+
+-spec init_timeout(config()) -> _.
+init_timeout(_Config) ->
+  {ok, Pid} =
+        wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, []),
+  timer:sleep(1),
+  timeout = wpool_process:call(?MODULE, state, 5000),
+  Pid ! {stop, normal, state},
+  timer:sleep(1000),
+  false = erlang:is_process_alive(Pid).
 
 -spec info(config()) -> _.
 info(_Config) ->
