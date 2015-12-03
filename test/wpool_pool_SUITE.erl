@@ -94,7 +94,7 @@ available_worker(_Config) ->
   try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
-    _:Error -> no_workers = Error
+    _:Error -> timeout = Error
   end,
 
   error_logger:info_msg("Let's wait until all workers are free"),
@@ -136,7 +136,7 @@ best_worker(_Config) ->
   %% Fill up their message queues...
   [ wpool:cast(Pool, {timer, sleep, [60000]}, best_worker)
    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(1000),
+  timer:sleep(1500),
   [0] = sets:to_list(
       sets:from_list(
         [proplists:get_value(message_queue_len, WS)

@@ -29,7 +29,7 @@
 -type state() :: #state{}.
 
 %% api
--export([start_link/4, call/3, cast/2, age/1]).
+-export([start_link/4, call/3, cast/2, cast_call/3, age/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
@@ -50,9 +50,14 @@ start_link(Name, Module, InitArgs, Options) ->
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
 call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 
-%% @equiv gen_server:cast(Process, Cast)
+%% @equiv gen_server:cast(Process, {cast, Cast})
 -spec cast(wpool:name() | pid(), term()) -> ok.
-cast(Process, Cast) -> gen_server:cast(Process, Cast).
+cast(Process, Cast) -> gen_server:cast(Process, {cast, Cast}).
+
+%% @equiv gen_server:cast(Process, {call, From, Call})
+-spec cast_call(wpool:name() | pid(), pid(), term()) -> ok.
+cast_call(Process, From, Call) ->
+  gen_server:cast(Process, {call, From, Call}).
 
 %% @doc Report how old a process is in <b>microseconds</b>
 -spec age(wpool:name() | pid()) -> non_neg_integer().
@@ -121,7 +126,20 @@ handle_info(Info, State) ->
 %%%===================================================================
 %% @private
 -spec handle_cast(term(), state()) -> {noreply, state()}.
-handle_cast(Cast, State) ->
+handle_cast({call, From, Call}, State) ->
+  case handle_call(Call, From, State) of
+    {reply, Response, NewState} ->
+      gen_server:reply(From, Response),
+      {noreply, NewState};
+    {reply, Response, NewState, Timeout} ->
+      gen_server:reply(From, Response),
+      {noreply, NewState, Timeout};
+    {stop, Reason, Response, NewState} ->
+      gen_server:reply(From, Response),
+      {stop, Reason, NewState};
+    Reply -> Reply
+  end;
+handle_cast({cast, Cast}, State) ->
   Task =
     task_init(
       {cast, Cast},
