@@ -17,7 +17,7 @@
 {application, worker_pool,
  [
   {description, "Erlang Worker Pool"},
-  {vsn, "1.0.3"},
+  {vsn, "1.0.4"},
   {id, "worker_pool"},
   {registered,   []},
   {applications, [kernel,stdlib]},
