@@ -123,18 +123,8 @@ call(Sup, Call, Strategy) -> call(Sup, Call, Strategy, 5000).
 %%      the worker in other strategies is negligible.
 %%      For available_worker the time used choosing a worker is also considered
 -spec call(name(), term(), strategy(), timeout()) -> term().
-call(Sup, Call, available_worker, infinity) ->
-  wpool_process:call(
-    wpool_pool:available_worker(Sup, infinity), Call, infinity);
 call(Sup, Call, available_worker, Timeout) ->
-  {Elapsed, Worker} = timer:tc(wpool_pool, available_worker, [Sup, Timeout]),
-  % Since the Timeout is a general constraint, we have to deduce the time
-  % we spent waiting for a worker, and if it took it too much, no_workers
-  % exception should have been thrown
-  % It may end up lower than 0, but not much lower, so we use abs to send
-  % wpool_process a valid timeout value
-  NewTimeout = abs(Timeout - round(Elapsed/1000)),
-  wpool_process:call(Worker, Call, NewTimeout);
+  wpool_pool:call_available_worker(Sup, Call, Timeout);
 call(Sup, Call, {hash_worker, HashKey}, Timeout) ->
   wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
 call(Sup, Call, Strategy, Timeout) ->
@@ -142,13 +132,12 @@ call(Sup, Call, Strategy, Timeout) ->
 
 -type available_worker_timeout() :: timeout().
 %% @doc Picks a server and issues the call to it.
-%%      For all strategies except available_worker, Worker_Timeout is ignored
-%%      For available_worker Worker_Timeout is the time used choosing a worker
+%%      For all strategies except available_worker, WorkerTimeout is ignored
+%%      For available_worker the total timeout will be WorkerTimeout + Timeout.
 -spec call(name(), term(), strategy(), available_worker_timeout(), timeout()) ->
         term().
-call(Sup, Call, available_worker, Worker_Timeout, Timeout) ->
-  Worker = wpool_pool:available_worker(Sup, Worker_Timeout),
-  wpool_process:call(Worker, Call, Timeout);
+call(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
+  wpool_pool:call_available_worker(Sup, Call, WorkerTimeout + Timeout);
 call(Sup, Call, hash_worker, HashKey, Timeout) ->
   wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
 call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->

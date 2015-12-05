@@ -19,7 +19,7 @@
 
 %% api
 -export([start_link/2]).
--export([available_worker/2, cast_to_available_worker/2,
+-export([call_available_worker/3, cast_to_available_worker/2,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
 -export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/3]).
 
@@ -49,16 +49,16 @@ start_link(WPool, Name) ->
   gen_server:start_link({local, Name}, ?MODULE, WPool, []).
 
 %% @doc returns the first available worker in the pool
--spec available_worker(queue_mgr(), timeout()) -> noproc | timeout | atom().
-available_worker(QueueManager, Timeout) ->
+-spec call_available_worker(queue_mgr(), any(), timeout()) ->
+  noproc | timeout | atom().
+call_available_worker(QueueManager, Call, Timeout) ->
   Expires =
     case Timeout of
       infinity -> infinity;
-      Timeout -> now_in_microseconds() + Timeout*1000
+      Timeout -> now_in_microseconds() + Timeout * 1000
     end,
-  try gen_server:call(QueueManager, {available_worker, Expires}, Timeout) of
-    {ok, Worker} -> Worker;
-    {error, Error} -> throw(Error)
+  try
+    gen_server:call(QueueManager, {available_worker, Call, Expires}, Timeout)
   catch
     _:{noproc, {gen_server, call, _}} ->
       noproc;
@@ -296,13 +296,13 @@ handle_cast({worker_ready, Worker},
        dec_pending_tasks(),
        ok = wpool_process:cast(Worker, Cast),
        {noreply, State#state{clients = New_Clients}};
-    {{value, {Client = {ClientPid, _}, Expires}}, New_Clients} ->
+    {{value, {Client = {ClientPid, _}, Call, Expires}}, New_Clients} ->
       dec_pending_tasks(),
       New_State = State#state{clients = New_Clients},
       case is_process_alive(ClientPid) andalso
            Expires > now_in_microseconds() of
         true ->
-          _ = gen_server:reply(Client, {ok, Worker}),
+          ok = wpool_process:cast_call(Worker, Client, Call),
           {noreply, New_State};
         false ->
           handle_cast({worker_ready, Worker}, New_State)
@@ -327,19 +327,24 @@ handle_cast({cast_to_available_worker, Cast},
 -spec handle_call(call_request(), from(), state())
                  -> {reply, {ok, atom()}, state()} | {noreply, state()}.
 
-handle_call({available_worker, Expires}, Client = {ClientPid, _Ref},
+handle_call({available_worker, Call, Expires}, Client = {ClientPid, _Ref},
             #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
-      {noreply, State#state{clients = queue:in({Client, Expires}, Clients)}};
+      { noreply
+      , State#state{clients = queue:in({Client, Call, Expires}, Clients)}
+      };
     false ->
       {Worker, New_Workers} = gb_sets:take_smallest(Workers),
       %NOTE: It could've been a while since this call was made, so we check
       case erlang:is_process_alive(ClientPid) andalso
            Expires > now_in_microseconds() of
-        true  -> {reply, {ok, Worker}, State#state{workers = New_Workers}};
-        false -> {noreply, State}
+        true  ->
+          ok = wpool_process:cast_call(Worker, Client, Call),
+          {noreply, State#state{workers = New_Workers}};
+        false ->
+          {noreply, State}
       end
   end;
 handle_call(worker_counts, _From,

@@ -24,7 +24,7 @@
 -export([ best_worker/1
         , random_worker/1
         , next_worker/1
-        , available_worker/2
+        , call_available_worker/3
         , hash_worker/2
         ]).
 -export([cast_to_available_worker/2]).
@@ -88,16 +88,17 @@ next_worker(Sup) ->
     Next -> worker_name(Sup, Next)
   end.
 
-%% @doc Picks the first available worker.
-%%      If all workers are busy, waits for Timeout ms until one is free
-%% @throws no_workers
--spec available_worker(wpool:name(), timeout()) -> atom().
-available_worker(Sup, Timeout) ->
-  case wpool_queue_manager:available_worker(
-        queue_manager_name(Sup), Timeout) of
-    timeout -> throw(no_workers);
-    noproc -> throw(no_workers);
-    Worker -> Worker
+%% @doc Picks the first available worker and sends the call to it.
+%%      The timeout provided includes the time it takes to get a worker
+%%      and for it to process the call.
+%% @throws no_workers | timeout
+-spec call_available_worker(wpool:name(), any(), timeout()) -> any().
+call_available_worker(Sup, Call, Timeout) ->
+  case wpool_queue_manager:call_available_worker(
+        queue_manager_name(Sup), Call, Timeout) of
+    noproc  -> throw(no_workers);
+    timeout -> throw(timeout);
+    Result  -> Result
   end.
 
 %% @doc Picks a worker base on a hash result.
