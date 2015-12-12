@@ -20,6 +20,10 @@
 %% api
 -export([start_link/2]).
 -export([call_available_worker/3, cast_to_available_worker/2,
+         send_event_to_available_worker/2,
+         sync_send_event_to_available_worker/3,
+         send_all_event_to_available_worker/2,
+         sync_send_all_event_to_available_worker/3,
          new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
 -export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/3]).
 
@@ -73,6 +77,64 @@ call_available_worker(QueueManager, Call, Timeout) ->
 -spec cast_to_available_worker(queue_mgr(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) ->
   gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
+
+%% @doc returns the first available worker in the pool
+-spec sync_send_event_to_available_worker(queue_mgr(), any(), timeout()) ->
+                                          noproc | timeout | atom().
+sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
+  Expires =
+    case Timeout of
+      infinity -> infinity;
+      Timeout -> now_in_microseconds() + Timeout * 1000
+    end,
+  try
+    gen_server:call(QueueManager, {sync_event_available_worker,
+                                  Event,
+                                  Expires}
+                                  , Timeout)
+  catch
+    _:{noproc, {gen_server, call, _}} ->
+      noproc;
+    _:{timeout, {gen_server, call, _}} ->
+      timeout
+  end.
+
+%% @doc returns the first available worker in the pool
+-spec sync_send_all_event_to_available_worker(queue_mgr(), any(), timeout()) ->
+                                              noproc | timeout | atom().
+sync_send_all_event_to_available_worker(QueueManager, Event, Timeout) ->
+  Expires =
+    case Timeout of
+      infinity -> infinity;
+      Timeout -> now_in_microseconds() + Timeout * 1000
+    end,
+  try
+    gen_server:call(QueueManager, {sync_all_event_available_worker,
+                                  Event,
+                                  Expires}
+                                  , Timeout)
+  catch
+    _:{noproc, {gen_server, call, _}} ->
+      noproc;
+    _:{timeout, {gen_server, call, _}} ->
+      timeout
+  end.
+
+%% @doc Send an event to the first available worker.
+%%      Since we can wait forever for a wpool:send_event to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the event when it gets the worker
+-spec send_event_to_available_worker(queue_mgr(), term()) -> ok.
+send_event_to_available_worker(QueueManager, Event) ->
+  gen_server:cast(QueueManager, {send_event_to_available_worker, Event}).
+
+%% @doc Send an event to the first available worker.
+%%      Since we can wait forever for a wpool:send_event to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the event when it gets the worker
+-spec send_all_event_to_available_worker(queue_mgr(), term()) -> ok.
+send_all_event_to_available_worker(QueueManager, Event) ->
+  gen_server:cast(QueueManager, {send_all_event_to_available_worker, Event}).
 
 %% @doc Mark a brand new worker as available
 -spec new_worker(queue_mgr(), atom()) -> ok.
@@ -306,7 +368,11 @@ handle_cast({worker_ready, Worker},
           {noreply, New_State};
         false ->
           handle_cast({worker_ready, Worker}, New_State)
-      end
+      end;
+      {{value, {send_event, Event}}, New_Clients} ->
+        dec_pending_tasks(),
+        ok = wpool_fsm_process:send_event(Worker, Event),
+        {noreply, State#state{clients = New_Clients}}
   end;
 handle_cast({cast_to_available_worker, Cast},
             #state{workers=Workers, clients=Clients} = State) ->
@@ -318,6 +384,28 @@ handle_cast({cast_to_available_worker, Cast},
       {Worker, New_Workers} = gb_sets:take_smallest(Workers),
       ok = wpool_process:cast(Worker, Cast),
       {noreply, State#state{workers = New_Workers}}
+  end;
+handle_cast({send_event_to_available_worker, Event},
+            #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
+  true ->
+    inc_pending_tasks(),
+    {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
+  false ->
+    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+    ok = wpool_fsm_process:send_event(Worker, Event),
+    {noreply, State#state{workers = New_Workers}}
+  end;
+handle_cast({send_all_event_to_available_worker, Event},
+            #state{workers=Workers, clients=Clients} = State) ->
+    case gb_sets:is_empty(Workers) of
+    true ->
+    inc_pending_tasks(),
+    {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
+    false ->
+    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+    ok = wpool_fsm_process:send_all_event(Worker, Event),
+    {noreply, State#state{workers = New_Workers}}
   end.
 
 -type from() :: {pid(), reference()}.
@@ -346,6 +434,50 @@ handle_call({available_worker, Call, Expires}, Client = {ClientPid, _Ref},
         false ->
           {noreply, State}
       end
+  end;
+handle_call({sync_event_available_worker, Event, Expires},
+            Client = {ClientPid, _Ref},
+            #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
+    true ->
+      inc_pending_tasks(),
+      { noreply
+        , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
+      };
+    false ->
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+      %NOTE: It could've been a while since this call was made, so we check
+      case erlang:is_process_alive(ClientPid) andalso
+        Expires > now_in_microseconds() of
+        true  ->
+          Reply = wpool_fsm_process:sync_send_event(Worker, Event),
+          gen_server:reply(Client, Reply),
+          {noreply, State#state{workers = New_Workers}};
+        false ->
+          {noreply, State}
+      end
+  end;
+handle_call({sync_all_event_available_worker, Event, Expires},
+            Client = {ClientPid, _Ref},
+            #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
+    true ->
+    inc_pending_tasks(),
+    { noreply
+    , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
+    };
+    false ->
+    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+    %NOTE: It could've been a while since this call was made, so we check
+    case erlang:is_process_alive(ClientPid) andalso
+      Expires > now_in_microseconds() of
+      true  ->
+        Reply = wpool_fsm_process:sync_send_all_event(Worker, Event),
+        gen_server:reply(Client, Reply),
+        {noreply, State#state{workers = New_Workers}};
+      false ->
+        {noreply, State}
+    end
   end;
 handle_call(worker_counts, _From,
             #state{workers=Available_Workers} = State) ->

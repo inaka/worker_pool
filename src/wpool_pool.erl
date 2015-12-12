@@ -25,9 +25,13 @@
         , random_worker/1
         , next_worker/1
         , call_available_worker/3
+        , sync_send_event_to_available_worker/3
+        , sync_send_all_event_to_available_worker/3
         , hash_worker/2
         ]).
--export([cast_to_available_worker/2]).
+-export([cast_to_available_worker/2
+        , send_event_to_available_worker/2
+        , send_all_event_to_available_worker/2]).
 -export([stats/1, wpool_size/1, worker_names/1, worker_name/2]).
 
 %% Supervisor callbacks
@@ -101,6 +105,36 @@ call_available_worker(Sup, Call, Timeout) ->
     Result  -> Result
   end.
 
+%% @doc Picks the first available worker and sends the event to it.
+%%      The timeout provided includes the time it takes to get a worker
+%%      and for it to process the call.
+%% @throws no_workers | timeout
+-spec sync_send_event_to_available_worker(wpool:name(),
+                                          any(),
+                                          timeout()) -> any().
+sync_send_event_to_available_worker(Sup, Event, Timeout) ->
+  case wpool_queue_manager:sync_send_event_to_available_worker(
+    queue_manager_name(Sup), Event, Timeout) of
+    noproc  -> throw(no_workers);
+    timeout -> throw(timeout);
+    Result  -> Result
+  end.
+
+%% @doc Picks the first available worker and sends the event to it.
+%%      The timeout provided includes the time it takes to get a worker
+%%      and for it to process the call.
+%% @throws no_workers | timeout
+-spec sync_send_all_event_to_available_worker(wpool:name(),
+                                              any(),
+                                              timeout()) -> any().
+sync_send_all_event_to_available_worker(Sup, Event, Timeout) ->
+  case wpool_queue_manager:sync_send_all_event_to_available_worker(
+    queue_manager_name(Sup), Event, Timeout) of
+    noproc  -> throw(no_workers);
+    timeout -> throw(timeout);
+    Result  -> Result
+  end.
+
 %% @doc Picks a worker base on a hash result.
 %%      <pre>phash2(Term, Range)</pre> returns hash = integer,
 %%      0 &lt;= hash &lt; Range so <pre>1</pre> must be added
@@ -121,6 +155,26 @@ hash_worker(Sup, HashKey) ->
 -spec cast_to_available_worker(wpool:name(), term()) -> ok.
 cast_to_available_worker(Sup, Cast) ->
   wpool_queue_manager:cast_to_available_worker(queue_manager_name(Sup), Cast).
+
+%% @doc Sends an event to the first available worker.
+%%      Since we can wait forever for a wpool:send_event to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the event when it gets the worker
+-spec send_event_to_available_worker(wpool:name(), term()) -> ok.
+send_event_to_available_worker(Sup, Event) ->
+  wpool_queue_manager:send_event_to_available_worker(
+                                    queue_manager_name(Sup),
+                                    Event).
+
+%% @doc Sends an event to the first available worker.
+%%      Since we can wait forever for a wpool:send_event to be delivered
+%%      but we don't want the caller to be blocked, this function
+%%      just forwards the event when it gets the worker
+-spec send_all_event_to_available_worker(wpool:name(), term()) -> ok.
+send_all_event_to_available_worker(Sup, Event) ->
+  wpool_queue_manager:send_all_event_to_available_worker(
+                                    queue_manager_name(Sup),
+                                    Event).
 
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
