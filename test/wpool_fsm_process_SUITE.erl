@@ -76,7 +76,7 @@ info(_Config) ->
                                           {ok, state_one, []},
                                           []),
   Pid ! {next_state, state_two, newstate},
-  newstate = wpool_fsm_process:sync_send_all_event(?MODULE, state, 5000),
+  newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   Pid ! {next_state, state_three, newstate, 0},
   timer:sleep(1),
   false = erlang:is_process_alive(Pid).
@@ -88,7 +88,7 @@ async_states(_Config) ->
                                           {ok, state_one, []},
                                           []),
   wpool_fsm_process:send_event(Pid, {next_state, state_two, newstate}),
-  newstate = wpool_fsm_process:sync_send_all_event(?MODULE, state, 5000),
+  newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   wpool_fsm_process:send_event(Pid, {next_state, state_one, newerstate, 0}),
   timer:sleep(1),
   false = erlang:is_process_alive(Pid).
@@ -102,7 +102,7 @@ sync_states(_Config) ->
   ok1 = wpool_fsm_process:sync_send_event(Pid,
                                           {reply, ok1, state_two, newstate},
                                           5000),
-  newstate = wpool_fsm_process:sync_send_all_event(?MODULE, state, 5000),
+  newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   ok2 = wpool_fsm_process:sync_send_event(Pid,
                                         {reply, ok2, state_one, newerstate, 0},
                                         5000),

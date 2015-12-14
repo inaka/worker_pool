@@ -32,8 +32,11 @@
 -type from() :: {pid(), reference()}.
 
 %% api
--export([start_link/4, send_event/2, sync_send_event/2, sync_send_event/3,
-  send_all_event/2, sync_send_all_event/2, sync_send_all_event/3, age/1]).
+-export([start_link/4, send_event/2,
+  sync_send_event/2, sync_send_event/3,
+  send_all_state_event/2,
+  sync_send_all_state_event/2, sync_send_all_state_event/3,
+  age/1]).
 
 %% gen_fsm states
 -export([dispatch_state/2, dispatch_state/3]).
@@ -65,16 +68,18 @@ sync_send_event(Process, Event) ->
 sync_send_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_event(Process, Event, Timeout).
 
--spec send_all_event(wpool:name() | pid(), term()) -> term().
-send_all_event(Process, Event) ->
+-spec send_all_state_event(wpool:name() | pid(), term()) -> term().
+send_all_state_event(Process, Event) ->
   gen_fsm:send_all_state_event(Process, Event).
 
--spec sync_send_all_event(wpool:name() | pid(), term()) -> term().
-sync_send_all_event(Process, Event) ->
+-spec sync_send_all_state_event(wpool:name() | pid(), term()) -> term().
+sync_send_all_state_event(Process, Event) ->
   gen_fsm:sync_send_all_state_event(Process, Event).
 
--spec sync_send_all_event(wpool:name() | pid(), term(), timeout()) -> term().
-sync_send_all_event(Process, Event, Timeout) ->
+-spec sync_send_all_state_event(wpool:name() | pid()
+                                , term()
+                                , timeout()) -> term().
+sync_send_all_state_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_all_state_event(Process, Event, Timeout).
 
 %% @doc Report how old a process is in <b>microseconds</b>
