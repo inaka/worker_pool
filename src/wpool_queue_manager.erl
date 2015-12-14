@@ -404,7 +404,7 @@ handle_cast({send_all_event_to_available_worker, Event},
     {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
     false ->
     {Worker, New_Workers} = gb_sets:take_smallest(Workers),
-    ok = wpool_fsm_process:send_all_event(Worker, Event),
+    ok = wpool_fsm_process:send_all_state_event(Worker, Event),
     {noreply, State#state{workers = New_Workers}}
   end.
 
@@ -472,7 +472,7 @@ handle_call({sync_all_event_available_worker, Event, Expires},
     case erlang:is_process_alive(ClientPid) andalso
       Expires > now_in_microseconds() of
       true  ->
-        Reply = wpool_fsm_process:sync_send_all_event(Worker, Event),
+        Reply = wpool_fsm_process:sync_send_all_state_event(Worker, Event),
         gen_server:reply(Client, Reply),
         {noreply, State#state{workers = New_Workers}};
       false ->
