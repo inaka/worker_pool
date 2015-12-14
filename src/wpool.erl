@@ -219,7 +219,7 @@ send_all_state_event(Sup, Event) ->
 %% @doc Picks a server and issues the event to it
 -spec send_all_state_event(name(), term(), strategy()) -> ok.
 send_all_state_event(Sup, Event, available_worker) ->
-  wpool_pool:send_all_state_event_to_available_worker(Sup, Event);
+  wpool_pool:send_all_event_to_available_worker(Sup, Event);
 send_all_state_event(Sup, Event, {hash_worker, HashKey}) ->
   wpool_fsm_process:send_all_state_event(wpool_pool:hash_worker(Sup, HashKey)
                                           , Event);
@@ -246,7 +246,7 @@ sync_send_all_state_event(Sup, Event, Strategy) ->
                                 , strategy()
                                 , timeout()) -> term().
 sync_send_all_state_event(Sup, Event, available_worker, Timeout) ->
-  wpool_pool:sync_send_all_state_event_to_available_worker(Sup, Event, Timeout);
+  wpool_pool:sync_send_all_event_to_available_worker(Sup, Event, Timeout);
 sync_send_all_state_event(Sup, Event, {hash_worker, HashKey}, Timeout) ->
   wpool_fsm_process:sync_send_all_state_event(
                               wpool_pool:hash_worker(Sup, HashKey)
@@ -266,7 +266,7 @@ sync_send_all_state_event(Sup
                           , available_worker
                           , WorkerTimeout
                           , Timeout) ->
-  wpool_pool:sync_send_all_state_event_to_available_worker(
+  wpool_pool:sync_send_all_event_to_available_worker(
     Sup, Call, WorkerTimeout + Timeout);
 sync_send_all_state_event(Sup, Call, hash_worker, HashKey, Timeout) ->
   wpool_fsm_process:sync_send_all_state_event(
