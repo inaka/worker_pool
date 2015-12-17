@@ -103,7 +103,6 @@ stats(_Config) ->
   10 = Get(workers, Options),
   10 = Get(size, InitStats),
   1 = Get(next_worker, InitStats),
-  {wpool_worker, undefined} = Get(worker, Options),
   InitWorkers = Get(workers, InitStats),
   10 = length(InitWorkers),
   [begin
