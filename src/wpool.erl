@@ -34,7 +34,7 @@
                   | random_worker
                   | next_worker
                   | available_worker
-                  | {hash_worker, non_neg_integer()}.
+                  | {hash_worker, term()}.
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
                         | {memory, pos_integer()}
                         ].
