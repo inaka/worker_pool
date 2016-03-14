@@ -38,9 +38,13 @@
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
                         | {memory, pos_integer()}
                         ].
--type stats() :: [ {workers, pos_integer()}
+-type stats() :: [ {pool, name()}
+                 | {supervisor, pid()}
+                 | {options, [option()]}
+                 | {size, non_neg_integer()}
+                 | {next_worker, pos_integer()}
                  | {total_message_queue_len, non_neg_integer()}
-                 | {worker_stats, [{pos_integer(), worker_stats()}]}
+                 | {workers, [{pos_integer(), worker_stats()}]}
                  ].
 -export_type([name/0, option/0, strategy/0, worker_stats/0, stats/0]).
 
