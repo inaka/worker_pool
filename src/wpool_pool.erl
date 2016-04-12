@@ -32,12 +32,16 @@
 -export([cast_to_available_worker/2
         , send_event_to_available_worker/2
         , send_all_event_to_available_worker/2]).
--export([stats/1, wpool_size/1, worker_names/1, worker_name/2]).
+-export([stats/1, wpool_size/1, worker_names/1, worker_name/2, find_wpool/1]).
+-export([wpool_set/2, wpool_get/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
 
 -include("wpool.hrl").
+
+-type wpool() :: #wpool{}.
+-export_type([wpool/0]).
 
 %% ===================================================================
 %% API functions
@@ -252,6 +256,40 @@ wpool_size(Name) ->
       end
   end.
 
+
+%% @doc Set values from the worker pool record. Useful when using
+%% a custom strategy function.
+-spec wpool_set([{atom(), any()}], wpool()) -> wpool().
+wpool_set([], WPool) ->
+  WPool;
+wpool_set([{name, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{name=Val});
+wpool_set([{size, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{size=Val});
+wpool_set([{next, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{next=Val});
+wpool_set([{opts, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{opts=Val});
+wpool_set([{qmanager, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{qmanager=Val});
+wpool_set([{born, Val} | Tail], WPool) ->
+  wpool_set(Tail, WPool#wpool{born=Val}).
+
+%% @doc Get values from the worker pool record. Useful when using a custom
+%% strategy function.
+-spec wpool_get(atom(), wpool()) -> any(); ([atom()], wpool()) -> any().
+wpool_get(List, WPool) when is_list(List)->
+  [g(Atom, WPool) || Atom <- List];
+wpool_get(Atom, WPool) when is_atom(Atom) ->
+  g(Atom, WPool).
+
+g(name, #wpool{name=Ret}) -> Ret;
+g(size, #wpool{size=Ret}) -> Ret;
+g(next, #wpool{next=Ret}) -> Ret;
+g(opts, #wpool{opts=Ret}) -> Ret;
+g(qmanager, #wpool{qmanager=Ret}) -> Ret;
+g(born, #wpool{born=Ret}) -> Ret.
+
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
@@ -349,6 +387,8 @@ move_wpool(Name) ->
       end
   end.
 
+%% @doc Use this function to get the Worker pool record in a custom worker.
+-spec find_wpool(atom()) -> wpool().
 find_wpool(Name) ->
   try ets:lookup(?MODULE, Name) of
     [Wpool | _] ->

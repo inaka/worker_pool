@@ -23,7 +23,8 @@
 -export([init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
 -export([best_worker/1, next_worker/1,
-         random_worker/1, available_worker/1, hash_worker/1]).
+         random_worker/1, available_worker/1,
+         hash_worker/1, custom_worker/1, wpool_record/1]).
 -export([wait_and_self/1]).
 -export([manager_crash/1]).
 
@@ -229,6 +230,42 @@ hash_worker(_Config) ->
      || I <- lists:seq(1, 20 * ?WORKERS)],
   ?WORKERS = sets:size(sets:from_list(Spread)).
 
+-spec custom_worker(config()) -> _.
+custom_worker(_Config) ->
+  Pool = custom_worker,
+
+  Strategy = fun wpool_pool:best_worker/1,
+
+  try wpool:call(not_a_pool, x, Strategy) of
+    Result -> no_result = Result
+  catch
+    _:no_workers -> ok
+  end,
+
+  %% Fill up their message queues...
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  timer:sleep(1500),
+  [0] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  timer:sleep(500),
+  [1] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  %% Now try best worker once per worker
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  %% The load should be evenly distributed...
+  [2] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+
 -spec manager_crash(config()) -> _.
 manager_crash(_Config) ->
   Pool = manager_crash,
@@ -246,6 +283,13 @@ manager_crash(_Config) ->
   error_logger:info_msg("Check that the pool is working again"),
   {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker),
 
+  ok.
+
+-spec wpool_record(config()) -> _.
+wpool_record(_Config) ->
+  WPool = wpool_pool:find_wpool(wpool_record),
+  wpool_record = wpool_pool:wpool_get(name, WPool),
+  6 = wpool_pool:wpool_get(size, WPool),
   ok.
 
 
