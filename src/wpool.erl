@@ -30,11 +30,13 @@
                 | {worker_opt, gen:options()}
                 | {worker, {Module::atom(), InitArg::term()}}
                 | {strategy, supervisor:strategy()}.
+-type custom_strategy() :: fun(([atom()])-> Atom::atom()).
 -type strategy() :: best_worker
                   | random_worker
                   | next_worker
                   | available_worker
-                  | {hash_worker, term()}.
+                  | {hash_worker, term()}
+                  | custom_strategy().
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
                         | {memory, pos_integer()}
                         ].
@@ -46,7 +48,8 @@
                  | {total_message_queue_len, non_neg_integer()}
                  | {workers, [{pos_integer(), worker_stats()}]}
                  ].
--export_type([name/0, option/0, strategy/0, worker_stats/0, stats/0]).
+-export_type([name/0, option/0, custom_strategy/0, strategy/0,
+  worker_stats/0, stats/0]).
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
@@ -136,6 +139,8 @@ call(Sup, Call, available_worker, Timeout) ->
   wpool_pool:call_available_worker(Sup, Call, Timeout);
 call(Sup, Call, {hash_worker, HashKey}, Timeout) ->
   wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
+call(Sup, Call, Fun, Timeout) when is_function(Fun) ->
+  wpool_process:call(Fun(Sup), Call, Timeout);
 call(Sup, Call, Strategy, Timeout) ->
   wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
@@ -162,6 +167,8 @@ cast(Sup, Cast, available_worker) ->
   wpool_pool:cast_to_available_worker(Sup, Cast);
 cast(Sup, Cast, {hash_worker, HashKey}) ->
   wpool_process:cast(wpool_pool:hash_worker(Sup, HashKey), Cast);
+cast(Sup, Cast, Fun) when is_function(Fun) ->
+  wpool_process:cast(Fun(Sup), Cast);
 cast(Sup, Cast, Strategy) ->
   wpool_process:cast(wpool_pool:Strategy(Sup), Cast).
 
@@ -185,6 +192,8 @@ sync_send_event(Sup, Event, available_worker, Timeout) ->
 sync_send_event(Sup, Event, {hash_worker, HashKey}, Timeout) ->
   wpool_fsm_process:sync_send_event(wpool_pool:hash_worker(Sup, HashKey),
     Event, Timeout);
+sync_send_event(Sup, Event, Fun, Timeout) when is_function(Fun) ->
+  wpool_fsm_process:sync_send_event(Fun(Sup), Event, Timeout);
 sync_send_event(Sup, Event, Strategy, Timeout) ->
   wpool_fsm_process:sync_send_event(wpool_pool:Strategy(Sup), Event, Timeout).
 
@@ -212,6 +221,8 @@ send_event(Sup, Event, available_worker) ->
   wpool_pool:send_event_to_available_worker(Sup, Event);
 send_event(Sup, Event, {hash_worker, HashKey}) ->
   wpool_fsm_process:send_event(wpool_pool:hash_worker(Sup, HashKey), Event);
+send_event(Sup, Event, Fun) when is_function(Fun) ->
+  wpool_fsm_process:send_event(Fun(Sup), Event);
 send_event(Sup, Event, Strategy) ->
   wpool_fsm_process:send_event(wpool_pool:Strategy(Sup), Event).
 
@@ -227,6 +238,8 @@ send_all_state_event(Sup, Event, available_worker) ->
 send_all_state_event(Sup, Event, {hash_worker, HashKey}) ->
   wpool_fsm_process:send_all_state_event(wpool_pool:hash_worker(Sup, HashKey)
                                           , Event);
+send_all_state_event(Sup, Event, Fun) when is_function(Fun) ->
+  wpool_fsm_process:send_all_state_event(Fun(Sup), Event);
 send_all_state_event(Sup, Event, Strategy) ->
   wpool_fsm_process:send_all_state_event(wpool_pool:Strategy(Sup), Event).
 
@@ -256,6 +269,9 @@ sync_send_all_state_event(Sup, Event, {hash_worker, HashKey}, Timeout) ->
                               wpool_pool:hash_worker(Sup, HashKey)
                               , Event
                               , Timeout);
+sync_send_all_state_event(Sup, Event, Fun, Timeout) when is_function(Fun) ->
+  wpool_fsm_process:sync_send_all_state_event(Fun(Sup),
+    Event, Timeout);
 sync_send_all_state_event(Sup, Event, Strategy, Timeout) ->
   wpool_fsm_process:sync_send_all_state_event(wpool_pool:Strategy(Sup),
     Event, Timeout).
