@@ -18,12 +18,32 @@
 
 -behaviour(gen_fsm).
 
+%% api
+-export([sync_send_event/4, send_event/4]).
+
 %% gen_fsm states
 -export([common_state/2, common_state/3]).
 
 %% gen_fsm callbacks
 -export([init/1, terminate/3, code_change/4,
   handle_info/3, handle_event/3, handle_sync_event/4, format_status/2]).
+
+
+%%%===================================================================
+%%% API
+%%%===================================================================
+%% @doc Returns the result of M:F(A) from any of the workers of the pool S
+-spec sync_send_event(wpool:name(), module(), atom(), [term()]) -> term().
+sync_send_event(S, M, F, A) ->
+  case wpool:sync_send_event(S, {M, F, A}) of
+    {ok, Result} -> Result;
+    {error, Error} -> throw(Error)
+  end.
+
+%% @doc Executes M:F(A) in any of the workers of the pool S
+-spec send_event(wpool:name(), module(), atom(), [term()]) -> ok.
+send_event(S, M, F, A) ->
+  wpool:send_event(S, {M, F, A}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -69,11 +89,14 @@ handle_event({M, F, A}, _StateName, StateData) ->
         "Error on ~p:~p~p >> ~p Backtrace ~p",
         [M, F, A, Error, erlang:get_stacktrace()]),
       {next_state, common_state, StateData}
-  end.
+  end;
+handle_event(Event, common_state, StateData) ->
+  error_logger:error_msg("Invalid event:~p", [Event]),
+  {next_state, common_state, StateData}.
 
 %% @private
 -spec handle_sync_event(term(), any(), atom(), StateData) ->
-  {reply, term(), dispatch_state, StateData}.
+  {reply, term(), common_state, StateData}.
 handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
   try erlang:apply(M, F, A) of
     Reply ->
@@ -84,8 +107,10 @@ handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
         "Error on ~p:~p~p >> ~p Backtrace ~p",
         [M, F, A, Error, erlang:get_stacktrace()]),
       {reply, {error, Error}, common_state, StateData}
-  end.
-
+  end;
+handle_sync_event(Event, _From, common_state, StateData) ->
+  error_logger:error_msg("Invalid event:~p", [Event]),
+  {reply, {error, invalid_request}, common_state, StateData}.
 
 %%%===================================================================
 %%% FSM States
@@ -94,15 +119,34 @@ handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
 -spec common_state(term(), term()) ->
   {next_state, common_state, term()}.
 common_state({M, F, A}, StateData) ->
-  erlang:apply(M, F, A),
+  try erlang:apply(M, F, A) of
+    _ ->
+      {next_state, common_state, StateData}
+  catch
+    _:Error ->
+      error_logger:error_msg(
+        "Error on ~p:~p~p >> ~p Backtrace ~p",
+        [M, F, A, Error, erlang:get_stacktrace()]),
+      {next_state, common_state, StateData}
+  end;
+common_state(Event, StateData) ->
+  error_logger:error_msg("Invalid event:~p", [Event]),
   {next_state, common_state, StateData}.
 
 %% @private
 -spec common_state(term(), term(), term()) ->
   {reply, term(), common_state, term()}.
 common_state({M, F, A}, _From, StateData) ->
-  {reply, erlang:apply(M, F, A), common_state, StateData}.
-
-%%%===================================================================
-%%% Private functions
-%%%===================================================================
+  try erlang:apply(M, F, A) of
+    R ->
+      {reply, {ok, R}, common_state, StateData}
+  catch
+    _:Error ->
+      error_logger:error_msg(
+        "Error on ~p:~p~p >> ~p Backtrace ~p",
+        [M, F, A, Error, erlang:get_stacktrace()]),
+      {reply, {error, Error}, common_state, StateData}
+  end;
+common_state(Event, _From, StateData) ->
+  error_logger:error_msg("Invalid event:~p", [Event]),
+  {reply, {error, invalid_request}, common_state, StateData}.

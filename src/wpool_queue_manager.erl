@@ -20,24 +20,24 @@
 %% api
 -export([start_link/2]).
 -export([call_available_worker/3, cast_to_available_worker/2,
-         send_event_to_available_worker/2,
-         sync_send_event_to_available_worker/3,
-         send_all_event_to_available_worker/2,
-         sync_send_all_event_to_available_worker/3,
-         new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
+  send_event_to_available_worker/2,
+  sync_send_event_to_available_worker/3,
+  send_all_event_to_available_worker/2,
+  sync_send_all_event_to_available_worker/3,
+  new_worker/2, worker_dead/2, worker_ready/2, worker_busy/2]).
 -export([pools/0, stats/1, proc_info/1, proc_info/2, trace/1, trace/3]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
-         handle_call/3, handle_cast/2, handle_info/2]).
+  handle_call/3, handle_cast/2, handle_info/2]).
 
 -include("wpool.hrl").
 
 -record(state, {wpool                 :: wpool:name(),
-                clients               :: queue:queue({cast|{pid(), _}, term()}),
-                workers               :: gb_sets:set(atom()),
-                born = os:timestamp() :: erlang:timestamp()
-               }).
+  clients               :: queue:queue({cast|{pid(), _}, term()}),
+  workers               :: gb_sets:set(atom()),
+  born = os:timestamp() :: erlang:timestamp()
+}).
 -type state() :: #state{}.
 
 -type queue_mgr() :: atom().
@@ -48,7 +48,7 @@
 %%%===================================================================
 %% @private
 -spec start_link(wpool:name(), queue_mgr())
-                -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+      -> {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) ->
   gen_server:start_link({local, Name}, ?MODULE, WPool, []).
 
@@ -80,7 +80,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 
 %% @doc returns the first available worker in the pool
 -spec sync_send_event_to_available_worker(queue_mgr(), any(), timeout()) ->
-                                          noproc | timeout | atom().
+  noproc | timeout | atom().
 sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
   Expires =
     case Timeout of
@@ -89,9 +89,9 @@ sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
     end,
   try
     gen_server:call(QueueManager, {sync_event_available_worker,
-                                  Event,
-                                  Expires}
-                                  , Timeout)
+      Event,
+      Expires}
+      , Timeout)
   catch
     _:{noproc, {gen_server, call, _}} ->
       noproc;
@@ -101,7 +101,7 @@ sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
 
 %% @doc returns the first available worker in the pool
 -spec sync_send_all_event_to_available_worker(queue_mgr(), any(), timeout()) ->
-                                              noproc | timeout | atom().
+  noproc | timeout | atom().
 sync_send_all_event_to_available_worker(QueueManager, Event, Timeout) ->
   Expires =
     case Timeout of
@@ -110,9 +110,9 @@ sync_send_all_event_to_available_worker(QueueManager, Event, Timeout) ->
     end,
   try
     gen_server:call(QueueManager, {sync_all_event_available_worker,
-                                  Event,
-                                  Expires}
-                                  , Timeout)
+      Event,
+      Expires}
+      , Timeout)
   catch
     _:{noproc, {gen_server, call, _}} ->
       noproc;
@@ -164,16 +164,16 @@ worker_dead(QueueManager, Worker) ->
 pools() ->
   ets:foldl(
     fun(#wpool{ name=Pool_Name
-              , size=Pool_Size
-              , qmanager=Queue_Mgr
-              , born=Born
-              }, Pools) ->
+      , size=Pool_Size
+      , qmanager=Queue_Mgr
+      , born=Born
+    }, Pools) ->
       This_Pool = [
-                   {pool,          Pool_Name},
-                   {pool_age,      age_in_seconds(Born)},
-                   {pool_size,     Pool_Size},
-                   {queue_manager, Queue_Mgr}
-                  ],
+        {pool,          Pool_Name},
+        {pool_age,      age_in_seconds(Born)},
+        {pool_size,     Pool_Size},
+        {queue_manager, Queue_Mgr}
+      ],
       [This_Pool | Pools]
     end, [], wpool_pool).
 
@@ -184,24 +184,24 @@ stats(Pool_Name) ->
   case ets:lookup(wpool_pool, Pool_Name) of
     [] -> {error, {invalid_pool, Pool_Name}};
     [#wpool{qmanager=Queue_Manager, size=Pool_Size, born=Born}] ->
-        {Available_Workers, Pending_Tasks}
-            = gen_server:call(Queue_Manager, worker_counts),
-        Busy_Workers = Pool_Size - Available_Workers,
-        [
-         {pool_age_in_secs,  age_in_seconds(Born)},
-         {pool_size,         Pool_Size},
-         {pending_tasks,     Pending_Tasks},
-         {available_workers, Available_Workers},
-         {busy_workers,      Busy_Workers}
-        ]
+      {Available_Workers, Pending_Tasks}
+        = gen_server:call(Queue_Manager, worker_counts),
+      Busy_Workers = Pool_Size - Available_Workers,
+      [
+        {pool_age_in_secs,  age_in_seconds(Born)},
+        {pool_size,         Pool_Size},
+        {pending_tasks,     Pending_Tasks},
+        {available_workers, Available_Workers},
+        {busy_workers,      Busy_Workers}
+      ]
   end.
 
 %% @doc Return a default set of process_info about workers.
 -spec proc_info(wpool:name()) -> proplists:proplist().
 proc_info(Pool_Name) ->
   Key_Info = [current_location, status,
-              stack_size, total_heap_size, memory,
-              reductions, message_queue_len],
+    stack_size, total_heap_size, memory,
+    reductions, message_queue_len],
   proc_info(Pool_Name, Key_Info).
 
 %% @doc Return the currently executing function in the queue manager.
@@ -214,11 +214,11 @@ proc_info(Pool_Name, Info_Type) ->
       QM_Pid = whereis(Queue_Manager),
       Mgr_Info =
         [ {age_in_seconds, Age_In_Secs}
-        | erlang:process_info(QM_Pid, Info_Type)],
+          | erlang:process_info(QM_Pid, Info_Type)],
       Workers = wpool_pool:worker_names(Pool_Name),
       Workers_Info =
         [{Worker, worker_info(Worker_Pid, Info_Type)}
-         || Worker <- Workers
+          || Worker <- Workers
           , begin
               Worker_Pid = whereis(Worker),
               is_process_alive(Worker_Pid)
@@ -266,10 +266,10 @@ trace(Pool_Name, Trace_On, Tracer_Pid, Timeout) ->
   Workers = wpool_pool:worker_names(Pool_Name),
   Trace_Options = [timestamp, 'receive', send],
   [case Trace_On of
-    true  ->
-      erlang:trace(Worker_Pid, true,  [{tracer, Tracer_Pid} | Trace_Options]);
-    false ->
-      erlang:trace(Worker_Pid, false, Trace_Options)
+     true  ->
+       erlang:trace(Worker_Pid, true,  [{tracer, Tracer_Pid} | Trace_Options]);
+     false ->
+       erlang:trace(Worker_Pid, false, Trace_Options)
    end || Worker <- Workers, is_process_alive(Worker_Pid = whereis(Worker))],
   trace_off(Pool_Name, Trace_On, Tracer_Pid, Timeout).
 
@@ -310,7 +310,7 @@ report_trace_times(Pool_Name) ->
         {start, Time_Started, request, Request, worker, Worker} ->
           Elapsed = timer:now_diff(Time_Finished, Time_Started),
           error_logger:info_msg("[~p] ~p usec: ~p  request: ~p  reply: ~p",
-                                [?TRACE_KEY, Worker, Elapsed, Request, Result])
+            [?TRACE_KEY, Worker, Elapsed, Request, Result])
       end,
       report_trace_times(Pool_Name);
     _Sys_Or_Other_Msg ->
@@ -321,9 +321,9 @@ summarize_pending_times(Pool_Name) ->
   Now = os:timestamp(),
   Fmt_Msg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
   [error_logger:info_msg(Fmt_Msg, [?TRACE_KEY, Worker, Elapsed, Request])
-   || { {?TRACE_KEY, _From}
-      , {start, Time_Started, request, Request, worker, Worker}} <- get(),
-      (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
+    || { {?TRACE_KEY, _From}
+    , {start, Time_Started, request, Request, worker, Worker}} <- get(),
+    (Elapsed = timer:now_diff(Now, Time_Started)) > -1],
   error_logger:info_msg(
     "[~p] Tracer pid ~p ended for worker_pool ~p",
     [?TRACE_KEY, self(), Pool_Name]),
@@ -350,32 +350,45 @@ handle_cast({worker_dead, Worker}, #state{workers=Workers} = State) ->
 handle_cast({worker_busy, Worker}, #state{workers=Workers} = State) ->
   {noreply, State#state{workers = gb_sets:delete_any(Worker, Workers)}};
 handle_cast({worker_ready, Worker},
-            #state{workers=Workers, clients=Clients} = State) ->
+    #state{workers=Workers, clients=Clients} = State) ->
   case queue:out(Clients) of
     {empty, _Clients} ->
       {noreply, State#state{workers = gb_sets:add(Worker, Workers)}};
     {{value, {cast, Cast}}, New_Clients} ->
-       dec_pending_tasks(),
-       ok = wpool_process:cast(Worker, Cast),
-       {noreply, State#state{clients = New_Clients}};
+      dec_pending_tasks(),
+      ok = wpool_process:cast(Worker, Cast),
+      {noreply, State#state{clients = New_Clients}};
     {{value, {Client = {ClientPid, _}, Call, Expires}}, New_Clients} ->
       dec_pending_tasks(),
       New_State = State#state{clients = New_Clients},
       case is_process_alive(ClientPid) andalso
-           Expires > now_in_microseconds() of
+        Expires > now_in_microseconds() of
         true ->
           ok = wpool_process:cast_call(Worker, Client, Call),
           {noreply, New_State};
         false ->
           handle_cast({worker_ready, Worker}, New_State)
       end;
-      {{value, {send_event, Event}}, New_Clients} ->
-        dec_pending_tasks(),
-        ok = wpool_fsm_process:send_event(Worker, Event),
-        {noreply, State#state{clients = New_Clients}}
+    {{value, {send_event, Event}}, New_Clients} ->
+      dec_pending_tasks(),
+      ok = wpool_fsm_process:send_event(Worker, Event),
+      {noreply, State#state{clients = New_Clients}};
+    {{value
+      , {sync_send_event, Client = {ClientPid, _}, Call, Expires}}
+      , New_Clients} ->
+      dec_pending_tasks(),
+      New_State = State#state{clients = New_Clients},
+      case is_process_alive(ClientPid) andalso
+        Expires > now_in_microseconds() of
+        true ->
+          ok = wpool_fsm_process:cast_call(Worker, Client, Call),
+          {noreply, New_State};
+        false ->
+          handle_cast({worker_ready, Worker}, New_State)
+      end
   end;
 handle_cast({cast_to_available_worker, Cast},
-            #state{workers=Workers, clients=Clients} = State) ->
+    #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
@@ -386,48 +399,48 @@ handle_cast({cast_to_available_worker, Cast},
       {noreply, State#state{workers = New_Workers}}
   end;
 handle_cast({send_event_to_available_worker, Event},
-            #state{workers=Workers, clients=Clients} = State) ->
+    #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
-  true ->
-    inc_pending_tasks(),
-    {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
-  false ->
-    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
-    ok = wpool_fsm_process:send_event(Worker, Event),
-    {noreply, State#state{workers = New_Workers}}
+    true ->
+      inc_pending_tasks(),
+      {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
+    false ->
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+      ok = wpool_fsm_process:send_event(Worker, Event),
+      {noreply, State#state{workers = New_Workers}}
   end;
 handle_cast({send_all_event_to_available_worker, Event},
-            #state{workers=Workers, clients=Clients} = State) ->
-    case gb_sets:is_empty(Workers) of
+    #state{workers=Workers, clients=Clients} = State) ->
+  case gb_sets:is_empty(Workers) of
     true ->
-    inc_pending_tasks(),
-    {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
+      inc_pending_tasks(),
+      {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
     false ->
-    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
-    ok = wpool_fsm_process:send_all_state_event(Worker, Event),
-    {noreply, State#state{workers = New_Workers}}
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+      ok = wpool_fsm_process:send_all_state_event(Worker, Event),
+      {noreply, State#state{workers = New_Workers}}
   end.
 
 -type from() :: {pid(), reference()}.
 -type call_request() ::
-  {available_worker, infinity|pos_integer()} | worker_counts.
+{available_worker, infinity|pos_integer()} | worker_counts.
 %% @private
 -spec handle_call(call_request(), from(), state())
-                 -> {reply, {ok, atom()}, state()} | {noreply, state()}.
+      -> {reply, {ok, atom()}, state()} | {noreply, state()}.
 
 handle_call({available_worker, Call, Expires}, Client = {ClientPid, _Ref},
-            #state{workers=Workers, clients=Clients} = State) ->
+    #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
       { noreply
-      , State#state{clients = queue:in({Client, Call, Expires}, Clients)}
+        , State#state{clients = queue:in({Client, Call, Expires}, Clients)}
       };
     false ->
       {Worker, New_Workers} = gb_sets:take_smallest(Workers),
       %NOTE: It could've been a while since this call was made, so we check
       case erlang:is_process_alive(ClientPid) andalso
-           Expires > now_in_microseconds() of
+        Expires > now_in_microseconds() of
         true  ->
           ok = wpool_process:cast_call(Worker, Client, Call),
           {noreply, State#state{workers = New_Workers}};
@@ -436,13 +449,14 @@ handle_call({available_worker, Call, Expires}, Client = {ClientPid, _Ref},
       end
   end;
 handle_call({sync_event_available_worker, Event, Expires},
-            Client = {ClientPid, _Ref},
-            #state{workers=Workers, clients=Clients} = State) ->
+    Client = {ClientPid, _Ref},
+    #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
       { noreply
-        , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
+        , State#state{clients =
+      queue:in({sync_send_event, Client, Event, Expires}, Clients)}
       };
     false ->
       {Worker, New_Workers} = gb_sets:take_smallest(Workers),
@@ -458,29 +472,29 @@ handle_call({sync_event_available_worker, Event, Expires},
       end
   end;
 handle_call({sync_all_event_available_worker, Event, Expires},
-            Client = {ClientPid, _Ref},
-            #state{workers=Workers, clients=Clients} = State) ->
+    Client = {ClientPid, _Ref},
+    #state{workers=Workers, clients=Clients} = State) ->
   case gb_sets:is_empty(Workers) of
     true ->
-    inc_pending_tasks(),
-    { noreply
-    , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
-    };
+      inc_pending_tasks(),
+      { noreply
+        , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
+      };
     false ->
-    {Worker, New_Workers} = gb_sets:take_smallest(Workers),
-    %NOTE: It could've been a while since this call was made, so we check
-    case erlang:is_process_alive(ClientPid) andalso
-      Expires > now_in_microseconds() of
-      true  ->
-        Reply = wpool_fsm_process:sync_send_all_state_event(Worker, Event),
-        gen_server:reply(Client, Reply),
-        {noreply, State#state{workers = New_Workers}};
-      false ->
-        {noreply, State}
-    end
+      {Worker, New_Workers} = gb_sets:take_smallest(Workers),
+      %NOTE: It could've been a while since this call was made, so we check
+      case erlang:is_process_alive(ClientPid) andalso
+        Expires > now_in_microseconds() of
+        true  ->
+          Reply = wpool_fsm_process:sync_send_all_state_event(Worker, Event),
+          gen_server:reply(Client, Reply),
+          {noreply, State#state{workers = New_Workers}};
+        false ->
+          {noreply, State}
+      end
   end;
 handle_call(worker_counts, _From,
-            #state{workers=Available_Workers} = State) ->
+    #state{workers=Available_Workers} = State) ->
   Available = gb_sets:size(Available_Workers),
   {reply, {Available, get(pending_tasks)}, State}.
 
