@@ -32,14 +32,18 @@ start_link(Parent, Name, Options) ->
 -spec init({wpool:name(), [wpool:option()]}) ->
         {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-  {Worker, InitArgs} =
-    proplists:get_value(worker, Options, {wpool_worker, undefined}),
   Workers = proplists:get_value(workers, Options, 100),
   Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
-  WorkerType =
+  {WorkerType, Worker, InitArgs} =
     case proplists:get_value(worker_type, Options, gen_server) of
-      gen_server  -> wpool_process;
-      gen_fsm     -> wpool_fsm_process
+      gen_server  ->
+        {W, IA} =
+          proplists:get_value(worker, Options, {wpool_worker, undefined}),
+        {wpool_process, W, IA};
+      gen_fsm     ->
+        {W, IA} =
+          proplists:get_value(worker, Options, {wpool_fsm_worker, undefined}),
+        {wpool_fsm_process, W, IA}
     end,
   WorkerSpecs =
     [{wpool_pool:worker_name(Name, I),
