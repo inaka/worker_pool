@@ -14,7 +14,7 @@ The documentation can be generated from code using [edoc](http://www.erlang.org/
 
 ### Usage
 
-All user functions are exposed through the [wpool module](http://inaka.github.io/worker_pool/worker_pool/wpool.html).
+All user functions are exposed through the [wpool module](http://inaka.github.io/worker_pool/wpool.html).
 
 #### Starting the Application
 **Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/17.1/kernel/application.html) module. For convinience, `wpool:start/0` and `wpool:stop/0` are also provided.
@@ -26,7 +26,7 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 * **overrun_handler**: The module and function to call when a task is *overrun*. The default value for this setting is `{error_logger, warning_report}`.
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
 * **worker_type**: The type of the worker. The available values are `gen_server` and `gen_fsm`. The default value is `gen_server`
-* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) or [`gen_fsm`](http://erldocs.com/current/stdlib/gen_fsm.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}` for `gen_server` type and `{wpool_fsm_worker, undefined}` for `gen_fsm`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_worker.html) and [`wpool_fsm_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_fsm_worker.html) are modules that implement a very simple RPC-like interfaces
+* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) or [`gen_fsm`](http://erldocs.com/current/stdlib/gen_fsm.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}` for `gen_server` type and `{wpool_fsm_worker, undefined}` for `gen_fsm`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/wpool_worker.html) and [`wpool_fsm_worker`](http://inaka.github.io/worker_pool/wpool_fsm_worker.html) are modules that implement a very simple RPC-like interfaces
 * **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
 
 #### Using the Workers
