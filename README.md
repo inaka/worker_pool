@@ -10,7 +10,7 @@ The goal of **worker pool** is pretty straightforward: To provide a transparent 
 
 ### Documentation
 
-The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``make doc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](http://inaka.github.io/worker_pool/)
+The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``make edoc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](http://inaka.github.io/worker_pool/)
 
 ### Usage
 

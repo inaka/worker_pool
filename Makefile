@@ -1,46 +1,28 @@
-RUN := erl -pa ebin -pa deps/*/ebin -smp enable -boot start_sasl ${ERL_ARGS}
-HOST := `hostname`
-REBAR ?= './rebar'
+PROJECT = worker_pool
 
-all:
-	${REBAR} get-deps && ${REBAR} compile
+BUILD_DEPS = inaka_mk hexer_mk
+TEST_DEPS = katana_test mixer
+SHELL_DEPS = sync
 
-erl:
-	${REBAR} skip_deps=true compile
+dep_katana_test = git https://github.com/inaka/katana-test.git 0.0.6
+dep_mixer = git https://github.com/inaka/mixer.git 0.1.5
+dep_inaka_mk = git https://github.com/inaka/inaka.mk.git 1.0.0
+dep_hexer_mk = git https://github.com/inaka/hexer.mk.git 1.1.0
 
-clean:
-	${REBAR} clean
+DEP_PLUGINS = inaka_mk hexer_mk
 
-clean_logs:
-	rm -rf log*
+include erlang.mk
 
-build_plt: erl
-	dialyzer --verbose --build_plt --apps kernel stdlib erts compiler hipe crypto \
-		edoc gs syntax_tools --output_plt ~/.wpool.plt ebin
+ERLC_OPTS := +warn_unused_vars +warn_export_all +warn_shadow_vars +warn_unused_import +warn_unused_function
+ERLC_OPTS += +warn_bif_clash +warn_unused_record +warn_deprecated_function +warn_obsolete_guard +strict_validation
+ERLC_OPTS += +warn_export_vars +warn_exported_vars +warn_missing_spec +warn_untyped_record +debug_info
 
-analyze: erl
-	dialyzer --verbose --plt ~/.wpool.plt -Werror_handling ebin
+# Commont Test Config
+TEST_ERLC_OPTS += +debug_info
 
-xref: all
-	${REBAR} skip_deps=true --verbose xref
+CT_OPTS = -cover test/cover.spec
 
-shell: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@${HOST}; \
-	else ${RUN}; \
-	fi
+SHELL_OPTS = -pa test/ -s sync
 
-run: erl
-	if [ -n "${NODE}" ]; then ${RUN} -name ${NODE}@${HOST} -s wpool; \
-	else ${RUN} -s wpool; \
-	fi
-
-test: erl
-	mkdir -p log/ct
-	${REBAR} skip_deps=true ct --verbose 3
-	open log/ct/index.html
-
-doc: erl
-	${REBAR} skip_deps=true doc
-
-erldocs: erl
+erldocs: app
 	erldocs . -o doc/
