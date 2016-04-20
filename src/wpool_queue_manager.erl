@@ -369,10 +369,23 @@ handle_cast({worker_ready, Worker},
         false ->
           handle_cast({worker_ready, Worker}, New_State)
       end;
-      {{value, {send_event, Event}}, New_Clients} ->
-        dec_pending_tasks(),
-        ok = wpool_fsm_process:send_event(Worker, Event),
-        {noreply, State#state{clients = New_Clients}}
+    {{value, {send_event, Event}}, New_Clients} ->
+      dec_pending_tasks(),
+      ok = wpool_fsm_process:send_event(Worker, Event),
+      {noreply, State#state{clients = New_Clients}};
+    {{value
+      , {sync_send_event, Client = {ClientPid, _}, Call, Expires}}
+      , New_Clients} ->
+      dec_pending_tasks(),
+      New_State = State#state{clients = New_Clients},
+      case is_process_alive(ClientPid) andalso
+        Expires > now_in_microseconds() of
+        true ->
+          ok = wpool_fsm_process:cast_call(Worker, Client, Call),
+          {noreply, New_State};
+        false ->
+          handle_cast({worker_ready, Worker}, New_State)
+      end
   end;
 handle_cast({cast_to_available_worker, Cast},
             #state{workers=Workers, clients=Clients} = State) ->
@@ -442,7 +455,8 @@ handle_call({sync_event_available_worker, Event, Expires},
     true ->
       inc_pending_tasks(),
       { noreply
-        , State#state{clients = queue:in({Client, Event, Expires}, Clients)}
+        , State#state{clients =
+            queue:in({sync_send_event, Client, Event, Expires}, Clients)}
       };
     false ->
       {Worker, New_Workers} = gb_sets:take_smallest(Workers),

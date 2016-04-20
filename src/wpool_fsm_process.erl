@@ -36,7 +36,7 @@
   sync_send_event/2, sync_send_event/3,
   send_all_state_event/2,
   sync_send_all_state_event/2, sync_send_all_state_event/3,
-  age/1]).
+  cast_call/3, age/1]).
 
 %% gen_fsm states
 -export([dispatch_state/2, dispatch_state/3]).
@@ -81,6 +81,11 @@ sync_send_all_state_event(Process, Event) ->
                                 , timeout()) -> term().
 sync_send_all_state_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_all_state_event(Process, Event, Timeout).
+
+%% @equiv gen_fsm:send_event(Process, {sync_send_event, From, Event})
+-spec cast_call(wpool:name() | pid(), pid(), term()) -> ok.
+cast_call(Process, From, Event) ->
+  gen_fsm:send_event(Process, {sync_send_event, From, Event}).
 
 %% @doc Report how old a process is in <b>microseconds</b>
 -spec age(wpool:name() | pid()) -> non_neg_integer().
@@ -283,6 +288,19 @@ handle_sync_event(Event, From, _StateName, StateData) ->
 %%%===================================================================
 -spec dispatch_state(term(), state()) ->
   {next_state, dispatch_state, state()} | {stop, term(), state()}.
+dispatch_state({sync_send_event, From, Event}, StateData) ->
+  case dispatch_state(Event, From, StateData) of
+    {reply, Reply, dispatch_state, StateData} ->
+      gen_fsm:reply(From, Reply),
+      {next_state, dispatch_state, StateData};
+    {reply, Reply, dispatch_state, StateData, Timeout} ->
+      gen_fsm:reply(From, Reply),
+      {next_state, dispatch_state, StateData, Timeout};
+    {stop, Reason, Reply, StateData} ->
+      gen_fsm:reply(From, Reply),
+      {stop, Reason, StateData};
+    Reply -> Reply
+  end;
 dispatch_state(Event, StateData) ->
   Task = get_task(Event, StateData),
   ok = notify_queue_manager(worker_busy,
@@ -304,7 +322,7 @@ dispatch_state(Event, StateData) ->
         {stop, Reason, StateData#state{state = NewStateData}}
     catch
       _:{next_state, NextStateName, NewStateData}  ->
-        {rnext_state, dispatch_state, StateData#state{
+        {next_state, dispatch_state, StateData#state{
                                         state = NewStateData,
                                         fsm_state = NextStateName}};
       _:{next_state, NextStateName, NewStateData, Timeout} ->
