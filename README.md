@@ -77,3 +77,6 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 
 ### On Hex.pm
 Worker Pool is available on [Hex.pm](https://hex.pm/packages/worker_pool).
+
+### NOTE on erlang.mk
+Don't use erlang.mk to build the app if you're using an OTP version lower than 18.x. Use plain old rebar and just skip the wpool_meta_SUITE from your test runs.

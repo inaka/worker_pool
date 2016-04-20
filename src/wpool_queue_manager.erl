@@ -56,11 +56,7 @@ start_link(WPool, Name) ->
 -spec call_available_worker(queue_mgr(), any(), timeout()) ->
   noproc | timeout | atom().
 call_available_worker(QueueManager, Call, Timeout) ->
-  Expires =
-    case Timeout of
-      infinity -> infinity;
-      Timeout -> now_in_microseconds() + Timeout * 1000
-    end,
+  Expires = expires(Timeout),
   try
     gen_server:call(QueueManager, {available_worker, Call, Expires}, Timeout)
   catch
@@ -82,11 +78,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 -spec sync_send_event_to_available_worker(queue_mgr(), any(), timeout()) ->
                                           noproc | timeout | atom().
 sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
-  Expires =
-    case Timeout of
-      infinity -> infinity;
-      Timeout -> now_in_microseconds() + Timeout * 1000
-    end,
+  Expires = expires(Timeout),
   try
     gen_server:call(QueueManager, {sync_event_available_worker,
                                   Event,
@@ -531,3 +523,9 @@ return_error(Reason, {{value, {From, _Expires}}, Q}) ->
 now_in_microseconds() -> timer:now_diff(os:timestamp(), {0, 0, 0}).
 
 age_in_seconds(Born) -> timer:now_diff(os:timestamp(), Born) div 1000000.
+
+expires(Timeout) ->
+  case Timeout of
+    infinity -> infinity;
+    Timeout -> now_in_microseconds() + Timeout * 1000
+  end.

@@ -86,7 +86,7 @@ stop_pool(_Config) ->
 stats(_Config) ->
   Get = fun proplists:get_value/2,
 
-  try wpool:stats(?MODULE)
+  try _ = wpool:stats(?MODULE), ok
   catch _:no_workers -> ok
   end,
 

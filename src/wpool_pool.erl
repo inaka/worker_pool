@@ -50,15 +50,15 @@
 -spec create_table() -> ok.
 create_table() ->
   case ets:info(?MODULE, named_table) of
-    true      -> already_created;
+    true      -> ok;
     undefined ->
       error_logger:info_msg("Creating wpool ETS table"),
-      ets:new(
-        ?MODULE,
-        [public, named_table, set,
-         {read_concurrency, true}, {keypos, #wpool.name}])
-  end,
-  ok.
+      _ = ets:new(
+            ?MODULE,
+            [public, named_table, set,
+             {read_concurrency, true}, {keypos, #wpool.name}]),
+      ok
+  end.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->
@@ -388,7 +388,7 @@ move_wpool(Name) ->
   end.
 
 %% @doc Use this function to get the Worker pool record in a custom worker.
--spec find_wpool(atom()) -> wpool().
+-spec find_wpool(atom()) -> undefined | wpool().
 find_wpool(Name) ->
   try ets:lookup(?MODULE, Name) of
     [Wpool | _] ->

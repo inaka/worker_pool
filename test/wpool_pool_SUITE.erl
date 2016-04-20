@@ -47,7 +47,7 @@ end_per_suite(Config) ->
 
 -spec init_per_testcase(atom(), config()) -> config().
 init_per_testcase(TestCase, Config) ->
-  wpool:start_pool(TestCase, [{workers, ?WORKERS}]),
+  {ok, _} = wpool:start_pool(TestCase, [{workers, ?WORKERS}]),
   Config.
 
 -spec end_per_testcase(atom(), config()) -> config().
@@ -272,7 +272,7 @@ manager_crash(_Config) ->
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
 
   error_logger:info_msg("Check that the pool is working"),
-  {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker),
+  {ok, ok} = send_io_format(Pool),
   true = undefined =/= whereis(QueueManager),
 
   error_logger:info_msg("Crash the pool manager"),
@@ -281,7 +281,7 @@ manager_crash(_Config) ->
   true = undefined =/= whereis(QueueManager),
 
   error_logger:info_msg("Check that the pool is working again"),
-  {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker),
+  {ok, ok} = send_io_format(Pool),
 
   ok.
 
@@ -298,3 +298,6 @@ collect_results(N, Results) ->
   receive {worker, Worker_Id} -> collect_results(N-1, [Worker_Id | Results])
   after 100 -> timeout
   end.
+
+send_io_format(Pool) ->
+  {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, available_worker).

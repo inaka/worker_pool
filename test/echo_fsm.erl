@@ -15,8 +15,6 @@
 -module(echo_fsm).
 -author("ferigis@gmail.com").
 
--behaviour(gen_fsm).
-
 -export([init/1, handle_info/3, handle_event/3,
   handle_sync_event/4, terminate/3, code_change/4]).
 -export([state_one/2, state_two/2]). %% states
