@@ -51,6 +51,9 @@ Instead of just picking one of the workers in the queue and sending the request 
 This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
 It also ensures that, if a task takes too long, that doesn't block other tasks since, as soon as other worker is free it can pick up the next task in the list.
 
+###### next_available_worker
+In a way, this strategy behaves like `available_worker` in the sense that it will pick the first worker that it can find which is not running any task at the moment, but the difference is that it will fail if all workers are busy.
+
 #### Watching a Pool
 Wpool provides a way to get live statistics about a pool. To do that, you can use `wpool:stats/1`.
 

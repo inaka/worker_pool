@@ -20,10 +20,18 @@
 -define(WORKERS, 6).
 
 -export([all/0]).
--export([init_per_suite/1, end_per_suite/1,
-  init_per_testcase/2, end_per_testcase/2]).
--export([best_worker/1, next_worker/1,
-  random_worker/1, available_worker/1, hash_worker/1]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        , init_per_testcase/2
+        , end_per_testcase/2
+        ]).
+-export([ best_worker/1
+        , next_worker/1
+        , random_worker/1
+        , available_worker/1
+        , hash_worker/1
+        , next_available_worker/1
+        ]).
 -export([wait_and_self/1]).
 -export([manager_crash/1]).
 
@@ -71,7 +79,7 @@ available_worker(_Config) ->
     _:no_workers -> ok
   end,
 
-  error_logger:info_msg(
+  ct:pal(
     "Put them all to work, each requeslt should go to a different worker"),
   [wpool:send_event(Pool,
             {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
@@ -81,7 +89,7 @@ available_worker(_Config) ->
         [proplists:get_value(message_queue_len, WS)
           || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
-  error_logger:info_msg(
+  ct:pal(
     "Now send another round of messages,
      the workers queues should still be empty"),
   [wpool:send_event(Pool,
@@ -95,32 +103,32 @@ available_worker(_Config) ->
           || {_, WS} <- proplists:get_value(workers, Stats1)])),
   % Check that we have ?WORKERS pending tasks
   ?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
-  error_logger:info_msg("If we can't wait we get no workers"),
+  ct:pal("If we can't wait we get no workers"),
   try wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
     _:Error -> timeout = Error
   end,
 
-  error_logger:info_msg("Let's wait until all workers are free"),
+  ct:pal("Let's wait until all workers are free"),
   wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, infinity),
 
   % Check we have no pending tasks
   Stats2 = wpool:stats(Pool),
   0 = proplists:get_value(total_message_queue_len, Stats2),
 
-  error_logger:info_msg("Now they all should be free"),
-  error_logger:info_msg("We get half of them working for a while"),
+  ct:pal("Now they all should be free"),
+  ct:pal("We get half of them working for a while"),
   [wpool:send_event(Pool,
             {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
 
   % Check we have no pending tasks
   timer:sleep(1000),
   Stats3 = wpool:stats(Pool),
-  error_logger:warning_msg("~p", [Stats3]),
+  ct:log(error, "~p", [Stats3]),
   0 = proplists:get_value(total_message_queue_len, Stats3),
 
-  error_logger:info_msg(
+  ct:pal(
     "We run tons of sync send events, and none is blocked,
      because all of them are handled by different workers"),
   Workers =
@@ -140,7 +148,7 @@ best_worker(_Config) ->
   end,
 
   %% Fill up their message queues...
-  [ wpool:send_event(Pool, {timer, sleep, [60000]}, best_worker)
+  [ wpool:send_event(Pool, {timer, sleep, [60000]}, next_worker)
    || _ <- lists:seq(1, ?WORKERS)],
   timer:sleep(1500),
   [0] = sets:to_list(
@@ -239,21 +247,68 @@ hash_worker(_Config) ->
      || I <- lists:seq(1, 20 * ?WORKERS)],
   ?WORKERS = sets:size(sets:from_list(Spread)).
 
+-spec next_available_worker(config()) -> _.
+next_available_worker(_Config) ->
+  Pool = next_available_worker,
+  ct:pal("not_a_pool is not a pool"),
+  try wpool:sync_send_event(not_a_pool, x, next_available_worker) of
+    Result -> no_result = Result
+  catch
+    _:no_workers -> ok
+  end,
+
+  ct:pal("Put them all to work..."),
+  [ wpool:send_event(Pool, {timer, sleep, [1500 + I]}, next_available_worker)
+   || I <- lists:seq(0, (?WORKERS - 1) * 60000, 60000)],
+  timer:sleep(500),
+
+  AvailableWorkers =
+    fun() ->
+      [proplists:get_value(message_queue_len, WS)
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))
+           , proplists:get_value(task, WS) == undefined]
+    end,
+
+  ct:pal("All busy..."),
+  [] = AvailableWorkers(),
+
+  ct:pal("No available workers..."),
+  try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
+    ok -> ct:fail("Exception expected")
+  catch
+    _:no_available_workers -> ok
+  end,
+
+  ct:pal("Wait until the first frees up..."),
+  timer:sleep(1000),
+  [_] = AvailableWorkers(),
+
+  ok = wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker),
+
+  ct:pal("No more available workers..."),
+  try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
+    ok -> ct:fail("Exception expected")
+  catch
+    _:no_available_workers -> ok
+  end,
+
+  {comment, ""}.
+
 -spec manager_crash(config()) -> _.
 manager_crash(_Config) ->
   Pool = manager_crash,
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
 
-  error_logger:info_msg("Check that the pool is working"),
+  ct:pal("Check that the pool is working"),
   {ok, ok} = send_io_format(Pool),
   true = undefined =/= whereis(QueueManager),
 
-  error_logger:info_msg("Crash the pool manager"),
+  ct:pal("Crash the pool manager"),
   exit(whereis(QueueManager), kill),
   timer:sleep(100),
   true = undefined =/= whereis(QueueManager),
 
-  error_logger:info_msg("Check that the pool is working again"),
+  ct:pal("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),
   ok.
 
