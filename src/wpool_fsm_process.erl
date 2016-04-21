@@ -83,7 +83,7 @@ sync_send_all_state_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_all_state_event(Process, Event, Timeout).
 
 %% @equiv gen_fsm:send_event(Process, {sync_send_event, From, Event})
--spec cast_call(wpool:name() | pid(), {pid(), reference()}, term()) -> ok.
+-spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
 cast_call(Process, From, Event) ->
   gen_fsm:send_event(Process, {sync_send_event, From, Event}).
 

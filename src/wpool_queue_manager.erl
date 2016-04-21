@@ -40,6 +40,8 @@
                }).
 -type state() :: #state{}.
 
+-type from() :: {pid(), reference()}.
+
 -type queue_mgr() :: atom().
 -export_type([queue_mgr/0]).
 
@@ -278,7 +280,7 @@ trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
   ok.
 
 %% @doc Collect trace timing results to report succinct run times.
--spec trace_timer(wpool:name()) -> {pid(), reference()}.
+-spec trace_timer(wpool:name()) -> from().
 trace_timer(Pool_Name) ->
   {Pid, Reference} =
     spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
@@ -413,7 +415,6 @@ handle_cast({send_all_event_to_available_worker, Event},
     {noreply, State#state{workers = New_Workers}}
   end.
 
--type from() :: {pid(), reference()}.
 -type call_request() ::
   {available_worker, infinity|pos_integer()} | worker_counts.
 %% @private
