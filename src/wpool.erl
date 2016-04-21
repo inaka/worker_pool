@@ -35,6 +35,7 @@
                   | random_worker
                   | next_worker
                   | available_worker
+                  | next_available_worker
                   | {hash_worker, term()}
                   | custom_strategy().
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
@@ -144,16 +145,16 @@ call(Sup, Call, Fun, Timeout) when is_function(Fun) ->
 call(Sup, Call, Strategy, Timeout) ->
   wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
--type available_worker_timeout() :: timeout().
+-type extra_param() :: timeout() | term().
 %% @doc Picks a server and issues the call to it.
-%%      For all strategies except available_worker, WorkerTimeout is ignored
 %%      For available_worker the total timeout will be WorkerTimeout + Timeout.
--spec call(name(), term(), strategy(), available_worker_timeout(), timeout()) ->
-        term().
+%%      For hash_worker the extra param is the HashKey
+%%      For all other strategies, WorkerTimeout is ignored
+-spec call(name(), term(), strategy(), extra_param(), timeout()) -> term().
 call(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
-  wpool_pool:call_available_worker(Sup, Call, WorkerTimeout + Timeout);
+  call(Sup, Call, available_worker, WorkerTimeout + Timeout);
 call(Sup, Call, hash_worker, HashKey, Timeout) ->
-  wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
+  call(Sup, Call, {hash_worker, HashKey}, Timeout);
 call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
   call(Sup, Call, Strategy, Timeout).
 
@@ -198,16 +199,15 @@ sync_send_event(Sup, Event, Strategy, Timeout) ->
   wpool_fsm_process:sync_send_event(wpool_pool:Strategy(Sup), Event, Timeout).
 
 %% @doc Picks a server and issues the event to it.
-%%      For all strategies except available_worker, WorkerTimeout is ignored
 %%      For available_worker the total timeout will be WorkerTimeout + Timeout.
--spec sync_send_event(name(), term(), strategy(),
-    available_worker_timeout(), timeout()) -> term().
+%%      For hash_worker the extra param is the HashKey
+%%      For all other strategies, WorkerTimeout is ignored
+-spec sync_send_event(name(), term(), strategy(), extra_param(), timeout()) ->
+  term().
 sync_send_event(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
-  wpool_pool:sync_send_event_to_available_worker(
-    Sup, Call, WorkerTimeout + Timeout);
+  sync_send_event(Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_event(Sup, Call, hash_worker, HashKey, Timeout) ->
-  wpool_fsm_process:sync_send_event(wpool_pool:hash_worker(Sup, HashKey),
-    Call, Timeout);
+  sync_send_event(Sup, Call, {hash_worker, HashKey}, Call, Timeout);
 sync_send_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
   sync_send_event(Sup, Call, Strategy, Timeout).
 
@@ -277,22 +277,21 @@ sync_send_all_state_event(Sup, Event, Strategy, Timeout) ->
     Event, Timeout).
 
 %% @doc Picks a server and issues the event to it.
-%%      For all strategies except available_worker, WorkerTimeout is ignored
 %%      For available_worker the total timeout will be WorkerTimeout + Timeout.
--spec sync_send_all_state_event(name(), term(), strategy(),
-                          available_worker_timeout(), timeout()) -> term().
-sync_send_all_state_event(Sup
-                          , Call
-                          , available_worker
-                          , WorkerTimeout
-                          , Timeout) ->
-  wpool_pool:sync_send_all_event_to_available_worker(
-    Sup, Call, WorkerTimeout + Timeout);
+%%      For hash_worker the extra param is the HashKey
+%%      For all other strategies, WorkerTimeout is ignored
+-spec sync_send_all_state_event(
+  name(), term(), strategy(), extra_param(), timeout()) -> term().
+sync_send_all_state_event( Sup
+                         , Call
+                         , available_worker
+                         , WorkerTimeout
+                         , Timeout
+                         ) ->
+  sync_send_all_state_event(
+    Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_all_state_event(Sup, Call, hash_worker, HashKey, Timeout) ->
-  wpool_fsm_process:sync_send_all_state_event(
-                            wpool_pool:hash_worker(Sup, HashKey)
-                            , Call
-                            , Timeout);
+  sync_send_all_state_event(Sup, Call, {hash_worker, HashKey}, Timeout);
 sync_send_all_state_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
   sync_send_all_state_event(Sup, Call, Strategy, Timeout).
 
