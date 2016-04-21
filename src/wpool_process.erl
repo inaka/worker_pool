@@ -28,6 +28,8 @@
                }).
 -type state() :: #state{}.
 
+-type from() :: {pid(), reference()}.
+
 %% api
 -export([start_link/4, call/3, cast/2, cast_call/3, age/1]).
 
@@ -55,7 +57,7 @@ call(Process, Call, Timeout) -> gen_server:call(Process, Call, Timeout).
 cast(Process, Cast) -> gen_server:cast(Process, {cast, Cast}).
 
 %% @equiv gen_server:cast(Process, {call, From, Call})
--spec cast_call(wpool:name() | pid(), pid(), term()) -> ok.
+-spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
 cast_call(Process, From, Call) ->
   gen_server:cast(Process, {call, From, Call}).
 
@@ -167,9 +169,14 @@ handle_cast({cast, Cast}, State) ->
     notify_queue_manager(worker_ready, State#state.name, State#state.options),
   Reply.
 
--type from() :: {pid(), reference()}.
 %% @private
--spec handle_call(term(), from(), state()) -> {reply, term(), state()}.
+-spec handle_call(term(), from(), state()) ->
+  {reply, term(), state()} |
+  {reply, term(), state(), timeout() | hibernate} |
+  {noreply, state()} |
+  {noreply, state(), timeout() | hibernate} |
+  {stop, term(), term(), state()} |
+  {stop, term(), state()}.
 handle_call(age, _From, #state{born=Born} = State) ->
     {reply, timer:now_diff(os:timestamp(), Born), State};
 handle_call(Call, From, State) ->

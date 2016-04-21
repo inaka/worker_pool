@@ -20,6 +20,7 @@
   {vsn, "1.0.4"},
   {id, "worker_pool"},
   {registered,   []},
+  {modules, []},
   {applications, [kernel,stdlib]},
   {mod, {wpool, []}},
   {env, []},

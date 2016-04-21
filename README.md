@@ -10,7 +10,7 @@ The goal of **worker pool** is pretty straightforward: To provide a transparent 
 
 ### Documentation
 
-The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``make doc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](http://inaka.github.io/worker_pool/)
+The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``make edoc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](http://inaka.github.io/worker_pool/)
 
 ### Usage
 
@@ -77,3 +77,6 @@ And you can check all of our open-source projects at [inaka.github.io](http://in
 
 ### On Hex.pm
 Worker Pool is available on [Hex.pm](https://hex.pm/packages/worker_pool).
+
+### NOTE on erlang.mk
+Don't use erlang.mk to build the app if you're using an OTP version lower than 18.x. Use plain old rebar and just skip the wpool_meta_SUITE from your test runs.

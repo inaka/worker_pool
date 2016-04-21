@@ -40,6 +40,8 @@
                }).
 -type state() :: #state{}.
 
+-type from() :: {pid(), reference()}.
+
 -type queue_mgr() :: atom().
 -export_type([queue_mgr/0]).
 
@@ -56,11 +58,7 @@ start_link(WPool, Name) ->
 -spec call_available_worker(queue_mgr(), any(), timeout()) ->
   noproc | timeout | atom().
 call_available_worker(QueueManager, Call, Timeout) ->
-  Expires =
-    case Timeout of
-      infinity -> infinity;
-      Timeout -> now_in_microseconds() + Timeout * 1000
-    end,
+  Expires = expires(Timeout),
   try
     gen_server:call(QueueManager, {available_worker, Call, Expires}, Timeout)
   catch
@@ -82,11 +80,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 -spec sync_send_event_to_available_worker(queue_mgr(), any(), timeout()) ->
                                           noproc | timeout | atom().
 sync_send_event_to_available_worker(QueueManager, Event, Timeout) ->
-  Expires =
-    case Timeout of
-      infinity -> infinity;
-      Timeout -> now_in_microseconds() + Timeout * 1000
-    end,
+  Expires = expires(Timeout),
   try
     gen_server:call(QueueManager, {sync_event_available_worker,
                                   Event,
@@ -286,7 +280,7 @@ trace_off(Pool_Name, true,   Tracer_Pid,  Timeout) ->
   ok.
 
 %% @doc Collect trace timing results to report succinct run times.
--spec trace_timer(wpool:name()) -> {pid(), reference()}.
+-spec trace_timer(wpool:name()) -> from().
 trace_timer(Pool_Name) ->
   {Pid, Reference} =
     spawn_monitor(fun() -> report_trace_times(Pool_Name) end),
@@ -421,7 +415,6 @@ handle_cast({send_all_event_to_available_worker, Event},
     {noreply, State#state{workers = New_Workers}}
   end.
 
--type from() :: {pid(), reference()}.
 -type call_request() ::
   {available_worker, infinity|pos_integer()} | worker_counts.
 %% @private
@@ -531,3 +524,9 @@ return_error(Reason, {{value, {From, _Expires}}, Q}) ->
 now_in_microseconds() -> timer:now_diff(os:timestamp(), {0, 0, 0}).
 
 age_in_seconds(Born) -> timer:now_diff(os:timestamp(), Born) div 1000000.
+
+expires(Timeout) ->
+  case Timeout of
+    infinity -> infinity;
+    Timeout -> now_in_microseconds() + Timeout * 1000
+  end.

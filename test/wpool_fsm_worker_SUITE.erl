@@ -65,4 +65,5 @@ send_event(_Config) ->
 start_pool() ->
   {ok, _Pid} =
     wpool:start_sup_pool(
-      ?MODULE, [{workers, 1}, {worker_type, gen_fsm}]).
+      ?MODULE, [{workers, 1}, {worker_type, gen_fsm}]),
+  started.

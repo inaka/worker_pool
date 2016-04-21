@@ -83,7 +83,7 @@ sync_send_all_state_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_all_state_event(Process, Event, Timeout).
 
 %% @equiv gen_fsm:send_event(Process, {sync_send_event, From, Event})
--spec cast_call(wpool:name() | pid(), pid(), term()) -> ok.
+-spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
 cast_call(Process, From, Event) ->
   gen_fsm:send_event(Process, {sync_send_event, From, Event}).
 
@@ -341,9 +341,12 @@ dispatch_state(Event, StateData) ->
   Reply.
 
 -spec dispatch_state(term(), from(), state()) ->
-                          {reply, term(), dispatch_state, state()}
-                          | {next_state, dispatch_state, state()}
-                          | {stop, term(), state()}.
+  {next_state, dispatch_state, state()} |
+  {next_state, dispatch_state, state(), timeout()} |
+  {reply, term(), dispatch_state, state()} |
+  {reply, term(), dispatch_state, state(), timeout()} |
+  {stop, term(), term(), state()} |
+  {stop, term(), state()}.
 dispatch_state(Event, From, StateData) ->
   Task = get_task(Event, StateData),
   ok = notify_queue_manager(worker_busy,

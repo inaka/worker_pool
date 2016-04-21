@@ -65,7 +65,7 @@ code_change(_OldVsn, _StateName, State, _Extra) ->
   {ok, common_state, State}.
 %% @private
 -spec handle_info(any(), atom(), StateData) ->
-  {next_state, dispatch_state, StateData}.
+  {next_state, common_state, StateData}.
 handle_info(_Info, _StateName, StateData) ->
   {next_state, common_state, StateData}.
 %% @private
@@ -85,9 +85,7 @@ handle_event({M, F, A}, _StateName, StateData) ->
       {next_state, common_state, StateData}
   catch
     _:Error ->
-      error_logger:error_msg(
-        "Error on ~p:~p~p >> ~p Backtrace ~p",
-        [M, F, A, Error, erlang:get_stacktrace()]),
+      log_error(M, F, A, Error),
       {next_state, common_state, StateData}
   end;
 handle_event(Event, common_state, StateData) ->
@@ -103,9 +101,7 @@ handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
       {reply, Reply, common_state, StateData}
   catch
     _:Error ->
-      error_logger:error_msg(
-        "Error on ~p:~p~p >> ~p Backtrace ~p",
-        [M, F, A, Error, erlang:get_stacktrace()]),
+      log_error(M, F, A, Error),
       {reply, {error, Error}, common_state, StateData}
   end;
 handle_sync_event(Event, _From, common_state, StateData) ->
@@ -124,9 +120,7 @@ common_state({M, F, A}, StateData) ->
       {next_state, common_state, StateData}
   catch
     _:Error ->
-      error_logger:error_msg(
-        "Error on ~p:~p~p >> ~p Backtrace ~p",
-        [M, F, A, Error, erlang:get_stacktrace()]),
+      log_error(M, F, A, Error),
       {next_state, common_state, StateData}
   end;
 common_state(Event, StateData) ->
@@ -142,11 +136,14 @@ common_state({M, F, A}, _From, StateData) ->
       {reply, {ok, R}, common_state, StateData}
   catch
     _:Error ->
-      error_logger:error_msg(
-        "Error on ~p:~p~p >> ~p Backtrace ~p",
-        [M, F, A, Error, erlang:get_stacktrace()]),
+      log_error(M, F, A, Error),
       {reply, {error, Error}, common_state, StateData}
   end;
 common_state(Event, _From, StateData) ->
   error_logger:error_msg("Invalid event:~p", [Event]),
   {reply, {error, invalid_request}, common_state, StateData}.
+
+log_error(M, F, A, Error) ->
+  error_logger:error_msg(
+    "Error on ~p:~p~p >> ~p Backtrace ~p",
+    [M, F, A, Error, erlang:get_stacktrace()]).
