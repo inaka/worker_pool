@@ -24,14 +24,16 @@
 -export([ best_worker/1
         , random_worker/1
         , next_worker/1
+        , hash_worker/2
+        , next_available_worker/1
         , call_available_worker/3
         , sync_send_event_to_available_worker/3
         , sync_send_all_event_to_available_worker/3
-        , hash_worker/2
         ]).
--export([cast_to_available_worker/2
+-export([ cast_to_available_worker/2
         , send_event_to_available_worker/2
-        , send_all_event_to_available_worker/2]).
+        , send_all_event_to_available_worker/2
+        ]).
 -export([stats/1, wpool_size/1, worker_names/1, worker_name/2, find_wpool/1]).
 -export([wpool_set/2, wpool_get/2]).
 
@@ -77,7 +79,6 @@ best_worker(Sup) ->
 
 %% @doc Picks a random worker
 %% @throws no_workers
-
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
   case wpool_size(Sup) of
@@ -94,6 +95,20 @@ next_worker(Sup) ->
   case move_wpool(Sup) of
     undefined -> throw(no_workers);
     Next -> worker_name(Sup, Next)
+  end.
+
+%% @doc Picks the first available worker, if any
+%% @throws no_workers
+%% @throws no_available_workers
+-spec next_available_worker(wpool:name()) -> atom().
+next_available_worker(Sup) ->
+  case find_wpool(Sup) of
+    undefined -> throw(no_workers);
+    Wpool ->
+      case worker_with_no_task(Wpool) of
+        undefined -> throw(no_available_workers);
+        Worker -> Worker
+      end
   end.
 
 %% @doc Picks the first available worker and sends the call to it.
@@ -348,6 +363,26 @@ time_checker_name(Sup) ->
 queue_manager_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
 
+worker_with_no_task(Wpool) ->
+  %% Moving the beginning of the list to a random point to ensure that clients
+  %% do not always start asking for process_info to the processes that are most
+  %% likely to have bigger message queues
+  First = random:uniform(Wpool#wpool.size),
+  worker_with_no_task(0, Wpool#wpool{next = First}).
+worker_with_no_task(Size, #wpool{size = Size}) ->
+  undefined;
+worker_with_no_task(Checked, Wpool) ->
+  Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
+  case erlang:process_info(whereis(Worker), [message_queue_len, dictionary]) of
+    [{message_queue_len, 0}, {dictionary, Dictionary}] ->
+      case proplists:get_value(wpool_task, Dictionary) of
+        undefined -> Worker;
+        _ -> worker_with_no_task(Checked + 1, next_wpool(Wpool))
+      end;
+    _ ->
+      worker_with_no_task(Checked + 1, next_wpool(Wpool))
+  end.
+
 min_message_queue(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
   %% do not always start asking for process_info to the processes that are most
@@ -362,9 +397,7 @@ min_message_queue(Checked, Wpool, Found) ->
   case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
     {message_queue_len, 0} -> Worker;
     {message_queue_len, L} ->
-      NextWpool =
-        Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1},
-      min_message_queue(Checked + 1, NextWpool, [{L, Worker} | Found]);
+      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found]);
     Error -> throw(Error)
   end.
 
@@ -423,6 +456,9 @@ build_wpool(Name) ->
       error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
       undefined
   end.
+
+next_wpool(Wpool) ->
+  Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
 
 -ifdef(r_18).
   seed_random() -> random:seed(erlang:timestamp()).
