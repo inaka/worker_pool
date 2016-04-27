@@ -461,7 +461,7 @@ next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
 
 rnd(Wpool_Size) ->
-  case code:load_file(rand) of
+  case code:ensure_loaded(rand) of
     {module, rand} -> rand:uniform(Wpool_Size);
     {error, _} ->
       _ = random:seed(os:timestamp()),
