@@ -461,9 +461,22 @@ next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
 
 rnd(Wpool_Size) ->
-  case code:ensure_loaded(rand) of
-    {module, rand} -> rand:uniform(Wpool_Size);
-    {error, _} ->
-      _ = random:seed(os:timestamp()),
-      random:uniform(Wpool_Size)
+  case application:get_env(worker_pool, random_fun) of
+    undefined ->
+      set_random_fun(),
+      rnd(Wpool_Size);
+    {ok, RndFun} ->
+      RndFun(Wpool_Size)
   end.
+
+set_random_fun() ->
+  RndFun =
+    case code:ensure_loaded(rand) of
+      {module, rand} -> fun rand:uniform/1;
+      {error, _} ->
+        fun(Size) ->
+          _ = random:seed(os:timestamp()),
+          random:uniform(Size)
+        end
+    end,
+  application:set_env(worker_pool, random_fun, RndFun).
