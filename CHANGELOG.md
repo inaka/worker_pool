@@ -1,5 +1,37 @@
 # Change Log
 
+## [1.1.0](https://github.com/inaka/worker_pool/tree/1.1.0) (2016-04-28)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.4...1.1.0)
+
+**Fixed bugs:**
+
+- master is not working with rebar3 projects [\#58](https://github.com/inaka/worker_pool/pull/58) ([akalyaev](https://github.com/akalyaev))
+
+**Closed issues:**
+
+- Wrong typespec for strategy\(\) [\#48](https://github.com/inaka/worker_pool/issues/48)
+- Add wpool\_fsm\_process tests [\#46](https://github.com/inaka/worker_pool/issues/46)
+- Update README.md [\#45](https://github.com/inaka/worker_pool/issues/45)
+- Possibility to create anonymous pools? [\#32](https://github.com/inaka/worker_pool/issues/32)
+- gen\_fsm as workers [\#24](https://github.com/inaka/worker_pool/issues/24)
+- Update Dependencies [\#23](https://github.com/inaka/worker_pool/issues/23)
+- Worker recycling/expiration [\#20](https://github.com/inaka/worker_pool/issues/20)
+- ability to provide custom strategies [\#16](https://github.com/inaka/worker_pool/issues/16)
+
+**Merged pull requests:**
+
+- Update README.md [\#55](https://github.com/inaka/worker_pool/pull/55) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Ferigis.46.adding fsm tests [\#54](https://github.com/inaka/worker_pool/pull/54) ([ferigis](https://github.com/ferigis))
+- Replacement for \#47 [\#53](https://github.com/inaka/worker_pool/pull/53) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- handle custom strategy functions [\#52](https://github.com/inaka/worker_pool/pull/52) ([benoitc](https://github.com/benoitc))
+- Fail fast if there is no spare workers in the pool [\#51](https://github.com/inaka/worker_pool/pull/51) ([michalwski](https://github.com/michalwski))
+- Updated wpool stats/0 type specification [\#50](https://github.com/inaka/worker_pool/pull/50) ([akalyaev](https://github.com/akalyaev))
+- Fix the typespec for the hash\_worker strategy [\#49](https://github.com/inaka/worker_pool/pull/49) ([waisbrot](https://github.com/waisbrot))
+- updating README and creating a default fsm worker [\#47](https://github.com/inaka/worker_pool/pull/47) ([ferigis](https://github.com/ferigis))
+- Get the Project up to date regarding our internal rules [\#44](https://github.com/inaka/worker_pool/pull/44) ([igaray](https://github.com/igaray))
+- Ferigis.24.gen fsm as a workers [\#43](https://github.com/inaka/worker_pool/pull/43) ([ferigis](https://github.com/ferigis))
+- Properly change the random implementation for R18 [\#27](https://github.com/inaka/worker_pool/pull/27) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [1.0.4](https://github.com/inaka/worker_pool/tree/1.0.4) (2015-12-05)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.3...1.0.4)
 
@@ -19,6 +51,7 @@
 - Add suport for distributing work based on a hashed term [\#33](https://github.com/inaka/worker_pool/pull/33) ([JoshRagem](https://github.com/JoshRagem))
 - Rebased from TT and improved dialyzation [\#31](https://github.com/inaka/worker_pool/pull/31) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Completely remove lager [\#30](https://github.com/inaka/worker_pool/pull/30) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Version Bump to 1.0.4 [\#41](https://github.com/inaka/worker_pool/pull/41) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [1.0.3](https://github.com/inaka/worker_pool/tree/1.0.3) (2015-08-26)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.2...1.0.3)
