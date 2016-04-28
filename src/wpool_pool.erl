@@ -84,8 +84,8 @@ random_worker(Sup) ->
   case wpool_size(Sup) of
     undefined  -> throw(no_workers);
     Wpool_Size ->
-      _ = seed_random(),
-      worker_name(Sup, random:uniform(Wpool_Size))
+      WorkerNumber = rnd(Wpool_Size),
+      worker_name(Sup, WorkerNumber)
   end.
 
 %% @doc Picks the next worker in a round robin fashion
@@ -460,8 +460,23 @@ build_wpool(Name) ->
 next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
 
--ifdef(r_18).
-  seed_random() -> random:seed(erlang:timestamp()).
--else.
-  seed_random() -> random:seed(now()).
--endif.
+rnd(Wpool_Size) ->
+  case application:get_env(worker_pool, random_fun) of
+    undefined ->
+      set_random_fun(),
+      rnd(Wpool_Size);
+    {ok, RndFun} ->
+      RndFun(Wpool_Size)
+  end.
+
+set_random_fun() ->
+  RndFun =
+    case code:ensure_loaded(rand) of
+      {module, rand} -> fun rand:uniform/1;
+      {error, _} ->
+        fun(Size) ->
+          _ = random:seed(os:timestamp()),
+          random:uniform(Size)
+        end
+    end,
+  application:set_env(worker_pool, random_fun, RndFun).
