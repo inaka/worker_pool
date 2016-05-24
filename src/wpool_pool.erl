@@ -98,8 +98,7 @@ next_worker(Sup) ->
   end.
 
 %% @doc Picks the first available worker, if any
-%% @throws no_workers
-%% @throws no_available_workers
+%% @throws no_workers | no_available_workers
 -spec next_available_worker(wpool:name()) -> atom().
 next_available_worker(Sup) ->
   case find_wpool(Sup) of
