@@ -79,7 +79,7 @@ available_worker(_Config) ->
     _:no_workers -> ok
   end,
 
-  ct:pal(
+  ct:log(
     "Put them all to work, each requeslt should go to a different worker"),
   [wpool:send_event(Pool,
             {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
@@ -89,7 +89,7 @@ available_worker(_Config) ->
         [proplists:get_value(message_queue_len, WS)
           || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
-  ct:pal(
+  ct:log(
     "Now send another round of messages,
      the workers queues should still be empty"),
   [wpool:send_event(Pool,
@@ -103,22 +103,22 @@ available_worker(_Config) ->
           || {_, WS} <- proplists:get_value(workers, Stats1)])),
   % Check that we have ?WORKERS pending tasks
   ?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
-  ct:pal("If we can't wait we get no workers"),
+  ct:log("If we can't wait we get no workers"),
   try wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
     _:Error -> timeout = Error
   end,
 
-  ct:pal("Let's wait until all workers are free"),
+  ct:log("Let's wait until all workers are free"),
   wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, infinity),
 
   % Check we have no pending tasks
   Stats2 = wpool:stats(Pool),
   0 = proplists:get_value(total_message_queue_len, Stats2),
 
-  ct:pal("Now they all should be free"),
-  ct:pal("We get half of them working for a while"),
+  ct:log("Now they all should be free"),
+  ct:log("We get half of them working for a while"),
   [wpool:send_event(Pool,
             {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
 
@@ -128,7 +128,7 @@ available_worker(_Config) ->
   ct:log(error, "~p", [Stats3]),
   0 = proplists:get_value(total_message_queue_len, Stats3),
 
-  ct:pal(
+  ct:log(
     "We run tons of sync send events, and none is blocked,
      because all of them are handled by different workers"),
   Workers =
@@ -250,14 +250,14 @@ hash_worker(_Config) ->
 -spec next_available_worker(config()) -> _.
 next_available_worker(_Config) ->
   Pool = next_available_worker,
-  ct:pal("not_a_pool is not a pool"),
+  ct:log("not_a_pool is not a pool"),
   try wpool:sync_send_event(not_a_pool, x, next_available_worker) of
     Result -> no_result = Result
   catch
     _:no_workers -> ok
   end,
 
-  ct:pal("Put them all to work..."),
+  ct:log("Put them all to work..."),
   [ wpool:send_event(Pool, {timer, sleep, [1500 + I]}, next_available_worker)
    || I <- lists:seq(0, (?WORKERS - 1) * 60000, 60000)],
   timer:sleep(500),
@@ -269,23 +269,23 @@ next_available_worker(_Config) ->
            , proplists:get_value(task, WS) == undefined]
     end,
 
-  ct:pal("All busy..."),
+  ct:log("All busy..."),
   [] = AvailableWorkers(),
 
-  ct:pal("No available workers..."),
+  ct:log("No available workers..."),
   try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
     ok -> ct:fail("Exception expected")
   catch
     _:no_available_workers -> ok
   end,
 
-  ct:pal("Wait until the first frees up..."),
+  ct:log("Wait until the first frees up..."),
   timer:sleep(1000),
   [_] = AvailableWorkers(),
 
   ok = wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker),
 
-  ct:pal("No more available workers..."),
+  ct:log("No more available workers..."),
   try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
     ok -> ct:fail("Exception expected")
   catch
@@ -299,16 +299,16 @@ manager_crash(_Config) ->
   Pool = manager_crash,
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
 
-  ct:pal("Check that the pool is working"),
+  ct:log("Check that the pool is working"),
   {ok, ok} = send_io_format(Pool),
   true = undefined =/= whereis(QueueManager),
 
-  ct:pal("Crash the pool manager"),
+  ct:log("Crash the pool manager"),
   exit(whereis(QueueManager), kill),
   timer:sleep(100),
   true = undefined =/= whereis(QueueManager),
 
-  ct:pal("Check that the pool is working again"),
+  ct:log("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),
   ok.
 
