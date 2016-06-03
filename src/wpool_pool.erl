@@ -342,7 +342,9 @@ init({Name, Options}) ->
      {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]},
      permanent, brutal_kill, supervisor, [wpool_process_sup]},
 
-  SupStrategy = {one_for_all, 5, 60},
+  SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
+  SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
+  SupStrategy = {one_for_all, SupIntensity, SupPeriod},
   {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, ProcessSupSpec]}}.
 
 %% @private

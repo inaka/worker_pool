@@ -21,6 +21,10 @@
 -export([init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
 -export([init/1, init_timeout/1, info/1, cast/1, call/1]).
+-export([ pool_restart_crash/1
+        , pool_norestart_crash/1
+        ]).
+
 
 -spec all() -> [atom()].
 all() -> [Fun || {Fun, 1} <- module_info(exports),
@@ -101,3 +105,41 @@ call(_Config) ->
   ok3 = wpool_process:call(Pid, {stop, normal, ok3, state}, 5000),
   timer:sleep(1000),
   false = erlang:is_process_alive(Pid).
+
+-spec pool_restart_crash(config()) -> _.
+pool_restart_crash(_Config) ->
+    Pool = pool_restart_crash,
+    PoolOptions = [{workers, 2}, {worker, {crashy_server, []}}],
+    {ok, Pid} = wpool:start_pool(Pool, PoolOptions),
+    ct:log("Check that the pool is working"),
+    true = erlang:is_process_alive(Pid),
+    hello = wpool:call(Pool, hello),
+
+    ct:log("Crash a worker"),
+    wpool:cast(Pool, crash),
+    timer:sleep(500),
+
+    ct:log("Check that the pool is working"),
+    true = erlang:is_process_alive(Pid),
+    hello = wpool:call(Pool, hello).
+
+-spec pool_norestart_crash(config()) -> _.
+pool_norestart_crash(_Config) ->
+    Pool = pool_norestart_crash,
+    PoolOptions = [ {workers, 2}
+                  , {worker, {crashy_server, []}}
+                  , {strategy, {one_for_all, 0, 10}}
+                  , {pool_sup_intensity, 0}
+                  , {pool_sup_period, 10}
+                  ],
+    {ok, Pid} = wpool:start_pool(Pool, PoolOptions),
+    ct:log("Check that the pool is working"),
+    true = erlang:is_process_alive(Pid),
+    hello = wpool:call(Pool, hello),
+
+    ct:log("Crash a worker"),
+    wpool:cast(Pool, crash),
+    timer:sleep(500),
+
+    ct:log("Check that the pool is working"),
+    false = erlang:is_process_alive(Pid).
