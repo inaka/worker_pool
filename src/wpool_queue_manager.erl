@@ -259,12 +259,13 @@ trace(PoolName, false, _Timeout) ->
 trace(PoolName, TraceOn, TracerPid, Timeout) ->
   Workers = wpool_pool:worker_names(PoolName),
   TraceOptions = [timestamp, 'receive', send],
-  [case TraceOn of
-    true  ->
-      erlang:trace(WorkerPid, true,  [{tracer, TracerPid} | TraceOptions]);
-    false ->
-      erlang:trace(WorkerPid, false, TraceOptions)
-   end || Worker <- Workers, is_process_alive(WorkerPid = whereis(Worker))],
+  _ =
+    [ case TraceOn of
+        true  ->
+          erlang:trace(WorkerPid, true,  [{tracer, TracerPid} | TraceOptions]);
+        false ->
+          erlang:trace(WorkerPid, false, TraceOptions)
+      end || Worker <- Workers, is_process_alive(WorkerPid = whereis(Worker))],
   trace_off(PoolName, TraceOn, TracerPid, Timeout).
 
 trace_off(PoolName, false, _TracerPid, _Timeout) ->

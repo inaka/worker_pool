@@ -29,7 +29,10 @@
                 | {worker_opt, gen:options()}
                 | {worker, {Module::atom(), InitArg::term()}}
                 | {strategy, supervisor:strategy()}
-                | {worker_type, gen_fsm | gen_server}.
+                | {worker_type, gen_fsm | gen_server}
+                | {pool_sup_intensity, non_neg_integer()}
+                | {pool_sup_period, non_neg_integer()}
+                .
 -type custom_strategy() :: fun(([atom()])-> Atom::atom()).
 -type strategy() :: best_worker
                   | random_worker
