@@ -83,8 +83,8 @@ best_worker(Sup) ->
 random_worker(Sup) ->
   case wpool_size(Sup) of
     undefined  -> throw(no_workers);
-    Wpool_Size ->
-      WorkerNumber = rnd(Wpool_Size),
+    WpoolSize ->
+      WorkerNumber = rnd(WpoolSize),
       worker_name(Sup, WorkerNumber)
   end.
 
@@ -161,8 +161,8 @@ sync_send_all_event_to_available_worker(Sup, Event, Timeout) ->
 hash_worker(Sup, HashKey) ->
   case wpool_size(Sup) of
     undefined -> throw(no_workers);
-    Wpool_Size ->
-      Index = 1 + erlang:phash2(HashKey, Wpool_Size),
+    WpoolSize ->
+      Index = 1 + erlang:phash2(HashKey, WpoolSize),
       worker_name(Sup, Index)
   end.
 
@@ -243,24 +243,24 @@ stats(Wpool, Sup) ->
 
 %% @doc Returns the names of the workers in the pool
 -spec worker_names(wpool:name()) -> [atom()].
-worker_names(Pool_Name) ->
-  case find_wpool(Pool_Name) of
+worker_names(PoolName) ->
+  case find_wpool(PoolName) of
     undefined -> [];
     #wpool{size=Size} ->
-      [worker_name(Pool_Name, N) || N <- lists:seq(1, Size)]
+      [worker_name(PoolName, N) || N <- lists:seq(1, Size)]
   end.
 
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
 wpool_size(Name) ->
   try ets:update_counter(?MODULE, Name, {#wpool.size, 0}) of
-    Wpool_Size ->
+    WpoolSize ->
       case erlang:whereis(Name) of
         undefined ->
           ets:delete(?MODULE, Name),
           undefined;
         _ ->
-          Wpool_Size
+          WpoolSize
       end
   catch
     _:badarg ->
@@ -411,8 +411,8 @@ store_wpool(Wpool) ->
 
 move_wpool(Name) ->
   try
-    Wpool_Size = ets:update_counter(?MODULE, Name, {#wpool.size, 0}),
-    ets:update_counter(?MODULE, Name, {#wpool.next, 1, Wpool_Size, 1})
+    WpoolSize = ets:update_counter(?MODULE, Name, {#wpool.size, 0}),
+    ets:update_counter(?MODULE, Name, {#wpool.next, 1, WpoolSize, 1})
   catch
     _:badarg ->
       case build_wpool(Name) of
@@ -461,13 +461,13 @@ build_wpool(Name) ->
 next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
 
-rnd(Wpool_Size) ->
+rnd(WpoolSize) ->
   case application:get_env(worker_pool, random_fun) of
     undefined ->
       set_random_fun(),
-      rnd(Wpool_Size);
+      rnd(WpoolSize);
     {ok, RndFun} ->
-      RndFun(Wpool_Size)
+      RndFun(WpoolSize)
   end.
 
 set_random_fun() ->

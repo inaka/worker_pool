@@ -257,8 +257,8 @@ random_worker(_Config) ->
   %% randomness isn't reset with each spawn of the process_dictionary
   Self = self(),
   [spawn(fun() ->
-           Worker_Id = wpool:call(Pool, {erlang, self, []}, random_worker),
-           Self ! {worker, Worker_Id}
+           WorkerId = wpool:call(Pool, {erlang, self, []}, random_worker),
+           Self ! {worker, WorkerId}
          end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
   ?WORKERS = sets:size(sets:from_list(Concurrent)).
@@ -351,7 +351,7 @@ wpool_record(_Config) ->
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
-  receive {worker, Worker_Id} -> collect_results(N-1, [Worker_Id | Results])
+  receive {worker, WorkerId} -> collect_results(N-1, [WorkerId | Results])
   after 100 -> timeout
   end.
 

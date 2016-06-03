@@ -29,7 +29,10 @@
                 | {worker_opt, gen:options()}
                 | {worker, {Module::atom(), InitArg::term()}}
                 | {strategy, supervisor:strategy()}
-                | {worker_type, gen_fsm | gen_server}.
+                | {worker_type, gen_fsm | gen_server}
+                | {pool_sup_intensity, non_neg_integer()}
+                | {pool_sup_period, non_neg_integer()}
+                .
 -type custom_strategy() :: fun(([atom()])-> Atom::atom()).
 -type strategy() :: best_worker
                   | random_worker
@@ -155,7 +158,7 @@ call(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
   call(Sup, Call, available_worker, WorkerTimeout + Timeout);
 call(Sup, Call, hash_worker, HashKey, Timeout) ->
   call(Sup, Call, {hash_worker, HashKey}, Timeout);
-call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+call(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   call(Sup, Call, Strategy, Timeout).
 
 %% @equiv cast(Sup, Cast, default_strategy())
@@ -208,7 +211,7 @@ sync_send_event(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
   sync_send_event(Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_event(Sup, Call, hash_worker, HashKey, Timeout) ->
   sync_send_event(Sup, Call, {hash_worker, HashKey}, Call, Timeout);
-sync_send_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+sync_send_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   sync_send_event(Sup, Call, Strategy, Timeout).
 
 %% @equiv send_event(Sup, Event, default_strategy())
@@ -292,7 +295,7 @@ sync_send_all_state_event( Sup
     Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_all_state_event(Sup, Call, hash_worker, HashKey, Timeout) ->
   sync_send_all_state_event(Sup, Call, {hash_worker, HashKey}, Timeout);
-sync_send_all_state_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+sync_send_all_state_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   sync_send_all_state_event(Sup, Call, Strategy, Timeout).
 
 %% @doc Retrieves a snapshot of the pool stats

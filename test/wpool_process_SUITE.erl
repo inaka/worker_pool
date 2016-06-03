@@ -142,4 +142,5 @@ pool_norestart_crash(_Config) ->
     timer:sleep(500),
 
     ct:log("Check that the pool is working"),
-    false = erlang:is_process_alive(Pid).
+    false = erlang:is_process_alive(Pid),
+    ok.

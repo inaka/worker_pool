@@ -72,17 +72,17 @@ age(Process) -> gen_server:call(Process, age).
 -spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, state()}.
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
-    {ok, Mod_State} ->
+    {ok, ModState} ->
       ok = notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
-                 , state = Mod_State
+                 , state = ModState
                  , options = Options}};
-    {ok, Mod_State, Timeout} ->
+    {ok, ModState, Timeout} ->
       ok = notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
-                 , state = Mod_State
+                 , state = ModState
                  , options = Options}, Timeout};
     ignore -> {stop, can_not_ignore};
     Error -> Error
@@ -91,9 +91,9 @@ init({Name, Mod, InitArgs, Options}) ->
 %% @private
 -spec terminate(atom(), state()) -> term().
 terminate(Reason,
-          #state{mod=Mod, state=Mod_State, name=Name, options=Options}) ->
+          #state{mod=Mod, state=ModState, name=Name, options=Options}) ->
   ok = notify_queue_manager(worker_dead, Name, Options),
-  Mod:terminate(Reason, Mod_State).
+  Mod:terminate(Reason, ModState).
 
 %% @private
 -spec code_change(string(), state(), any()) -> {ok, state()} | {error, term()}.
