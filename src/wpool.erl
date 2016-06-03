@@ -155,7 +155,7 @@ call(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
   call(Sup, Call, available_worker, WorkerTimeout + Timeout);
 call(Sup, Call, hash_worker, HashKey, Timeout) ->
   call(Sup, Call, {hash_worker, HashKey}, Timeout);
-call(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+call(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   call(Sup, Call, Strategy, Timeout).
 
 %% @equiv cast(Sup, Cast, default_strategy())
@@ -208,7 +208,7 @@ sync_send_event(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
   sync_send_event(Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_event(Sup, Call, hash_worker, HashKey, Timeout) ->
   sync_send_event(Sup, Call, {hash_worker, HashKey}, Call, Timeout);
-sync_send_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+sync_send_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   sync_send_event(Sup, Call, Strategy, Timeout).
 
 %% @equiv send_event(Sup, Event, default_strategy())
@@ -292,7 +292,7 @@ sync_send_all_state_event( Sup
     Sup, Call, available_worker, WorkerTimeout + Timeout);
 sync_send_all_state_event(Sup, Call, hash_worker, HashKey, Timeout) ->
   sync_send_all_state_event(Sup, Call, {hash_worker, HashKey}, Timeout);
-sync_send_all_state_event(Sup, Call, Strategy, _Worker_Timeout, Timeout) ->
+sync_send_all_state_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   sync_send_all_state_event(Sup, Call, Strategy, Timeout).
 
 %% @doc Retrieves a snapshot of the pool stats

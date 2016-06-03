@@ -121,9 +121,9 @@ init({Name, Mod, InitArgs, Options}) ->
 -spec terminate(atom(), fsm_state(), state()) -> term().
 terminate(Reason,
     CurrentState,
-    #state{mod=Mod, state=Mod_State, name=Name, options=Options}) ->
+    #state{mod=Mod, state=ModState, name=Name, options=Options}) ->
   ok = notify_queue_manager(worker_dead, Name, Options),
-  Mod:terminate(Reason, CurrentState, Mod_State).
+  Mod:terminate(Reason, CurrentState, ModState).
 
 %% @private
 -spec code_change(string(), fsm_state(), state(), any()) ->
