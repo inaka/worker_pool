@@ -476,8 +476,8 @@ set_random_fun() ->
       {module, rand} -> fun rand:uniform/1;
       {error, _} ->
         fun(Size) ->
-          _ = random:seed(os:timestamp()),
-          random:uniform(Size)
+          _ = erlang:apply(random, seed, [os:timestamp()]),
+          erlang:apply(random, uniform, [Size])
         end
     end,
   application:set_env(worker_pool, random_fun, RndFun).

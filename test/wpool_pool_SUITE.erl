@@ -256,10 +256,10 @@ random_worker(_Config) ->
   %% Now do the same with a freshly spawned process for each request to ensure
   %% randomness isn't reset with each spawn of the process_dictionary
   Self = self(),
-  [spawn(fun() ->
-           WorkerId = wpool:call(Pool, {erlang, self, []}, random_worker),
-           Self ! {worker, WorkerId}
-         end) || _ <- lists:seq(1, 20 * ?WORKERS)],
+  _ = [spawn(fun() ->
+               WorkerId = wpool:call(Pool, {erlang, self, []}, random_worker),
+               Self ! {worker, WorkerId}
+             end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
   ?WORKERS = sets:size(sets:from_list(Concurrent)).
 
