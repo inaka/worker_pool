@@ -1,14 +1,30 @@
 # Change Log
 
+## [2.0.1](https://github.com/inaka/worker_pool/tree/2.0.1) (2016-06-27)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.0.0...2.0.1)
+
+**Closed issues:**
+
+- one\_for\_all strategy with the worker pool supervisor [\#64](https://github.com/inaka/worker_pool/issues/64)
+
+**Merged pull requests:**
+
+- Remove compiler warnings about random module [\#73](https://github.com/inaka/worker_pool/pull/73) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Actually remove the usage of random module if we're on OTP18+ [\#72](https://github.com/inaka/worker_pool/pull/72) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Upgrade katana-test [\#66](https://github.com/inaka/worker_pool/pull/66) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Add config options pool\_sup\_intensity and pool\_sup\_period [\#65](https://github.com/inaka/worker_pool/pull/65) ([waisbrot](https://github.com/waisbrot))
+
 ## [2.0.0](https://github.com/inaka/worker_pool/tree/2.0.0) (2016-05-26)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.1.0...2.0.0)
 
 **Closed issues:**
 
+- Version Bump to 2.0.0 [\#62](https://github.com/inaka/worker_pool/issues/62)
 - Move from erlang.mk to rebar3 [\#60](https://github.com/inaka/worker_pool/issues/60)
 
 **Merged pull requests:**
 
+- \[Close \#62\] update to 2.0.0 version [\#63](https://github.com/inaka/worker_pool/pull/63) ([Euen](https://github.com/Euen))
 - \[Close \#60\] Euen.60.rebar3 [\#61](https://github.com/inaka/worker_pool/pull/61) ([Euen](https://github.com/Euen))
 
 ## [1.1.0](https://github.com/inaka/worker_pool/tree/1.1.0) (2016-04-28)
