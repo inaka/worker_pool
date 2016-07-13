@@ -64,7 +64,7 @@
   send_all_state_event/3, sync_send_all_state_event/2,
   sync_send_all_state_event/3, sync_send_all_state_event/4,
   sync_send_all_state_event/5]).
--export([stats/1]).
+-export([stats/0, stats/1]).
 -export([default_strategy/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,6 +299,10 @@ sync_send_all_state_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
   sync_send_all_state_event(Sup, Call, Strategy, Timeout).
 
 %% @doc Retrieves a snapshot of the pool stats
+-spec stats() -> [stats()].
+stats() -> wpool_pool:stats().
+
+%% @doc Retrieves a snapshot of a given pool stats
 -spec stats(name()) -> stats().
 stats(Sup) -> wpool_pool:stats(Sup).
 
