@@ -34,7 +34,8 @@
         , send_event_to_available_worker/2
         , send_all_event_to_available_worker/2
         ]).
--export([stats/1, wpool_size/1, worker_names/1, worker_name/2, find_wpool/1]).
+-export([stats/0, stats/1]).
+-export([wpool_size/1, worker_names/1, worker_name/2, find_wpool/1, all/0]).
 -export([wpool_set/2, wpool_get/2]).
 
 %% Supervisor callbacks
@@ -193,6 +194,16 @@ send_all_event_to_available_worker(Sup, Event) ->
   wpool_queue_manager:send_all_event_to_available_worker(
                                     queue_manager_name(Sup),
                                     Event).
+
+-spec all() -> [wpool:name()].
+all() ->
+  [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)].
+
+%% @doc Retrieves the pool stats for all pools
+-spec stats() -> [wpool:stats()].
+stats() ->
+  Pools = all(),
+  [stats(Sup) || Sup <- Pools].
 
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
