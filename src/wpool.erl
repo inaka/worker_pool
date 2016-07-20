@@ -241,8 +241,8 @@ send_all_state_event(Sup, Event) ->
 send_all_state_event(Sup, Event, available_worker) ->
   wpool_pool:send_all_event_to_available_worker(Sup, Event);
 send_all_state_event(Sup, Event, {hash_worker, HashKey}) ->
-  wpool_fsm_process:send_all_state_event(wpool_pool:hash_worker(Sup, HashKey)
-                                          , Event);
+  wpool_fsm_process:send_all_state_event(
+    wpool_pool:hash_worker(Sup, HashKey), Event);
 send_all_state_event(Sup, Event, Fun) when is_function(Fun) ->
   wpool_fsm_process:send_all_state_event(Fun(Sup), Event);
 send_all_state_event(Sup, Event, Strategy) ->
