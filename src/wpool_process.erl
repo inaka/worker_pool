@@ -22,8 +22,9 @@
 -record(state, {name    :: atom(),
                 mod     :: atom(),
                 state   :: term(),
-                options :: [{time_checker|queue_manager, atom()}
-                         | wpool:option()],
+                options :: [ {time_checker|queue_manager, atom()}
+                           | wpool:option()
+                           ],
                 born = os:timestamp() :: erlang:timestamp()
                }).
 -type state() :: #state{}.
@@ -31,11 +32,21 @@
 -type from() :: {pid(), reference()}.
 
 %% api
--export([start_link/4, call/3, cast/2, cast_call/3, age/1]).
+-export([ start_link/4
+        , call/3
+        , cast/2
+        , cast_call/3
+        , age/1
+        ]).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3,
-         handle_call/3, handle_cast/2, handle_info/2]).
+-export([ init/1
+        , terminate/2
+        , code_change/3
+        , handle_call/3
+        , handle_cast/2
+        , handle_info/2
+        ]).
 
 %%%===================================================================
 %%% API
@@ -77,21 +88,23 @@ init({Name, Mod, InitArgs, Options}) ->
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
-                 , options = Options}};
+                 , options = Options
+                 }};
     {ok, ModState, Timeout} ->
       ok = notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
-                 , options = Options}, Timeout};
+                 , options = Options
+                 }, Timeout};
     ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
 
 %% @private
 -spec terminate(atom(), state()) -> term().
-terminate(Reason,
-          #state{mod=Mod, state=ModState, name=Name, options=Options}) ->
+terminate(Reason, State) ->
+  #state{mod=Mod, state=ModState, name=Name, options=Options} = State,
   ok = notify_queue_manager(worker_dead, Name, Options),
   Mod:terminate(Reason, ModState).
 
@@ -105,7 +118,7 @@ code_change(OldVsn, State, Extra) ->
 
 %% @private
 -spec handle_info(any(), state()) ->
-  {noreply, state()} | {stop, term(), state()}.
+        {noreply, state()} | {stop, term(), state()}.
 handle_info(Info, State) ->
   try (State#state.mod):handle_info(Info, State#state.state) of
     {noreply, NewState} ->
@@ -171,14 +184,14 @@ handle_cast({cast, Cast}, State) ->
 
 %% @private
 -spec handle_call(term(), from(), state()) ->
-  {reply, term(), state()} |
-  {reply, term(), state(), timeout() | hibernate} |
-  {noreply, state()} |
-  {noreply, state(), timeout() | hibernate} |
-  {stop, term(), term(), state()} |
-  {stop, term(), state()}.
+        {reply, term(), state()}
+      | {reply, term(), state(), timeout() | hibernate}
+      | {noreply, state()}
+      | {noreply, state(), timeout() | hibernate}
+      | {stop, term(), term(), state()}
+      | {stop, term(), state()}.
 handle_call(age, _From, #state{born=Born} = State) ->
-    {reply, timer:now_diff(os:timestamp(), Born), State};
+  {reply, timer:now_diff(os:timestamp(), Born), State};
 handle_call(Call, From, State) ->
   Task =
     task_init(

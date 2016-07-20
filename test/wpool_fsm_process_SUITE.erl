@@ -17,15 +17,24 @@
 
 -type config() :: [{atom(), term()}].
 
--export([all/0]).
--export([init_per_suite/1, end_per_suite/1,
-         init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1,
-         async_states/1, sync_states/1]).
+-export([ all/0
+        ]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        , init_per_testcase/2
+        , end_per_testcase/2
+        ]).
+-export([ init/1
+        , init_timeout/1
+        , info/1
+        , async_states/1
+        , sync_states/1
+        ]).
 
 -spec all() -> [atom()].
-all() -> [Fun || {Fun, 1} <- module_info(exports),
-         not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+all() ->
+  [Fun || {Fun, 1} <- module_info(exports),
+          not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -54,27 +63,23 @@ init(_Config) ->
     wpool_fsm_process:start_link(?MODULE, echo_fsm, ignore, []),
   {error, ?MODULE} =
     wpool_fsm_process:start_link(?MODULE, echo_fsm, {stop, ?MODULE}, []),
-  {ok, _Pid} = wpool_fsm_process:start_link(?MODULE,
-                                            echo_fsm,
-                                            {ok, state_one, []},
-                                            []).
+  {ok, _Pid} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []).
 
 -spec init_timeout(config()) -> _.
 init_timeout(_Config) ->
   {ok, Pid} =
-        wpool_fsm_process:start_link(?MODULE,
-                                    echo_fsm,
-                                    {ok, state_one, [], 0},
-                                    []),
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, [], 0}, []),
   timer:sleep(1),
   false = erlang:is_process_alive(Pid).
 
 -spec info(config()) -> _.
 info(_Config) ->
-  {ok, Pid} = wpool_fsm_process:start_link(?MODULE,
-                                          echo_fsm,
-                                          {ok, state_one, []},
-                                          []),
+  {ok, Pid} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []),
   Pid ! {next_state, state_two, newstate},
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   Pid ! {next_state, state_three, newstate, 0},
@@ -83,10 +88,9 @@ info(_Config) ->
 
 -spec async_states(config()) -> _.
 async_states(_Config) ->
-  {ok, Pid} = wpool_fsm_process:start_link(?MODULE,
-                                          echo_fsm,
-                                          {ok, state_one, []},
-                                          []),
+  {ok, Pid} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []),
   wpool_fsm_process:send_event(Pid, {next_state, state_two, newstate}),
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   wpool_fsm_process:send_event(Pid, {next_state, state_one, newerstate, 0}),
@@ -95,16 +99,15 @@ async_states(_Config) ->
 
 -spec sync_states(config()) -> _.
 sync_states(_Config) ->
-  {ok, Pid} = wpool_fsm_process:start_link(?MODULE,
-                                          echo_fsm,
-                                          {ok, state_one, []},
-                                          []),
-  ok1 = wpool_fsm_process:sync_send_event(Pid,
-                                          {reply, ok1, state_two, newstate},
-                                          5000),
+  {ok, Pid} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []),
+  ok1 =
+    wpool_fsm_process:sync_send_event(
+      Pid, {reply, ok1, state_two, newstate}, 5000),
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
-  ok2 = wpool_fsm_process:sync_send_event(Pid,
-                                        {reply, ok2, state_one, newerstate, 0},
-                                        5000),
+  ok2 =
+    wpool_fsm_process:sync_send_event(
+      Pid, {reply, ok2, state_one, newerstate, 0}, 5000),
   timer:sleep(1),
   false = erlang:is_process_alive(Pid).

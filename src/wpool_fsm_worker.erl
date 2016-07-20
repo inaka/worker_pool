@@ -19,15 +19,24 @@
 -behaviour(gen_fsm).
 
 %% api
--export([sync_send_event/4, send_event/4]).
+-export([ sync_send_event/4
+        , send_event/4
+        ]).
 
 %% gen_fsm states
--export([common_state/2, common_state/3]).
+-export([ common_state/2
+        , common_state/3
+        ]).
 
 %% gen_fsm callbacks
--export([init/1, terminate/3, code_change/4,
-  handle_info/3, handle_event/3, handle_sync_event/4, format_status/2]).
-
+-export([ init/1
+        , terminate/3
+        , code_change/4
+        , handle_info/3
+        , handle_event/3
+        , handle_sync_event/4
+        , format_status/2
+        ]).
 
 %%%===================================================================
 %%% API
@@ -42,8 +51,7 @@ sync_send_event(S, M, F, A) ->
 
 %% @doc Executes M:F(A) in any of the workers of the pool S
 -spec send_event(wpool:name(), module(), atom(), [term()]) -> ok.
-send_event(S, M, F, A) ->
-  wpool:send_event(S, {M, F, A}).
+send_event(S, M, F, A) -> wpool:send_event(S, {M, F, A}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -60,25 +68,23 @@ init(undefined) -> {ok, common_state, #state{}}.
 terminate(_Reason, _CurrentState, _State) -> ok.
 %% @private
 -spec code_change(string(), atom(), StateData, any()) ->
-  {ok, common_state, StateData}.
-code_change(_OldVsn, _StateName, State, _Extra) ->
-  {ok, common_state, State}.
+        {ok, common_state, StateData}.
+code_change(_OldVsn, _StateName, State, _Extra) -> {ok, common_state, State}.
 %% @private
 -spec handle_info(any(), atom(), StateData) ->
-  {next_state, common_state, StateData}.
+        {next_state, common_state, StateData}.
 handle_info(_Info, _StateName, StateData) ->
   {next_state, common_state, StateData}.
 %% @private
 -spec format_status(normal | terminate, list()) -> ok.
-format_status(_Opt, [_PDict, _StateData]) ->
-  ok.
+format_status(_Opt, [_PDict, _StateData]) -> ok.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 %% @private
 -spec handle_event(term(), atom(), StateData) ->
-  {next_state, common_state, StateData}.
+        {next_state, common_state, StateData}.
 handle_event({M, F, A}, _StateName, StateData) ->
   try erlang:apply(M, F, A) of
     _ ->
@@ -112,8 +118,7 @@ handle_sync_event(Event, _From, common_state, StateData) ->
 %%% FSM States
 %%%===================================================================
 %% @private
--spec common_state(term(), term()) ->
-  {next_state, common_state, term()}.
+-spec common_state(term(), term()) -> {next_state, common_state, term()}.
 common_state({M, F, A}, StateData) ->
   try erlang:apply(M, F, A) of
     _ ->
@@ -129,7 +134,7 @@ common_state(Event, StateData) ->
 
 %% @private
 -spec common_state(term(), term(), term()) ->
-  {reply, term(), common_state, term()}.
+        {reply, term(), common_state, term()}.
 common_state({M, F, A}, _From, StateData) ->
   try erlang:apply(M, F, A) of
     R ->

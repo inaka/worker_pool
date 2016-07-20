@@ -17,23 +17,30 @@
 
 -behaviour(gen_server).
 
--record(state, {wpool   :: wpool:name(),
-                handler :: {atom(), atom()}}).
+-record(state, { wpool   :: wpool:name()
+               , handler :: {atom(), atom()}
+               }).
 -type state() :: #state{}.
 
 %% api
--export([start_link/3]).
+-export([ start_link/3
+        ]).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3,
-         handle_call/3, handle_cast/2, handle_info/2]).
+-export([ init/1
+        , terminate/2
+        , code_change/3
+        , handle_call/3
+        , handle_cast/2
+        , handle_info/2
+        ]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 %% @private
 -spec start_link(wpool:name(), atom(), {atom(), atom()}) ->
-  {ok, pid()} | {error, {already_started, pid()} | term()}.
+        {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Handler) ->
   gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
 
@@ -78,11 +85,12 @@ handle_info({check, Pid, TaskId, Runtime}, State) ->
 handle_info(_Info, State) -> {noreply, State}.
 
 run_task(TaskId, {TaskId, _, Task}, Pid, Pool, {Mod, Fun}, Runtime) ->
-  catch Mod:Fun([{alert,   overrun},
-                 {pool,    Pool},
-                 {worker,  Pid},
-                 {task,    Task},
-                 {runtime, Runtime}]),
+  catch Mod:Fun([ {alert,   overrun}
+                , {pool,    Pool}
+                , {worker,  Pid}
+                , {task,    Task}
+                , {runtime, Runtime}
+                ]),
   case 2 * Runtime of
     NewOverrunTime when NewOverrunTime =< 4294967295 ->
       erlang:send_after(

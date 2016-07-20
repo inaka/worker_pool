@@ -19,7 +19,8 @@
 
 -define(WORKERS, 6).
 
--export([all/0]).
+-export([ all/0
+        ]).
 -export([ init_per_suite/1
         , end_per_suite/1
         , init_per_testcase/2
@@ -34,15 +35,21 @@
         , next_available_worker/1
         , wpool_record/1
         ]).
--export([wait_and_self/1]).
--export([manager_crash/1]).
+-export([ wait_and_self/1
+        ]).
+-export([ manager_crash/1
+        ]).
 
 -spec all() -> [atom()].
 all() ->
   [Fun || {Fun, 1} <- module_info(exports),
-          not lists:member(
-                Fun,
-                [init_per_suite, end_per_suite, module_info, wait_and_self])].
+          not lists:member( Fun
+                          , [ init_per_suite
+                            , end_per_suite
+                            , module_info
+                            , wait_and_self
+                            ]
+                          )].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
