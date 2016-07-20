@@ -47,6 +47,15 @@ stop_pool(Name) ->
   {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
 init([]) ->
   ok = wpool_pool:create_table(),
-  {ok, {{simple_one_for_one, 5, 60},
-        [{wpool_pool, {wpool_pool, start_link, []},
-         permanent, 2000, supervisor, dynamic}]}}.
+  { ok
+  , { {simple_one_for_one, 5, 60}
+    , [ { wpool_pool
+        , {wpool_pool, start_link, []}
+        , permanent
+        , 2000
+        , supervisor
+        , dynamic
+        }
+      ]
+    }
+  }.

@@ -25,12 +25,12 @@
 
 -spec all() -> [atom()].
 all() ->
-  [Fun
-   || {Fun, 1} <- module_info(exports)
-    , Fun =/= init_per_suite
-    , Fun =/= end_per_suite
-    , Fun =/= module_info
-    , Fun =/= overrun_handler
+  [ Fun
+  || {Fun, 1} <- module_info(exports)
+   , Fun =/= init_per_suite
+   , Fun =/= end_per_suite
+   , Fun =/= module_info
+   , Fun =/= overrun_handler
   ].
 
 -spec init_per_suite(config()) -> config().
@@ -105,12 +105,13 @@ stats(_Config) ->
   1 = Get(next_worker, InitStats),
   InitWorkers = Get(workers, InitStats),
   10 = length(InitWorkers),
-  [begin
-    WorkerStats = Get(I, InitWorkers),
-    0 = Get(message_queue_len, WorkerStats),
-    [] = lists:keydelete(
+  [ begin
+      WorkerStats = Get(I, InitWorkers),
+      0 = Get(message_queue_len, WorkerStats),
+      [] =
+        lists:keydelete(
           message_queue_len, 1, lists:keydelete(memory, 1, WorkerStats))
-   end || I <- lists:seq(1, 10)],
+    end || I <- lists:seq(1, 10)],
 
   % Start a long task on every worker
   Sleep = {timer, sleep, [10000]},
@@ -127,14 +128,14 @@ stats(_Config) ->
   1 = Get(next_worker, WorkingStats),
   WorkingWorkers = Get(workers, WorkingStats),
   10 = length(WorkingWorkers),
-  [begin
-    WorkerStats = Get(I, WorkingWorkers),
-    0 = Get(message_queue_len, WorkerStats),
-    {timer, sleep, 1} = Get(current_function, WorkerStats),
-    {timer, sleep, 1, _} = Get(current_location, WorkerStats),
-    {cast, Sleep} = Get(task, WorkerStats),
-    true = is_number(Get(runtime, WorkerStats))
-   end || I <- lists:seq(1, 10)],
+  [ begin
+      WorkerStats = Get(I, WorkingWorkers),
+      0 = Get(message_queue_len, WorkerStats),
+      {timer, sleep, 1} = Get(current_function, WorkerStats),
+      {timer, sleep, 1, _} = Get(current_location, WorkerStats),
+      {cast, Sleep} = Get(task, WorkerStats),
+      true = is_number(Get(runtime, WorkerStats))
+    end || I <- lists:seq(1, 10)],
 
   wpool:stop_pool(?MODULE),
   try wpool:stats(?MODULE)

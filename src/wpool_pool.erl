@@ -20,7 +20,9 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/2, create_table/0]).
+-export([ start_link/2
+        , create_table/0
+        ]).
 -export([ best_worker/1
         , random_worker/1
         , next_worker/1
@@ -34,12 +36,22 @@
         , send_event_to_available_worker/2
         , send_all_event_to_available_worker/2
         ]).
--export([stats/0, stats/1]).
--export([wpool_size/1, worker_names/1, worker_name/2, find_wpool/1, all/0]).
--export([wpool_set/2, wpool_get/2]).
+-export([ stats/0
+        , stats/1
+        ]).
+-export([ wpool_size/1
+        , worker_names/1
+        , worker_name/2
+        , find_wpool/1
+        , all/0
+        ]).
+-export([ wpool_set/2
+        , wpool_get/2
+        ]).
 
 %% Supervisor callbacks
--export([init/1]).
+-export([ init/1
+        ]).
 
 -include("wpool.hrl").
 
@@ -128,12 +140,11 @@ call_available_worker(Sup, Call, Timeout) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
--spec sync_send_event_to_available_worker(wpool:name(),
-                                          any(),
-                                          timeout()) -> any().
+-spec sync_send_event_to_available_worker(
+        wpool:name(), any(), timeout()) -> any().
 sync_send_event_to_available_worker(Sup, Event, Timeout) ->
   case wpool_queue_manager:sync_send_event_to_available_worker(
-    queue_manager_name(Sup), Event, Timeout) of
+        queue_manager_name(Sup), Event, Timeout) of
     noproc  -> throw(no_workers);
     timeout -> throw(timeout);
     Result  -> Result
@@ -143,12 +154,11 @@ sync_send_event_to_available_worker(Sup, Event, Timeout) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
--spec sync_send_all_event_to_available_worker(wpool:name(),
-                                              any(),
-                                              timeout()) -> any().
+-spec sync_send_all_event_to_available_worker(
+        wpool:name(), any(), timeout()) -> any().
 sync_send_all_event_to_available_worker(Sup, Event, Timeout) ->
   case wpool_queue_manager:sync_send_all_event_to_available_worker(
-    queue_manager_name(Sup), Event, Timeout) of
+        queue_manager_name(Sup), Event, Timeout) of
     noproc  -> throw(no_workers);
     timeout -> throw(timeout);
     Result  -> Result
@@ -182,8 +192,7 @@ cast_to_available_worker(Sup, Cast) ->
 -spec send_event_to_available_worker(wpool:name(), term()) -> ok.
 send_event_to_available_worker(Sup, Event) ->
   wpool_queue_manager:send_event_to_available_worker(
-                                    queue_manager_name(Sup),
-                                    Event).
+    queue_manager_name(Sup), Event).
 
 %% @doc Sends an event to the first available worker.
 %%      Since we can wait forever for a wpool:send_event to be delivered
@@ -192,18 +201,14 @@ send_event_to_available_worker(Sup, Event) ->
 -spec send_all_event_to_available_worker(wpool:name(), term()) -> ok.
 send_all_event_to_available_worker(Sup, Event) ->
   wpool_queue_manager:send_all_event_to_available_worker(
-                                    queue_manager_name(Sup),
-                                    Event).
+    queue_manager_name(Sup), Event).
 
 -spec all() -> [wpool:name()].
-all() ->
-  [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)].
+all() -> [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)].
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
-stats() ->
-  Pools = all(),
-  [stats(Sup) || Sup <- Pools].
+stats() -> [stats(Sup) || Sup <- all()].
 
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
@@ -224,8 +229,12 @@ stats(Wpool, Sup) ->
          Memory, Function, Location, {dictionary, Dictionary}] =
           erlang:process_info(
             Worker,
-            [message_queue_len, memory, current_function,
-             current_location, dictionary]),
+            [ message_queue_len
+            , memory
+            , current_function
+            , current_location
+            , dictionary
+            ]),
         Time =
           calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
         WS =
@@ -244,13 +253,14 @@ stats(Wpool, Sup) ->
       end, {0, []}, lists:seq(1, Wpool#wpool.size)),
   ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
   PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
-  [{pool,                     Sup},
-   {supervisor,               erlang:whereis(Sup)},
-   {options,                  Wpool#wpool.opts},
-   {size,                     Wpool#wpool.size},
-   {next_worker,              Wpool#wpool.next},
-   {total_message_queue_len,  Total + PendingTasks},
-   {workers,                  WorkerStats}].
+  [ {pool,                     Sup}
+  , {supervisor,               erlang:whereis(Sup)}
+  , {options,                  Wpool#wpool.opts}
+  , {size,                     Wpool#wpool.size}
+  , {next_worker,              Wpool#wpool.next}
+  , {total_message_queue_len,  Total + PendingTasks}
+  , {workers,                  WorkerStats}
+  ].
 
 %% @doc Returns the names of the workers in the pool
 -spec worker_names(wpool:name()) -> [atom()].
@@ -338,20 +348,32 @@ init({Name, Options}) ->
             , qmanager = QueueManager
             }),
   TimeCheckerSpec =
-    {TimeChecker,
-     {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]},
-     permanent, brutal_kill, worker, [wpool_time_checker]},
+    { TimeChecker
+    , {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]}
+    , permanent
+    , brutal_kill
+    , worker
+    , [wpool_time_checker]
+    },
   QueueManagerSpec =
-    {QueueManager,
-     {wpool_queue_manager, start_link, [Name, QueueManager]},
-     permanent, brutal_kill, worker, [wpool_queue_manager]},
+    { QueueManager
+    , {wpool_queue_manager, start_link, [Name, QueueManager]}
+    , permanent
+    , brutal_kill
+    , worker
+    , [wpool_queue_manager]
+    },
 
   WorkerOpts =
     [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options],
   ProcessSupSpec =
-    {ProcessSup,
-     {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]},
-     permanent, brutal_kill, supervisor, [wpool_process_sup]},
+    { ProcessSup
+    , {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]}
+    , permanent
+    , brutal_kill
+    , supervisor
+    , [wpool_process_sup]
+    },
 
   SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
   SupPeriod = proplists:get_value(pool_sup_period, Options, 60),

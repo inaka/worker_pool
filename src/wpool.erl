@@ -52,19 +52,48 @@
                  | {total_message_queue_len, non_neg_integer()}
                  | {workers, [{pos_integer(), worker_stats()}]}
                  ].
--export_type([name/0, option/0, custom_strategy/0, strategy/0,
-  worker_stats/0, stats/0]).
+-export_type([ name/0
+             , option/0
+             , custom_strategy/0
+             , strategy/0
+             , worker_stats/0
+             , stats/0
+             ]).
 
--export([start/0, start/2, stop/0, stop/1]).
--export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
--export([stop_pool/1]).
--export([call/2, cast/2, call/3, cast/3, call/4]).
--export([send_event/2, send_event/3, sync_send_event/2, sync_send_event/3,
-  sync_send_event/4, send_all_state_event/2,
-  send_all_state_event/3, sync_send_all_state_event/2,
-  sync_send_all_state_event/3, sync_send_all_state_event/4]).
--export([stats/0, stats/1]).
--export([default_strategy/0]).
+-export([ start/0
+        , start/2
+        , stop/0
+        , stop/1
+        ]).
+-export([ start_pool/1
+        , start_pool/2
+        , start_sup_pool/1
+        , start_sup_pool/2
+        ]).
+-export([ stop_pool/1
+        ]).
+-export([ call/2
+        , cast/2
+        , call/3
+        , cast/3
+        , call/4
+        ]).
+-export([ send_event/2
+        , send_event/3
+        , sync_send_event/2
+        , sync_send_event/3
+        , sync_send_event/4
+        , send_all_state_event/2
+        , send_all_state_event/3
+        , sync_send_all_state_event/2
+        , sync_send_all_state_event/3
+        , sync_send_all_state_event/4
+        ]).
+-export([ stats/0
+        , stats/1
+        ]).
+-export([ default_strategy/0
+        ]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ADMIN API
@@ -234,17 +263,13 @@ sync_send_all_state_event(Sup, Event, Strategy) ->
 %%      time spent on the actual call to the worker, because time spent finding
 %%      the worker in other strategies is negligible.
 %%      For available_worker the time used choosing a worker is also considered
--spec sync_send_all_state_event(name()
-                                , term()
-                                , strategy()
-                                , timeout()) -> term().
+-spec sync_send_all_state_event(name(), term(), strategy(), timeout()) ->
+        term().
 sync_send_all_state_event(Sup, Event, available_worker, Timeout) ->
   wpool_pool:sync_send_all_event_to_available_worker(Sup, Event, Timeout);
 sync_send_all_state_event(Sup, Event, {hash_worker, HashKey}, Timeout) ->
   wpool_fsm_process:sync_send_all_state_event(
-                              wpool_pool:hash_worker(Sup, HashKey)
-                              , Event
-                              , Timeout);
+    wpool_pool:hash_worker(Sup, HashKey), Event, Timeout);
 sync_send_all_state_event(Sup, Event, Fun, Timeout) when is_function(Fun) ->
   wpool_fsm_process:sync_send_all_state_event(Fun(Sup),
     Event, Timeout);

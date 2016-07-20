@@ -23,8 +23,9 @@
 -export([ok/0, error/0]).
 
 -spec all() -> [atom()].
-all() -> [Fun || {Fun, 1} <- module_info(exports),
-         not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+all() ->
+  [Fun || {Fun, 1} <- module_info(exports),
+          not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->

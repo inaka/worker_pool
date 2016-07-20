@@ -19,38 +19,47 @@
 
 -behaviour(gen_fsm).
 
--record(state, {name    :: atom(),
-  mod     :: atom(),
-  state   :: term(),
-  options :: [{time_checker|queue_manager, atom()}
-  | wpool:option()],
-  born = os:timestamp() :: erlang:timestamp(),
-  fsm_state :: fsm_state()
-}).
--type state()     :: #state{}.
+-record(state, { name    :: atom()
+               , mod     :: atom()
+               , state   :: term()
+               , options :: [ {time_checker|queue_manager, atom()}
+                            | wpool:option()
+                            ]
+               , born = os:timestamp() :: erlang:timestamp()
+               , fsm_state :: fsm_state()
+               }).
+-type state() :: #state{}.
 -type fsm_state() :: atom().
 -type from() :: {pid(), reference()}.
 
-%% api
--export([start_link/4, send_event/2,
-  sync_send_event/2, sync_send_event/3,
-  send_all_state_event/2,
-  sync_send_all_state_event/2, sync_send_all_state_event/3,
-  cast_call/3, age/1]).
-
-%% gen_fsm states
--export([dispatch_state/2, dispatch_state/3]).
-
-%% gen_fsm callbacks
--export([init/1, terminate/3, code_change/4,
-  handle_info/3, handle_event/3, handle_sync_event/4, format_status/2]).
+-export([ start_link/4
+        , send_event/2
+        , sync_send_event/2
+        , sync_send_event/3
+        , send_all_state_event/2
+        , sync_send_all_state_event/2
+        , sync_send_all_state_event/3
+        , cast_call/3
+        , age/1
+        ]).
+-export([ dispatch_state/2
+        , dispatch_state/3
+        ]).
+-export([ init/1
+        , terminate/3
+        , code_change/4
+        , handle_info/3
+        , handle_event/3
+        , handle_sync_event/4
+        , format_status/2
+        ]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
 -spec start_link(wpool:name(), module(), term(), [wpool:option()]) ->
-  {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
+        {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
   WorkerOpt = proplists:get_value(worker_opt, Options, []),
   gen_fsm:start_link(
@@ -76,9 +85,8 @@ send_all_state_event(Process, Event) ->
 sync_send_all_state_event(Process, Event) ->
   gen_fsm:sync_send_all_state_event(Process, Event).
 
--spec sync_send_all_state_event(wpool:name() | pid()
-                                , term()
-                                , timeout()) -> term().
+-spec sync_send_all_state_event(wpool:name() | pid(), term(), timeout()) ->
+        term().
 sync_send_all_state_event(Process, Event, Timeout) ->
   gen_fsm:sync_send_all_state_event(Process, Event, Timeout).
 
@@ -119,47 +127,61 @@ init({Name, Mod, InitArgs, Options}) ->
 
 %% @private
 -spec terminate(atom(), fsm_state(), state()) -> term().
-terminate(Reason,
-    CurrentState,
-    #state{mod=Mod, state=ModState, name=Name, options=Options}) ->
+terminate(Reason, CurrentState, State) ->
+  #state{ mod     = Mod
+        , state   = ModState
+        , name    = Name
+        , options = Options
+        } = State,
   ok = notify_queue_manager(worker_dead, Name, Options),
   Mod:terminate(Reason, CurrentState, ModState).
 
 %% @private
 -spec code_change(string(), fsm_state(), state(), any()) ->
-  {ok, dispatch_state, state()}.
+        {ok, dispatch_state, state()}.
 code_change(OldVsn, StateName, State, Extra) ->
-  case (State#state.mod):code_change(OldVsn, StateName,
-                                    State#state.state, Extra) of
+  case (State#state.mod):code_change(
+        OldVsn, StateName, State#state.state, Extra) of
     {ok, NextStateName, NewState} ->
-      {ok, dispatch_state, State#state{state = NewState,
-                                      fsm_state = NextStateName}};
+      {ok, dispatch_state, State#state{ state = NewState
+                                      , fsm_state = NextStateName
+                                      }};
     Error -> {error, Error}
   end.
 
 %% @private
 -spec handle_info(any(), fsm_state(), state()) ->
-  {next_state, dispatch_state, state()} | {stop, term(), state()}.
+        {next_state, dispatch_state, state()} | {stop, term(), state()}.
 handle_info(Info, StateName, StateData) ->
-  try (StateData#state.mod):handle_info(Info, StateName,
-                                        StateData#state.state) of
+  try (StateData#state.mod):handle_info(
+        Info, StateName, StateData#state.state) of
     {next_state, NextStateName, NewStateData} ->
-      {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                  fsm_state = NextStateName}};
+      {next_state, dispatch_state, StateData#state{ state = NewStateData
+                                                  , fsm_state = NextStateName
+                                                  }};
     {next_state, NextStateName, NewStateData, Timeout} ->
-      {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                  fsm_state = NextStateName}
-                                                  , Timeout};
+      { next_state
+      , dispatch_state
+      , StateData#state{ state = NewStateData
+                       , fsm_state = NextStateName
+                       }
+      , Timeout
+      };
     {stop, Reason, NewStateData} ->
       {stop, Reason, StateData#state{state = NewStateData}}
   catch
     _:{next_state, NextStateName, NewStateData} ->
-      {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                  fsm_state = NextStateName}};
+      {next_state, dispatch_state, StateData#state{ state = NewStateData
+                                                  , fsm_state = NextStateName
+                                                  }};
     _:{next_state, NextStateName, NewStateData, Timeout} ->
-      {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                  fsm_state = NextStateName}
-                                                  , Timeout};
+      { next_state
+      , dispatch_state
+      , StateData#state{ state = NewStateData
+                       , fsm_state = NextStateName
+                       }
+      , Timeout
+      };
     _:{stop, Reason, NewStateData} ->
       {stop, Reason, StateData#state{state = NewStateData}}
   end.
@@ -179,43 +201,52 @@ handle_event(Event, _StateName, StateData) ->
       {handle_event, Event},
       proplists:get_value(time_checker, StateData#state.options, undefined),
       proplists:get_value(overrun_warning, StateData#state.options, infinity)),
-  ok = notify_queue_manager(worker_busy,
-                            StateData#state.name,
-                            StateData#state.options),
+  ok =
+    notify_queue_manager(
+      worker_busy, StateData#state.name, StateData#state.options),
   Reply =
     try (StateData#state.mod):handle_event(Event,
               StateData#state.fsm_state, StateData#state.state) of
       {next_state, NextStateName, NewStateData} ->
-        {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                    fsm_state = NextStateName}};
+        {next_state, dispatch_state, StateData#state{ state = NewStateData
+                                                    , fsm_state = NextStateName
+                                                    }};
       {next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                    fsm_state = NextStateName}
-                                                    , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {stop, Reason, NewState} ->
         {stop, Reason, StateData#state{state = NewState}}
     catch
       _:{next_state, NextStateName, NewStateData} ->
-        {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                    fsm_state = NextStateName}};
+        {next_state, dispatch_state, StateData#state{ state = NewStateData
+                                                    , fsm_state = NextStateName
+                                                    }};
       _:{next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{state = NewStateData,
-                                                    fsm_state = NextStateName}
-                                                    , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{stop, Reason, NewState} ->
         {stop, Reason, StateData#state{state = NewState}}
     end,
   task_end(Task),
   ok =
-    notify_queue_manager(worker_ready,
-                        StateData#state.name,
-                        StateData#state.options),
+    notify_queue_manager(
+      worker_ready, StateData#state.name, StateData#state.options),
   Reply.
 
 -spec handle_sync_event(term(), from(), fsm_state(), state()) ->
-  {reply, term(), dispatch_state, state()}
-  | {next_state, dispatch_state, state()}
-  | {stop, term(), state()}.
+          {reply, term(), dispatch_state, state()}
+        | {next_state, dispatch_state, state()}
+        | {stop, term(), state()}.
 handle_sync_event(age, _From, _StateName, #state{born=Born} = State) ->
   {reply, timer:now_diff(os:timestamp(), Born), dispatch_state, State};
 handle_sync_event(Event, From, _StateName, StateData) ->
@@ -224,53 +255,81 @@ handle_sync_event(Event, From, _StateName, StateData) ->
       {handle_sync_event, Event},
       proplists:get_value(time_checker, StateData#state.options, undefined),
       proplists:get_value(overrun_warning, StateData#state.options, infinity)),
-  ok = notify_queue_manager(worker_busy,
-                            StateData#state.name,
-                            StateData#state.options),
+  ok =
+    notify_queue_manager(
+      worker_busy, StateData#state.name, StateData#state.options),
   Result =
-    try (StateData#state.mod):handle_sync_event(Event, From,
-              StateData#state.fsm_state, StateData#state.state) of
+    try (StateData#state.mod):handle_sync_event(
+          Event, From, StateData#state.fsm_state, StateData#state.state) of
       {reply, Reply, NextStateName, NewStateData} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       {reply, Reply, NextStateName, NewStateData, Timeout} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {next_state, NextStateName, NewStateData} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       {next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {stop, Reason, NewState} ->
         {stop, Reason, StateData#state{state = NewState}};
       {stop, Reason, Response, NewState} ->
         {stop, Reason, Response, StateData#state{state = NewState}}
     catch
       _:{reply, Reply, NextStateName, NewStateData} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       _:{reply, Reply, NextStateName, NewStateData, Timeout} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{next_state, NextStateName, NewStateData} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       _:{next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{stop, Reason, NewState} ->
         {stop, Reason, StateData#state{state = NewState}};
       _:{stop, Reason, Response, NewState} ->
@@ -287,7 +346,7 @@ handle_sync_event(Event, From, _StateName, StateData) ->
 %%% FSM States
 %%%===================================================================
 -spec dispatch_state(term(), state()) ->
-  {next_state, dispatch_state, state()} | {stop, term(), state()}.
+        {next_state, dispatch_state, state()} | {stop, term(), state()}.
 dispatch_state({sync_send_event, From, Event}, StateData) ->
   case dispatch_state(Event, From, StateData) of
     {reply, Reply, dispatch_state, StateData} ->
@@ -303,99 +362,138 @@ dispatch_state({sync_send_event, From, Event}, StateData) ->
   end;
 dispatch_state(Event, StateData) ->
   Task = get_task(Event, StateData),
-  ok = notify_queue_manager(worker_busy,
-                            StateData#state.name,
-                            StateData#state.options),
+  ok =
+    notify_queue_manager(
+      worker_busy, StateData#state.name, StateData#state.options),
   Reply =
     try (StateData#state.mod):(StateData#state.fsm_state)(Event,
                                             StateData#state.state) of
       {next_state, NextStateName, NewStateData}  ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       {next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {stop, Reason, NewStateData} ->
         {stop, Reason, StateData#state{state = NewStateData}}
     catch
       _:{next_state, NextStateName, NewStateData}  ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       _:{next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                        state = NewStateData,
-                                        fsm_state = NextStateName}
-                                        , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{stop, Reason, NewStateData} ->
         {stop, Reason, StateData#state{state = NewStateData}}
     end,
   task_end(Task),
   ok =
-    notify_queue_manager(worker_ready,
-                        StateData#state.name,
-                        StateData#state.options),
+    notify_queue_manager(
+      worker_ready, StateData#state.name, StateData#state.options),
   Reply.
 
 -spec dispatch_state(term(), from(), state()) ->
-  {next_state, dispatch_state, state()} |
-  {next_state, dispatch_state, state(), timeout()} |
-  {reply, term(), dispatch_state, state()} |
-  {reply, term(), dispatch_state, state(), timeout()} |
-  {stop, term(), term(), state()} |
-  {stop, term(), state()}.
+          {next_state, dispatch_state, state()}
+        | {next_state, dispatch_state, state(), timeout()}
+        | {reply, term(), dispatch_state, state()}
+        | {reply, term(), dispatch_state, state(), timeout()}
+        | {stop, term(), term(), state()}
+        | {stop, term(), state()}.
 dispatch_state(Event, From, StateData) ->
   Task = get_task(Event, StateData),
-  ok = notify_queue_manager(worker_busy,
-                            StateData#state.name,
-                            StateData#state.options),
+  ok =
+    notify_queue_manager(
+      worker_busy, StateData#state.name, StateData#state.options),
   Result =
-    try (StateData#state.mod):(StateData#state.fsm_state)(Event,
-                                  From, StateData#state.state) of
+    try (StateData#state.mod):(StateData#state.fsm_state)(
+          Event, From, StateData#state.state) of
       {reply, Reply, NextStateName, NewStateData} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       {reply, Reply, NextStateName, NewStateData, Timeout} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}
-                                          , Timeout};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {next_state, NextStateName, NewStateData}  ->
-        {next_state, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       {next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}
-                                          , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       {stop, Reason, NewStateData} ->
         {stop, Reason, StateData#state{state = NewStateData}};
       {stop, Reason, Reply, NewStateData} ->
         {stop, Reason, Reply, StateData#state{state = NewStateData}}
     catch
       _:{reply, Reply, NextStateName, NewStateData} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       _:{reply, Reply, NextStateName, NewStateData, Timeout} ->
-        {reply, Reply, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}
-                                          , Timeout};
+        { reply
+        , Reply
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{next_state, NextStateName, NewStateData}  ->
-        {next_state, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        };
       _:{next_state, NextStateName, NewStateData, Timeout} ->
-        {next_state, dispatch_state, StateData#state{
-                                          state = NewStateData,
-                                          fsm_state = NextStateName}
-                                          , Timeout};
+        { next_state
+        , dispatch_state
+        , StateData#state{ state = NewStateData
+                         , fsm_state = NextStateName
+                         }
+        , Timeout
+        };
       _:{stop, Reason, NewStateData} ->
         {stop, Reason, StateData#state{state = NewStateData}};
       _:{stop, Reason, Reply, NewStateData} ->
@@ -403,9 +501,8 @@ dispatch_state(Event, From, StateData) ->
     end,
   task_end(Task),
   ok =
-    notify_queue_manager(worker_ready,
-                        StateData#state.name,
-                        StateData#state.options),
+    notify_queue_manager(
+      worker_ready, StateData#state.name, StateData#state.options),
   Result.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -413,7 +510,7 @@ dispatch_state(Event, From, StateData) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @doc Marks Task as started in this worker
 -spec task_init(term(), atom(), infinity | pos_integer()) ->
-  undefined | reference().
+        undefined | reference().
 task_init(Task, _TimeChecker, infinity) ->
   Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
   erlang:put(wpool_task, {undefined, Time, Task}),

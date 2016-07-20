@@ -36,20 +36,24 @@ init({Name, Options}) ->
   Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
   {WorkerType, Worker, InitArgs} =
     case proplists:get_value(worker_type, Options, gen_server) of
-      gen_server  ->
+      gen_server ->
         {W, IA} =
           proplists:get_value(worker, Options, {wpool_worker, undefined}),
         {wpool_process, W, IA};
-      gen_fsm     ->
+      gen_fsm ->
         {W, IA} =
           proplists:get_value(worker, Options, {wpool_fsm_worker, undefined}),
         {wpool_fsm_process, W, IA}
     end,
   WorkerSpecs =
-    [{wpool_pool:worker_name(Name, I),
-      {WorkerType, start_link,
-       [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]},
-       permanent, 5000, worker, [Worker]}
-    || I <- lists:seq(1, Workers)],
+    [ { wpool_pool:worker_name(Name, I)
+      , { WorkerType
+        , start_link
+        , [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]
+        }
+      , permanent
+      , 5000
+      , worker
+      , [Worker]
+      } || I <- lists:seq(1, Workers)],
   {ok, {Strategy, WorkerSpecs}}.
-

@@ -19,11 +19,18 @@
 -behaviour(gen_server).
 
 %% api
--export([call/4, cast/4]).
+-export([ call/4
+        , cast/4
+        ]).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3,
-         handle_call/3, handle_cast/2, handle_info/2]).
+-export([ init/1
+        , terminate/2
+        , code_change/3
+        , handle_call/3
+        , handle_cast/2
+        , handle_info/2
+        ]).
 
 %%%===================================================================
 %%% API
@@ -38,8 +45,7 @@ call(S, M, F, A) ->
 
 %% @doc Executes M:F(A) in any of the workers of the pool S
 -spec cast(wpool:name(), module(), atom(), [term()]) -> ok.
-cast(S, M, F, A) ->
-  wpool:cast(S, {M, F, A}).
+cast(S, M, F, A) -> wpool:cast(S, {M, F, A}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -82,7 +88,7 @@ handle_cast(Cast, State) ->
 -type from() :: {pid(), reference()}.
 %% @private
 -spec handle_call(term(), from(), state()) ->
-  {reply, {ok, term()} | {error, term()}, state(), hibernate}.
+        {reply, {ok, term()} | {error, term()}, state(), hibernate}.
 handle_call({M, F, A}, _From, State) ->
   try erlang:apply(M, F, A) of
     R ->

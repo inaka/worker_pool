@@ -19,7 +19,8 @@
 
 -define(WORKERS, 6).
 
--export([all/0]).
+-export([ all/0
+        ]).
 -export([ init_per_suite/1
         , end_per_suite/1
         , init_per_testcase/2
@@ -32,8 +33,10 @@
         , hash_worker/1
         , next_available_worker/1
         ]).
--export([wait_and_self/1]).
--export([manager_crash/1]).
+-export([ wait_and_self/1
+        ]).
+-export([ manager_crash/1
+        ]).
 
 -spec all() -> [atom()].
 all() ->
@@ -81,8 +84,8 @@ available_worker(_Config) ->
 
   ct:log(
     "Put them all to work, each requeslt should go to a different worker"),
-  [wpool:send_event(Pool,
-            {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
+  [wpool:send_event(
+    Pool, {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
   timer:sleep(500),
   [0] = sets:to_list(
       sets:from_list(
@@ -92,8 +95,8 @@ available_worker(_Config) ->
   ct:log(
     "Now send another round of messages,
      the workers queues should still be empty"),
-  [wpool:send_event(Pool,
-            {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
+  [wpool:send_event(
+    Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
   timer:sleep(500),
   Stats1 = wpool:stats(Pool),
 
@@ -119,8 +122,8 @@ available_worker(_Config) ->
 
   ct:log("Now they all should be free"),
   ct:log("We get half of them working for a while"),
-  [wpool:send_event(Pool,
-            {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
+  [wpool:send_event(
+    Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
 
   % Check we have no pending tasks
   timer:sleep(1000),
@@ -184,9 +187,11 @@ next_worker(_Config) ->
   Res0 = [begin
             Stats = wpool:stats(Pool),
             I = proplists:get_value(next_worker, Stats),
-            wpool:sync_send_event(Pool
-                                  , {erlang, self, []}
-                                  , next_worker, infinity)
+            wpool:sync_send_event( Pool
+                                 , {erlang, self, []}
+                                 , next_worker
+                                 , infinity
+                                 )
           end || I <- lists:seq(1, ?WORKERS)],
   ?WORKERS = sets:size(sets:from_list(Res0)),
   Res0 = [begin
@@ -230,9 +235,9 @@ hash_worker(_Config) ->
   Pool = hash_worker,
 
   try wpool:sync_send_event(not_a_pool, x, {hash_worker, 1}) of
-  Result -> no_result = Result
+    Result -> no_result = Result
   catch
-      _:no_workers -> ok
+    _:no_workers -> ok
   end,
 
   %% Use two hash keys that have different values (0, 1) to target only
@@ -321,6 +326,6 @@ collect_results(N, Results) ->
   end.
 
 send_io_format(Pool) ->
-  {ok, ok} = wpool:sync_send_event(Pool
-                                  , {io, format, ["ok!~n"]}
-                                  , available_worker).
+  {ok, ok} =
+    wpool:sync_send_event(
+      Pool, {io, format, ["ok!~n"]}, available_worker).
