@@ -17,11 +17,18 @@
 
 -type config() :: [{atom(), term()}].
 
--export([all/0]).
--export([init_per_suite/1, end_per_suite/1]).
--export([stats/1, stop_pool/1, overrun/1]).
--export([default_strategy/1]).
--export([overrun_handler/1]).
+-export([ all/0
+        ]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        ]).
+-export([ stats/1
+        , stop_pool/1
+        , overrun/1
+        , default_strategy/1
+        , overrun_handler/1
+        , default_options/1
+        ]).
 
 -spec all() -> [atom()].
 all() ->
@@ -46,7 +53,7 @@ end_per_suite(Config) ->
 -spec overrun_handler(M) -> M.
 overrun_handler(M) -> overrun_handler ! {overrun, M}.
 
--spec overrun(config()) -> _.
+-spec overrun(config()) -> {comment, []}.
 overrun(_Config) ->
   true = register(overrun_handler, self()),
   {ok, _Pid} =
@@ -72,17 +79,21 @@ overrun(_Config) ->
   receive
   after 1000 -> ok
   end,
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec stop_pool(config()) -> _.
+  {comment, []}.
+
+-spec stop_pool(config()) -> {comment, []}.
 stop_pool(_Config) ->
   {ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 1}]),
   true = erlang:is_process_alive(PoolPid),
   ok = wpool:stop_pool(?MODULE),
   false = erlang:is_process_alive(PoolPid),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec stats(config()) -> _.
+  {comment, []}.
+
+-spec stats(config()) -> {comment, []}.
 stats(_Config) ->
   Get = fun proplists:get_value/2,
 
@@ -94,7 +105,7 @@ stats(_Config) ->
   true = is_pid(PoolPid),
 
   % Checks ...
-  InitStats = wpool:stats(?MODULE),
+  [InitStats] = wpool:stats(),
   ?MODULE = Get(pool, InitStats),
   PoolPid = Get(supervisor, InitStats),
   Options = Get(options, InitStats),
@@ -138,11 +149,14 @@ stats(_Config) ->
     end || I <- lists:seq(1, 10)],
 
   wpool:stop_pool(?MODULE),
-  try wpool:stats(?MODULE)
-  catch _:no_workers -> ok
-  end.
+  _ =
+    try wpool:stats(?MODULE)
+    catch _:no_workers -> ok
+    end,
 
--spec default_strategy(config()) -> _.
+  {comment, []}.
+
+-spec default_strategy(config()) -> {comment, []}.
 default_strategy(_Config) ->
   application:unset_env(worker_pool, default_strategy),
   available_worker = wpool:default_strategy(),
@@ -150,4 +164,16 @@ default_strategy(_Config) ->
   best_worker = wpool:default_strategy(),
   application:unset_env(worker_pool, default_strategy),
   available_worker = wpool:default_strategy(),
-  ok.
+  {comment, []}.
+
+-spec default_options(config()) -> {comment, []}.
+default_options(_Config) ->
+  ct:comment("Starts a pool with default options"),
+  {ok, PoolPid} = wpool:start_pool(default_pool),
+  true = is_pid(PoolPid),
+
+  ct:comment("Starts a supervised pool with default options"),
+  {ok, SupPoolPid} = wpool:start_sup_pool(default_sup_pool),
+  true = is_pid(SupPoolPid),
+
+  {comment, []}.

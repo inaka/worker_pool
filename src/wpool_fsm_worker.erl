@@ -103,8 +103,8 @@ handle_event(Event, common_state, StateData) ->
   {reply, term(), common_state, StateData}.
 handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
   try erlang:apply(M, F, A) of
-    Reply ->
-      {reply, Reply, common_state, StateData}
+    R ->
+      {reply, {ok, R}, common_state, StateData}
   catch
     _:Error ->
       log_error(M, F, A, Error),

@@ -49,7 +49,7 @@ ok() -> ?MODULE.
 -spec error() -> no_return().
 error() -> throw(?MODULE).
 
--spec sync_send_event(config()) -> _.
+-spec sync_send_event(config()) -> {comment, []}.
 sync_send_event(_Config) ->
   start_pool(),
   ?MODULE = wpool_fsm_worker:sync_send_event(?MODULE, ?MODULE, ok, []),
@@ -59,16 +59,20 @@ sync_send_event(_Config) ->
     throw:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:sync_send_event(?MODULE, error),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec send_event(config()) -> _.
+  {comment, []}.
+
+-spec send_event(config()) -> {comment, []}.
 send_event(_Config) ->
   start_pool(),
   ok = wpool_fsm_worker:send_event(?MODULE, ?MODULE, ok, []),
   ok = wpool_fsm_worker:send_event(?MODULE, ?MODULE, error, []),
   ok = wpool:cast(?MODULE, x),
   timer:sleep(1000),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
+
+  {comment, []}.
 
 start_pool() ->
   {ok, _Pid} =

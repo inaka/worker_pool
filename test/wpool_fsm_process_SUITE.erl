@@ -67,15 +67,16 @@ init(_Config) ->
     wpool_fsm_process:start_link(
       ?MODULE, echo_fsm, {ok, state_one, []}, []).
 
--spec init_timeout(config()) -> _.
+-spec init_timeout(config()) -> {comment, []}.
 init_timeout(_Config) ->
   {ok, Pid} =
     wpool_fsm_process:start_link(
       ?MODULE, echo_fsm, {ok, state_one, [], 0}, []),
   timer:sleep(1),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
+  {comment, []}.
 
--spec info(config()) -> _.
+-spec info(config()) -> {comment, []}.
 info(_Config) ->
   {ok, Pid} =
     wpool_fsm_process:start_link(
@@ -84,9 +85,11 @@ info(_Config) ->
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   Pid ! {next_state, state_three, newstate, 0},
   timer:sleep(1),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec async_states(config()) -> _.
+  {comment, []}.
+
+-spec async_states(config()) -> {comment, []}.
 async_states(_Config) ->
   {ok, Pid} =
     wpool_fsm_process:start_link(
@@ -95,9 +98,11 @@ async_states(_Config) ->
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   wpool_fsm_process:send_event(Pid, {next_state, state_one, newerstate, 0}),
   timer:sleep(1),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec sync_states(config()) -> _.
+  {comment, []}.
+
+-spec sync_states(config()) -> {comment, []}.
 sync_states(_Config) ->
   {ok, Pid} =
     wpool_fsm_process:start_link(
@@ -110,4 +115,6 @@ sync_states(_Config) ->
     wpool_fsm_process:sync_send_event(
       Pid, {reply, ok2, state_one, newerstate, 0}, 5000),
   timer:sleep(1),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
+
+  {comment, []}.

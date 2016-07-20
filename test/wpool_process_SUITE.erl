@@ -17,10 +17,19 @@
 
 -type config() :: [{atom(), term()}].
 
--export([all/0]).
--export([init_per_suite/1, end_per_suite/1,
-         init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1, cast/1, call/1]).
+-export([ all/0
+        ]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        , init_per_testcase/2
+        , end_per_testcase/2
+        ]).
+-export([ init/1
+        , init_timeout/1
+        , info/1
+        , cast/1
+        , call/1
+        ]).
 -export([ pool_restart_crash/1
         , pool_norestart_crash/1
         ]).
@@ -52,16 +61,18 @@ end_per_testcase(_TestCase, Config) ->
   receive after 0 -> ok end,
   Config.
 
--spec init(config()) -> _.
+-spec init(config()) -> {comment, []}.
 init(_Config) ->
   {error, can_not_ignore} =
     wpool_process:start_link(?MODULE, echo_server, ignore, []),
   {error, ?MODULE} =
     wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, []),
   {ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
-  wpool_process:cast(?MODULE, {stop, normal, state}).
+  wpool_process:cast(?MODULE, {stop, normal, state}),
 
--spec init_timeout(config()) -> _.
+  {comment, []}.
+
+-spec init_timeout(config()) -> {comment, []}.
 init_timeout(_Config) ->
   {ok, Pid} =
     wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, []),
@@ -69,9 +80,11 @@ init_timeout(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   Pid ! {stop, normal, state},
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec info(config()) -> _.
+  {comment, []}.
+
+-spec info(config()) -> {comment, []}.
 info(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   Pid ! {noreply, newstate},
@@ -81,9 +94,11 @@ info(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   Pid ! {stop, normal, state},
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec cast(config()) -> _.
+  {comment, []}.
+
+-spec cast(config()) -> {comment, []}.
 cast(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   wpool_process:cast(Pid, {noreply, newstate}),
@@ -93,9 +108,11 @@ cast(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   wpool_process:cast(Pid, {stop, normal, state}),
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec call(config()) -> _.
+  {comment, []}.
+
+-spec call(config()) -> {comment, []}.
 call(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   ok1 = wpool_process:call(Pid, {reply, ok1, newstate}, 5000),
@@ -105,9 +122,11 @@ call(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   ok3 = wpool_process:call(Pid, {stop, normal, ok3, state}, 5000),
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec pool_restart_crash(config()) -> _.
+  {comment, []}.
+
+-spec pool_restart_crash(config()) -> {comment, []}.
 pool_restart_crash(_Config) ->
   Pool = pool_restart_crash,
   PoolOptions = [{workers, 2}, {worker, {crashy_server, []}}],
@@ -122,9 +141,11 @@ pool_restart_crash(_Config) ->
 
   ct:log("Check that the pool is working"),
   true = erlang:is_process_alive(Pid),
-  hello = wpool:call(Pool, hello).
+  hello = wpool:call(Pool, hello),
 
--spec pool_norestart_crash(config()) -> _.
+  {comment, []}.
+
+-spec pool_norestart_crash(config()) -> {comment, []}.
 pool_norestart_crash(_Config) ->
   Pool = pool_norestart_crash,
   PoolOptions = [ {workers, 2}
@@ -144,4 +165,5 @@ pool_norestart_crash(_Config) ->
 
   ct:log("Check that the pool is working"),
   false = erlang:is_process_alive(Pid),
-  ok.
+
+  {comment, []}.

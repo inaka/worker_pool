@@ -77,7 +77,7 @@ wait_and_self(Time) ->
   {registered_name, Self} = process_info(self(), registered_name),
   Self.
 
--spec available_worker(config()) -> _.
+-spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
   Pool = available_worker,
   try wpool:call(not_a_pool, x) of
@@ -139,9 +139,11 @@ available_worker(_Config) ->
      || _ <- lists:seq(1, 20 * ?WORKERS)],
   UniqueWorkers = sets:to_list(sets:from_list(Workers)),
   {?WORKERS, UniqueWorkers, true} =
-    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)}.
+    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)},
 
--spec best_worker(config()) -> _.
+  {comment, []}.
+
+-spec best_worker(config()) -> {comment, []}.
 best_worker(_Config) ->
   Pool = best_worker,
   try wpool:call(not_a_pool, x, best_worker) of
@@ -172,9 +174,11 @@ best_worker(_Config) ->
   [2] = sets:to_list(
       sets:from_list(
         [proplists:get_value(message_queue_len, WS)
-          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
--spec next_available_worker(config()) -> _.
+  {comment, []}.
+
+-spec next_available_worker(config()) -> {comment, []}.
 next_available_worker(_Config) ->
   Pool = next_available_worker,
   ct:log("not_a_pool is not a pool"),
@@ -219,9 +223,9 @@ next_available_worker(_Config) ->
     _:no_available_workers -> ok
   end,
 
-  {comment, ""}.
+  {comment, []}.
 
--spec next_worker(config()) -> _.
+-spec next_worker(config()) -> {comment, []}.
 next_worker(_Config) ->
   Pool = next_worker,
 
@@ -241,9 +245,11 @@ next_worker(_Config) ->
             Stats = wpool:stats(Pool),
             I = proplists:get_value(next_worker, Stats),
             wpool:call(Pool, {erlang, self, []}, next_worker)
-          end || I <- lists:seq(1, ?WORKERS)].
+          end || I <- lists:seq(1, ?WORKERS)],
 
--spec random_worker(config()) -> _.
+  {comment, []}.
+
+-spec random_worker(config()) -> {comment, []}.
 random_worker(_Config) ->
   Pool = random_worker,
 
@@ -268,9 +274,11 @@ random_worker(_Config) ->
                Self ! {worker, WorkerId}
              end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
-  ?WORKERS = sets:size(sets:from_list(Concurrent)).
+  ?WORKERS = sets:size(sets:from_list(Concurrent)),
 
--spec hash_worker(config()) -> _.
+  {comment, []}.
+
+-spec hash_worker(config()) -> {comment, []}.
 hash_worker(_Config) ->
   Pool = hash_worker,
 
@@ -291,9 +299,20 @@ hash_worker(_Config) ->
   Spread =
     [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I})
      || I <- lists:seq(1, 20 * ?WORKERS)],
-  ?WORKERS = sets:size(sets:from_list(Spread)).
+  ?WORKERS = sets:size(sets:from_list(Spread)),
 
--spec custom_worker(config()) -> _.
+  %% Fill up their message queues...
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, {hash_worker, I})
+    || I <- lists:seq(1, 20 * ?WORKERS)],
+  timer:sleep(1500),
+  false =
+    lists:member(
+      0, [ proplists:get_value(message_queue_len, WS)
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]),
+
+  {comment, []}.
+
+-spec custom_worker(config()) -> {comment, []}.
 custom_worker(_Config) ->
   Pool = custom_worker,
 
@@ -327,9 +346,11 @@ custom_worker(_Config) ->
   [2] = sets:to_list(
     sets:from_list(
       [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
--spec manager_crash(config()) -> _.
+  {comment, []}.
+
+-spec manager_crash(config()) -> {comment, []}.
 manager_crash(_Config) ->
   Pool = manager_crash,
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
@@ -346,14 +367,15 @@ manager_crash(_Config) ->
   ct:log("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),
 
-  ok.
+  {comment, []}.
 
--spec wpool_record(config()) -> _.
+-spec wpool_record(config()) -> {comment, []}.
 wpool_record(_Config) ->
   WPool = wpool_pool:find_wpool(wpool_record),
   wpool_record = wpool_pool:wpool_get(name, WPool),
   6 = wpool_pool:wpool_get(size, WPool),
-  ok.
+
+  {comment, []}.
 
 
 collect_results(0, Results) -> Results;
