@@ -58,12 +58,11 @@
 -export([start/0, start/2, stop/0, stop/1]).
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1]).
--export([call/2, cast/2, call/3, cast/3, call/4, call/5]).
+-export([call/2, cast/2, call/3, cast/3, call/4]).
 -export([send_event/2, send_event/3, sync_send_event/2, sync_send_event/3,
-  sync_send_event/4, sync_send_event/5, send_all_state_event/2,
+  sync_send_event/4, send_all_state_event/2,
   send_all_state_event/3, sync_send_all_state_event/2,
-  sync_send_all_state_event/3, sync_send_all_state_event/4,
-  sync_send_all_state_event/5]).
+  sync_send_all_state_event/3, sync_send_all_state_event/4]).
 -export([stats/0, stats/1]).
 -export([default_strategy/0]).
 
@@ -148,19 +147,6 @@ call(Sup, Call, Fun, Timeout) when is_function(Fun) ->
 call(Sup, Call, Strategy, Timeout) ->
   wpool_process:call(wpool_pool:Strategy(Sup), Call, Timeout).
 
--type extra_param() :: timeout() | term().
-%% @doc Picks a server and issues the call to it.
-%%      For available_worker the total timeout will be WorkerTimeout + Timeout.
-%%      For hash_worker the extra param is the HashKey
-%%      For all other strategies, WorkerTimeout is ignored
--spec call(name(), term(), strategy(), extra_param(), timeout()) -> term().
-call(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
-  call(Sup, Call, available_worker, WorkerTimeout + Timeout);
-call(Sup, Call, hash_worker, HashKey, Timeout) ->
-  call(Sup, Call, {hash_worker, HashKey}, Timeout);
-call(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
-  call(Sup, Call, Strategy, Timeout).
-
 %% @equiv cast(Sup, Cast, default_strategy())
 -spec cast(name(), term()) -> ok.
 cast(Sup, Cast) -> cast(Sup, Cast, default_strategy()).
@@ -200,19 +186,6 @@ sync_send_event(Sup, Event, Fun, Timeout) when is_function(Fun) ->
   wpool_fsm_process:sync_send_event(Fun(Sup), Event, Timeout);
 sync_send_event(Sup, Event, Strategy, Timeout) ->
   wpool_fsm_process:sync_send_event(wpool_pool:Strategy(Sup), Event, Timeout).
-
-%% @doc Picks a server and issues the event to it.
-%%      For available_worker the total timeout will be WorkerTimeout + Timeout.
-%%      For hash_worker the extra param is the HashKey
-%%      For all other strategies, WorkerTimeout is ignored
--spec sync_send_event(name(), term(), strategy(), extra_param(), timeout()) ->
-  term().
-sync_send_event(Sup, Call, available_worker, WorkerTimeout, Timeout) ->
-  sync_send_event(Sup, Call, available_worker, WorkerTimeout + Timeout);
-sync_send_event(Sup, Call, hash_worker, HashKey, Timeout) ->
-  sync_send_event(Sup, Call, {hash_worker, HashKey}, Call, Timeout);
-sync_send_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
-  sync_send_event(Sup, Call, Strategy, Timeout).
 
 %% @equiv send_event(Sup, Event, default_strategy())
 -spec send_event(name(), term()) -> ok.
@@ -278,25 +251,6 @@ sync_send_all_state_event(Sup, Event, Fun, Timeout) when is_function(Fun) ->
 sync_send_all_state_event(Sup, Event, Strategy, Timeout) ->
   wpool_fsm_process:sync_send_all_state_event(wpool_pool:Strategy(Sup),
     Event, Timeout).
-
-%% @doc Picks a server and issues the event to it.
-%%      For available_worker the total timeout will be WorkerTimeout + Timeout.
-%%      For hash_worker the extra param is the HashKey
-%%      For all other strategies, WorkerTimeout is ignored
--spec sync_send_all_state_event(
-  name(), term(), strategy(), extra_param(), timeout()) -> term().
-sync_send_all_state_event( Sup
-                         , Call
-                         , available_worker
-                         , WorkerTimeout
-                         , Timeout
-                         ) ->
-  sync_send_all_state_event(
-    Sup, Call, available_worker, WorkerTimeout + Timeout);
-sync_send_all_state_event(Sup, Call, hash_worker, HashKey, Timeout) ->
-  sync_send_all_state_event(Sup, Call, {hash_worker, HashKey}, Timeout);
-sync_send_all_state_event(Sup, Call, Strategy, _WorkerTimeout, Timeout) ->
-  sync_send_all_state_event(Sup, Call, Strategy, Timeout).
 
 %% @doc Retrieves a snapshot of the pool stats
 -spec stats() -> [stats()].
