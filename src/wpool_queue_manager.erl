@@ -31,12 +31,7 @@
         , worker_ready/2
         , worker_busy/2
         ]).
--export([ pools/0
-        , stats/1
-        , proc_info/1
-        , proc_info/2
-        , trace/1
-        , trace/3
+-export([ stats/1
         ]).
 
 %% gen_server callbacks
@@ -163,26 +158,6 @@ worker_busy(QueueManager, Worker) ->
 worker_dead(QueueManager, Worker) ->
   gen_server:cast(QueueManager, {worker_dead, Worker}).
 
-%% @doc Return the list of currently existing worker pools.
--type pool_prop()  :: {pool, wpool:name()}.
--type qm_prop()    :: {queue_manager, queue_mgr()}.
--type pool_props() :: [pool_prop() | qm_prop()].      % Not quite strict enough.
--spec pools() -> [pool_props()].
-pools() ->
-  ets:foldl(
-    fun(#wpool{ name = PoolName
-              , size = PoolSize
-              , qmanager = QueueMgr
-              , born = Born
-              }, Pools) ->
-      ThisPool = [ {pool,          PoolName}
-                 , {pool_age,      age_in_seconds(Born)}
-                 , {pool_size,     PoolSize}
-                 , {queue_manager, QueueMgr}
-                 ],
-      [ThisPool | Pools]
-    end, [], wpool_pool).
-
 %% @doc Returns statistics for this queue.
 -spec stats(wpool:name()) ->
         proplists:proplist() | {error, {invalid_pool, wpool:name()}}.
@@ -200,151 +175,6 @@ stats(PoolName) ->
         , {busy_workers,      BusyWorkers}
         ]
   end.
-
-%% @doc Return a default set of process_info about workers.
--spec proc_info(wpool:name()) -> proplists:proplist().
-proc_info(PoolName) ->
-  KeyInfo =
-    [ current_location
-    , status
-    , stack_size
-    , total_heap_size
-    , memory
-    , reductions
-    , message_queue_len
-    ],
-  proc_info(PoolName, KeyInfo).
-
-%% @doc Return the currently executing function in the queue manager.
--spec proc_info(wpool:name(), atom() | [atom()]) -> proplists:proplist().
-proc_info(PoolName, InfoType) ->
-  case ets:lookup(wpool_pool, PoolName) of
-    [] -> {error, {invalid_pool, PoolName}};
-    [#wpool{qmanager = QueueManager, born = MgrBorn}] ->
-      AgeInSecs = age_in_seconds(MgrBorn),
-      QMPid = whereis(QueueManager),
-      MgrInfo =
-        [ {age_in_seconds, AgeInSecs}
-        | erlang:process_info(QMPid, InfoType)
-        ],
-      Workers = wpool_pool:worker_names(PoolName),
-      WorkersInfo =
-        [ {Worker, worker_info(WorkerPid, InfoType)}
-        || Worker <- Workers
-         , begin
-             WorkerPid = whereis(Worker),
-             is_process_alive(WorkerPid)
-           end
-        ],
-      [{queue_manager, MgrInfo}, {workers, WorkersInfo}]
-  end.
-
-worker_info(WorkerPid, InfoType) ->
-  SecsOld = wpool_process:age(WorkerPid) div 1000000,
-  {WorkerPid,
-    [{age_in_seconds, SecsOld} | erlang:process_info(WorkerPid, InfoType)]}.
-
--define(DEFAULT_TRACE_TIMEOUT, 5000).
--define(TRACE_KEY, wpool_trace).
-
-%% @doc Default tracing for 5 seconds to track worker pool execution times
-%%      to error.log.
--spec trace(wpool:name()) -> ok.
-trace(PoolName) ->
-  trace(PoolName, true, ?DEFAULT_TRACE_TIMEOUT).
-
-%% @doc Turn pool tracing on and off.
--spec trace(wpool:name(), boolean(), pos_integer()) ->
-  ok | {error, {invalid_pool, wpool:name()}}.
-trace(PoolName, true, Timeout) ->
-  case ets:lookup(wpool_pool, PoolName) of
-    [] -> {error, {invalid_pool, PoolName}};
-    [#wpool{}] ->
-      error_logger:info_msg(
-        "[~p] Tracing turned on for worker_pool ~p",
-        [?TRACE_KEY, PoolName]),
-      {TracerPid, _Ref} = trace_timer(PoolName),
-      trace(PoolName, true, TracerPid, Timeout)
-  end;
-trace(PoolName, false, _Timeout) ->
-  case ets:lookup(wpool_pool, PoolName) of
-    [] -> {error, {invalid_pool, PoolName}};
-    [#wpool{}] ->
-      trace(PoolName, false, no_pid, 0)
-  end.
-
--spec trace(wpool:name(), boolean(), pid() | no_pid, non_neg_integer()) -> ok.
-trace(PoolName, TraceOn, TracerPid, Timeout) ->
-  Workers = wpool_pool:worker_names(PoolName),
-  TraceOptions = [timestamp, 'receive', send],
-  _ =
-    [ case TraceOn of
-        true  ->
-          erlang:trace(WorkerPid, true,  [{tracer, TracerPid} | TraceOptions]);
-        false ->
-          erlang:trace(WorkerPid, false, TraceOptions)
-      end || Worker <- Workers, is_process_alive(WorkerPid = whereis(Worker))],
-  trace_off(PoolName, TraceOn, TracerPid, Timeout).
-
-trace_off(PoolName, false, _TracerPid, _Timeout) ->
-  error_logger:info_msg(
-    "[~p] Tracing turned off for worker_pool ~p", [?TRACE_KEY, PoolName]),
-  ok;
-trace_off(PoolName, true,   TracerPid,  Timeout) ->
-  _ = timer:apply_after(Timeout, ?MODULE, trace, [PoolName, false, Timeout]),
-  _ = erlang:send_after(Timeout, TracerPid, quit),
-  error_logger:info_msg(
-    "[~p] Tracer pid ~p scheduled to end in ~p msec for worker_pool ~p",
-    [?TRACE_KEY, TracerPid, Timeout, PoolName]),
-  ok.
-
-%% @doc Collect trace timing results to report succinct run times.
--spec trace_timer(wpool:name()) -> from().
-trace_timer(PoolName) ->
-  {Pid, Reference} =
-    spawn_monitor(fun() -> report_trace_times(PoolName) end),
-  register(wpool_trace_timer, Pid),
-  error_logger:info_msg(
-    "[~p] Tracer pid ~p started for worker_pool ~p",
-    [?TRACE_KEY, Pid, PoolName]),
-  {Pid, Reference}.
-
--spec report_trace_times(wpool:name()) -> ok.
-report_trace_times(PoolName) ->
-  receive
-    quit -> summarize_pending_times(PoolName);
-    {trace_ts, Worker, 'receive', {'$gen_call', From, Request}, TimeStarted} ->
-      Props = {start, TimeStarted, request, Request, worker, Worker},
-      undefined = put({?TRACE_KEY, From}, Props),
-      report_trace_times(PoolName);
-    {trace_ts, Worker, send, {Ref, Result}, FromPid, TimeFinished} ->
-      case erase({?TRACE_KEY, {FromPid, Ref}}) of
-        undefined -> ok;
-        {start, TimeStarted, request, Request, worker, Worker} ->
-          Elapsed = timer:now_diff(TimeFinished, TimeStarted),
-          error_logger:info_msg(
-            "[~p] ~p usec: ~p  request: ~p  reply: ~p",
-            [?TRACE_KEY, Worker, Elapsed, Request, Result])
-      end,
-      report_trace_times(PoolName);
-    _SysOrOtherMsg ->
-      report_trace_times(PoolName)
-  end.
-
-summarize_pending_times(PoolName) ->
-  Now = os:timestamp(),
-  FmtMsg = "[~p] Unfinished task ~p usec: ~p  request: ~p",
-  _ =
-    [ error_logger:info_msg(FmtMsg, [?TRACE_KEY, Worker, Elapsed, Request])
-    || { {?TRACE_KEY, _From}
-       , {start, TimeStarted, request, Request, worker, Worker}
-       } <- get()
-     , (Elapsed = timer:now_diff(Now, TimeStarted)) > -1
-    ],
-  error_logger:info_msg(
-    "[~p] Tracer pid ~p ended for worker_pool ~p",
-    [?TRACE_KEY, self(), PoolName]),
-  ok.
 
 %%%===================================================================
 %%% gen_server callbacks

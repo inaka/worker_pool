@@ -131,6 +131,8 @@ available_worker(_Config) ->
 
   ct:log("Let's wait until all workers are free"),
   wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, infinity),
+  wpool:sync_send_all_state_event(
+    Pool, {erlang, self, []}, available_worker, infinity),
 
   % Check we have no pending tasks
   Stats2 = wpool:stats(Pool),

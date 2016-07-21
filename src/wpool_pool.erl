@@ -40,7 +40,6 @@
         , stats/1
         ]).
 -export([ wpool_size/1
-        , worker_names/1
         , worker_name/2
         , find_wpool/1
         , all/0
@@ -257,15 +256,6 @@ stats(Wpool, Sup) ->
   , {total_message_queue_len,  Total + PendingTasks}
   , {workers,                  WorkerStats}
   ].
-
-%% @doc Returns the names of the workers in the pool
--spec worker_names(wpool:name()) -> [atom()].
-worker_names(PoolName) ->
-  case find_wpool(PoolName) of
-    undefined -> [];
-    #wpool{size=Size} ->
-      [worker_name(PoolName, N) || N <- lists:seq(1, Size)]
-  end.
 
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
