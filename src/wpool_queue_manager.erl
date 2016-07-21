@@ -353,8 +353,7 @@ handle_info(_Info, State) -> {noreply, State}.
 
 %% @private
 -spec terminate(atom(), state()) -> ok.
-terminate(Reason, #state{clients = Clients} = _State) ->
-  return_error(Reason, queue:out(Clients)).
+terminate(_Reason, _State) -> ok.
 
 %% @private
 -spec code_change(string(), state(), any()) -> {ok, state()}.
@@ -368,14 +367,6 @@ dec_pending_tasks() -> dec(pending_tasks).
 
 inc(Key) -> put(Key, get(Key) + 1).
 dec(Key) -> put(Key, get(Key) - 1).
-
-return_error(_Reason, {empty, _Q}) -> ok;
-return_error(Reason, {{value, {cast, Cast}}, Q}) ->
-  error_logger:error_msg("Cast lost on terminate ~p: ~p", [Reason, Cast]),
-  return_error(Reason, queue:out(Q));
-return_error(Reason, {{value, {From, _Expires}}, Q}) ->
-  _  = gen_server:reply(From, {error, {queue_shutdown, Reason}}),
-  return_error(Reason, queue:out(Q)).
 
 now_in_microseconds() -> timer:now_diff(os:timestamp(), {0, 0, 0}).
 
