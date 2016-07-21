@@ -25,9 +25,11 @@
 -export([ stats/1
         , stop_pool/1
         , overrun/1
+        , too_much_overrun/1
         , default_strategy/1
         , overrun_handler/1
         , default_options/1
+        , complete_coverage/1
         ]).
 
 -spec all() -> [atom()].
@@ -52,6 +54,64 @@ end_per_suite(Config) ->
 
 -spec overrun_handler(M) -> M.
 overrun_handler(M) -> overrun_handler ! {overrun, M}.
+
+-spec too_much_overrun(config()) -> {comment, []}.
+too_much_overrun(_Config) ->
+  ct:comment("Receiving overruns here..."),
+  true = register(overrun_handler, self()),
+  {ok, PoolPid} =
+    wpool:start_sup_pool(
+      too_much_overrun,
+      [ {workers, 1}
+      , {overrun_warning, 1000}
+      , {overrun_handler, {?MODULE, overrun_handler}}
+      ]),
+
+  ct:comment("Find the worker and the time checker..."),
+  {ok, Worker} = wpool:call(too_much_overrun, {erlang, self, []}),
+  TCPid = get_time_checker(PoolPid),
+
+  ct:comment("Start a long running task..."),
+  ok = wpool:cast(too_much_overrun, {timer, sleep, [5000]}),
+  timer:sleep(100),
+  {dictionary, Dict} = erlang:process_info(Worker, dictionary),
+  {TaskId, _, _} = proplists:get_value(wpool_task, Dict),
+
+  ct:comment("Simulate overrun warning..."),
+  TCPid ! {check, Worker, TaskId, 9999999999}, % huge runtime… no more overruns
+
+  ct:comment("Get overrun message..."),
+  receive
+    {overrun, Message} ->
+      overrun = proplists:get_value(alert,  Message),
+      too_much_overrun = proplists:get_value(pool,   Message),
+      Worker  = proplists:get_value(worker,   Message),
+      {cast, {timer, sleep, [5000]}} = proplists:get_value(task, Message),
+      9999999999 = proplists:get_value(runtime,  Message)
+  after 1500 ->
+    throw(no_overrun)
+  end,
+
+  ct:comment("No more overruns..."),
+  receive
+  after 1500 -> ok
+  end,
+
+  ct:comment("Kill the worker..."),
+  exit(Worker, kill),
+
+  ct:comment("Simulate overrun warning..."),
+  TCPid ! {check, Worker, TaskId, 100}, % tiny runtime, to check
+
+  ct:comment("Nothing happens..."),
+  receive
+  after 1000 -> ok
+  end,
+
+  ct:comment("Stop pool..."),
+  ok = wpool:stop_pool(too_much_overrun),
+
+  {comment, []}.
 
 -spec overrun(config()) -> {comment, []}.
 overrun(_Config) ->
@@ -101,8 +161,9 @@ stats(_Config) ->
   catch _:no_workers -> ok
   end,
 
-  {ok, PoolPid} = wpool:start_pool(?MODULE, [{workers, 10}]),
-  true = is_pid(PoolPid),
+  {ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 10}]),
+  true = is_process_alive(PoolPid),
+  PoolPid = erlang:whereis(?MODULE),
 
   % Checks ...
   [InitStats] = wpool:stats(),
@@ -125,7 +186,7 @@ stats(_Config) ->
     end || I <- lists:seq(1, 10)],
 
   % Start a long task on every worker
-  Sleep = {timer, sleep, [10000]},
+  Sleep = {timer, sleep, [2000]},
   [wpool:cast(?MODULE, Sleep, next_worker) || _ <- lists:seq(1, 10)],
 
   timer:sleep(100),
@@ -149,9 +210,12 @@ stats(_Config) ->
     end || I <- lists:seq(1, 10)],
 
   wpool:stop_pool(?MODULE),
-  _ =
+
+  timer:sleep(5000),
+
+  no_workers =
     try wpool:stats(?MODULE)
-    catch _:no_workers -> ok
+    catch _:E -> E
     end,
 
   {comment, []}.
@@ -177,3 +241,27 @@ default_options(_Config) ->
   true = is_pid(SupPoolPid),
 
   {comment, []}.
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+
+  ct:comment("Time checker"),
+  {ok, State} = wpool_time_checker:init({pool, {x, y}}),
+  ok = wpool_time_checker:terminate(reason, State),
+  {ok, State} = wpool_time_checker:code_change("oldvsn", State, extra),
+
+  {ok, PoolPid} = wpool:start_pool(coverage, []),
+  TCPid = get_time_checker(PoolPid),
+  TCPid ! info,
+  ok = gen_server:cast(TCPid, cast),
+  ok = gen_server:call(TCPid, call),
+
+  {comment, []}.
+
+get_time_checker(PoolPid) ->
+  [TCPid] =
+    [ P
+    || {_, P, worker, [wpool_time_checker]} <-
+        supervisor:which_children(PoolPid)
+    ],
+  TCPid.

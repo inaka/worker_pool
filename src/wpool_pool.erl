@@ -199,7 +199,9 @@ send_all_event_to_available_worker(Sup, Event) ->
     queue_manager_name(Sup), Event).
 
 -spec all() -> [wpool:name()].
-all() -> [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)].
+all() ->
+  [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)
+         , find_wpool(Name) /= undefined].
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
