@@ -64,16 +64,12 @@
 %% @doc Creates the ets table that will hold the information about active pools
 -spec create_table() -> ok.
 create_table() ->
-  case ets:info(?MODULE, named_table) of
-    true      -> ok;
-    undefined ->
-      error_logger:info_msg("Creating wpool ETS table"),
-      _ = ets:new(
-            ?MODULE,
-            [public, named_table, set,
-             {read_concurrency, true}, {keypos, #wpool.name}]),
-      ok
-  end.
+  error_logger:info_msg("Creating wpool ETS table"),
+  _ = ets:new(
+        ?MODULE,
+        [public, named_table, set,
+         {read_concurrency, true}, {keypos, #wpool.name}]),
+  ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->

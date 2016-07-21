@@ -83,6 +83,12 @@ available_worker(_Config) ->
     _:no_workers -> ok
   end,
 
+  try wpool:sync_send_all_state_event(not_a_pool, x) of
+    Result2 -> no_result = Result2
+  catch
+    _:no_workers -> ok
+  end,
+
   ct:log(
     "Put them all to work, each requeslt should go to a different worker"),
   [wpool:send_event(
@@ -107,12 +113,20 @@ available_worker(_Config) ->
           || {_, WS} <- proplists:get_value(workers, Stats1)])),
   % Check that we have ?WORKERS pending tasks
   ?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
+
   ct:log("If we can't wait we get no workers"),
   try wpool:sync_send_all_state_event(
         Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
     _:Error -> timeout = Error
+  end,
+
+  try wpool:sync_send_event(
+        Pool, {erlang, self, []}, available_worker, 100) of
+    R2 -> should_fail = R2
+  catch
+    _:Error2 -> timeout = Error2
   end,
 
   ct:log("Let's wait until all workers are free"),
