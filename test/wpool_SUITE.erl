@@ -256,6 +256,14 @@ complete_coverage(_Config) ->
   ok = gen_server:cast(TCPid, cast),
   ok = gen_server:call(TCPid, call),
 
+  ct:comment("Queue Manager"),
+  {error, {invalid_pool, invalid}} = wpool_queue_manager:stats(invalid),
+  QMPid = get_queue_manager(PoolPid),
+  QMPid ! info,
+  {ok, QMState} = wpool_queue_manager:init(pool),
+  ok = wpool_queue_manager:terminate(reason, QMState),
+  {ok, QMState} = wpool_queue_manager:code_change("oldvsn", QMState, extra),
+
   {comment, []}.
 
 get_time_checker(PoolPid) ->
@@ -265,3 +273,11 @@ get_time_checker(PoolPid) ->
         supervisor:which_children(PoolPid)
     ],
   TCPid.
+
+get_queue_manager(PoolPid) ->
+  [QMPid] =
+    [ P
+    || {_, P, worker, [wpool_queue_manager]} <-
+        supervisor:which_children(PoolPid)
+    ],
+  QMPid.

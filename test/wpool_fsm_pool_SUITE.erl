@@ -37,6 +37,7 @@
 -export([ wait_and_self/1
         ]).
 -export([ manager_crash/1
+        , super_fast/1
         ]).
 
 -spec all() -> [atom()].
@@ -404,6 +405,40 @@ manager_crash(_Config) ->
 
   {comment, []}.
 
+-spec super_fast(config()) -> {comment, []}.
+super_fast(_Config) ->
+  Pool = super_fast,
+
+  ct:log("Check that the pool is working"),
+  {ok, ok} = send_io_format(Pool),
+
+  ct:log("Impossible task"),
+  Self = self(),
+  try wpool:sync_send_event(
+        Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+    R -> ct:fail("Unexpected ~p", [R])
+  catch
+    _:timeout -> ok
+  end,
+
+  try wpool:sync_send_all_state_event(
+        Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+    R2 -> ct:fail("Unexpected ~p", [R2])
+  catch
+    _:timeout -> ok
+  end,
+
+  ct:log("Wait a second"),
+  timer:sleep(1000),
+
+  ct:log("Nothing gets here"),
+  receive
+    X -> ct:fail("Unexpected ~p", [X])
+  after 0 ->
+    ok
+  end,
+
+  {comment, []}.
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
   receive {worker, WorkerId} -> collect_results(N-1, [WorkerId | Results])
