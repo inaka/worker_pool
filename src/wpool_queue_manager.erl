@@ -48,7 +48,6 @@
 -record(state, { wpool                 :: wpool:name()
                , clients               :: queue:queue({cast|{pid(), _}, term()})
                , workers               :: gb_sets:set(atom())
-               , born = os:timestamp() :: erlang:timestamp()
                }).
 -type state() :: #state{}.
 
