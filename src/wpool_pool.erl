@@ -39,8 +39,7 @@
 -export([ stats/0
         , stats/1
         ]).
--export([ wpool_size/1
-        , worker_name/2
+-export([ worker_name/2
         , find_wpool/1
         , all/0
         ]).
@@ -283,7 +282,7 @@ wpool_size(Name) ->
 %% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
 -spec next(pos_integer(), wpool()) -> wpool().
-next(Next, WPool) -> WPool#wpool{next=Val}.
+next(Next, WPool) -> WPool#wpool{next = Next}.
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
@@ -406,8 +405,7 @@ min_message_queue(Checked, Wpool, Found) ->
   case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
     {message_queue_len, 0} -> Worker;
     {message_queue_len, L} ->
-      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found]);
-    Error -> throw(Error)
+      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found])
   end.
 
 %% ===================================================================
@@ -454,12 +452,15 @@ build_wpool(Name) ->
     "Building a #wpool record for ~p. Something must have failed.", [Name]),
   try supervisor:count_children(process_sup_name(Name)) of
     Children ->
-      case proplists:get_value(active, Children, 0) of
-        0 -> undefined;
-        Size ->
-          Wpool = #wpool{name = Name, size = Size, next = 1, opts = []},
-          store_wpool(Wpool)
-      end
+      Size = proplists:get_value(active, Children, 0),
+      Wpool =
+        #wpool{ name = Name
+              , size = Size
+              , next = 1
+              , opts = []
+              , qmanager = queue_manager_name(Name)
+              },
+      store_wpool(Wpool)
   catch
     _:Error ->
       error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),

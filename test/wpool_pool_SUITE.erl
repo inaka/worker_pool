@@ -39,6 +39,7 @@
         ]).
 -export([ manager_crash/1
         , super_fast/1
+        , ets_mess_up/1
         ]).
 
 -spec all() -> [atom()].
@@ -69,7 +70,7 @@ init_per_testcase(TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(TestCase, Config) ->
-  wpool:stop_pool(TestCase),
+  catch wpool:stop_pool(TestCase),
   Config.
 
 -spec wait_and_self(pos_integer()) -> pid().
@@ -403,13 +404,59 @@ wpool_record(_Config) ->
   WPool = wpool_pool:find_wpool(wpool_record),
   wpool_record = wpool_pool:wpool_get(name, WPool),
   6 = wpool_pool:wpool_get(size, WPool),
-  [_, _, _, _] = wpool_pool:get([next, opts, qmanager, born], WPool),
+  [_, _, _, _] = wpool_pool:wpool_get([next, opts, qmanager, born], WPool),
 
-  Wpool2 = wpool_pool:next(3, Wpool),
-  3 = wpool_pool:get(next, Wpool2),
+  WPool2 = wpool_pool:next(3, WPool),
+  3 = wpool_pool:wpool_get(next, WPool2),
 
   {comment, []}.
 
+
+-spec ets_mess_up(config()) -> {comment, []}.
+ets_mess_up(_Config) ->
+  Pool = ets_mess_up,
+
+  ct:comment("Mess up with ets table..."),
+  true = ets:delete(wpool_pool, Pool),
+
+  ct:comment("Rebuild stats"),
+  1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+
+  ct:comment("Mess up with ets table again..."),
+  true = ets:delete(wpool_pool, Pool),
+  {ok, ok} = wpool:call(Pool, {io, format, ["1!~n"]}, random_worker),
+
+  ct:comment("Mess up with ets table once more..."),
+  {ok, ok} = wpool:call(Pool, {io, format, ["2!~n"]}, next_worker),
+  2 = proplists:get_value(next_worker, wpool:stats(Pool)),
+  true = ets:delete(wpool_pool, Pool),
+  {ok, ok} = wpool:call(Pool, {io, format, ["3!~n"]}, next_worker),
+  1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+
+  ct:comment("Mess up with ets table one final time..."),
+  true = ets:delete(wpool_pool, Pool),
+  _ = wpool_pool:find_wpool(Pool),
+
+  ct:comment("Now, delete the pool"),
+  Flag = process_flag(trap_exit, true),
+  exit(whereis(Pool), kill),
+  timer:sleep(100),
+  try wpool:call(Pool, {io, format, ["1!~n"]}, random_worker) of
+    X -> ct:fail("Unexpected ~p", [X])
+  catch
+    _:no_workers -> ok
+  end,
+
+  true = process_flag(trap_exit, Flag),
+
+  ct:comment("And now delete the ets table altogether"),
+  true = ets:delete(wpool_pool),
+  _ = wpool_pool:find_wpool(Pool),
+
+  wpool:stop(),
+  ok = wpool:start(),
+
+  {comment, []}.
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
