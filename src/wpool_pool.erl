@@ -44,7 +44,7 @@
         , find_wpool/1
         , all/0
         ]).
--export([ wpool_set/2
+-export([ next/2
         , wpool_get/2
         ]).
 
@@ -280,23 +280,10 @@ wpool_size(Name) ->
   end.
 
 
-%% @doc Set values from the worker pool record. Useful when using
+%% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
--spec wpool_set([{atom(), any()}], wpool()) -> wpool().
-wpool_set([], WPool) ->
-  WPool;
-wpool_set([{name, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{name=Val});
-wpool_set([{size, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{size=Val});
-wpool_set([{next, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{next=Val});
-wpool_set([{opts, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{opts=Val});
-wpool_set([{qmanager, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{qmanager=Val});
-wpool_set([{born, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{born=Val}).
+-spec next(pos_integer(), wpool()) -> wpool().
+next(Next, WPool) -> WPool#wpool{next=Val}.
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.

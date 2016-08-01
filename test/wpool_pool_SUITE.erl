@@ -403,6 +403,10 @@ wpool_record(_Config) ->
   WPool = wpool_pool:find_wpool(wpool_record),
   wpool_record = wpool_pool:wpool_get(name, WPool),
   6 = wpool_pool:wpool_get(size, WPool),
+  [_, _, _, _] = wpool_pool:get([next, opts, qmanager, born], WPool),
+
+  Wpool2 = wpool_pool:next(3, Wpool),
+  3 = wpool_pool:get(next, Wpool2),
 
   {comment, []}.
 
