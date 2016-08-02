@@ -63,7 +63,7 @@ too_much_overrun(_Config) ->
     wpool:start_sup_pool(
       too_much_overrun,
       [ {workers, 1}
-      , {overrun_warning, 1000}
+      , {overrun_warning, 999}
       , {overrun_handler, {?MODULE, overrun_handler}}
       ]),
 
