@@ -29,9 +29,11 @@
         , info/1
         , cast/1
         , call/1
+        , stop/1
         ]).
 -export([ pool_restart_crash/1
         , pool_norestart_crash/1
+        , complete_coverage/1
         ]).
 
 
@@ -165,5 +167,72 @@ pool_norestart_crash(_Config) ->
 
   ct:log("Check that the pool is working"),
   false = erlang:is_process_alive(Pid),
+
+  {comment, []}.
+
+-spec stop(config()) -> {comment, []}.
+stop(_Config) ->
+  From = {self(), Ref = make_ref()},
+
+  ct:comment("cast_call with stop/reply"),
+  {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  ok = wpool_process:cast_call(stopper, From, {stop, reason, response, state}),
+  receive
+    {Ref, response} -> ok
+  after 5000 ->
+    ct:fail("no response")
+  end,
+  receive
+    {'EXIT', Pid1, reason} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("cast_call with regular stop"),
+  {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  ok = wpool_process:cast_call(stopper, From, {stop, reason, state}),
+  receive
+    {Ref, _} -> ct:fail("unexpected response");
+    {'EXIT', Pid2, reason} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("call with regular stop"),
+  {ok, Pid3} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  try wpool_process:call(stopper, {noreply, state}, 100) of
+    _ -> ct:fail("unexpected response")
+  catch
+    _:{can_not_hold_a_reply, _} -> ok
+  end,
+  receive
+    {'EXIT', Pid3, can_not_hold_a_reply} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("call with timeout stop"),
+  {ok, Pid4} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  try wpool_process:call(stopper, {noreply, state, hibernate}, 100) of
+    _ -> ct:fail("unexpected response")
+  catch
+    _:{can_not_hold_a_reply, _} -> ok
+  end,
+  receive
+    {'EXIT', Pid4, can_not_hold_a_reply} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  {comment, []}.
+
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+  ct:comment("Code Change"),
+  {ok, State} =
+    wpool_process:init({complete_coverage, echo_server, {ok, state}, []}),
+  {ok, _} = wpool_process:code_change("oldvsn", State, {ok, state}),
+  {error, bad} = wpool_process:code_change("oldvsn", State, bad),
 
   {comment, []}.
