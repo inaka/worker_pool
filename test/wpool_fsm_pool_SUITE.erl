@@ -299,7 +299,7 @@ hash_worker(_Config) ->
 custom_worker(_Config) ->
   Pool = custom_worker,
 
-  Strategy = fun wpool_pool:best_worker/1,
+  Strategy = fun wpool_pool:next_worker/1,
 
   try wpool:sync_send_event(not_a_pool, x, Strategy) of
     Result -> no_result = Result
@@ -307,33 +307,35 @@ custom_worker(_Config) ->
     _:no_workers -> ok
   end,
 
-  {ok, AWorker} =
-    wpool:sync_send_all_state_event(Pool, {erlang, self, []}, Strategy),
-  true = is_pid(AWorker),
+  _ =
+    [ begin
+        Stats = wpool:stats(Pool),
+        I = proplists:get_value(next_worker, Stats),
+        wpool:send_event(Pool, {io, format, ["ok!"]}, Strategy)
+      end || I <- lists:seq(1, ?WORKERS)],
 
-  %% Fill up their message queues...
-  [ wpool:send_event(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(1500),
-  [0] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
-  [ wpool:send_all_state_event(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(500),
-  [1] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
-  %% Now try best worker once per worker
-  [ wpool:send_event(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  %% The load should be evenly distributed...
-  [2] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  _ =
+    [ begin
+        Stats = wpool:stats(Pool),
+        I = proplists:get_value(next_worker, Stats),
+        wpool:send_all_state_event(Pool, {io, format, ["ok!"]}, Strategy)
+      end || I <- lists:seq(1, ?WORKERS)],
+
+  Res0 = [begin
+            Stats = wpool:stats(Pool),
+            I = proplists:get_value(next_worker, Stats),
+            wpool:sync_send_event( Pool
+                                 , {erlang, self, []}
+                                 , Strategy
+                                 , infinity
+                                 )
+          end || I <- lists:seq(1, ?WORKERS)],
+  ?WORKERS = sets:size(sets:from_list(Res0)),
+  Res0 = [begin
+            Stats = wpool:stats(Pool),
+            I = proplists:get_value(next_worker, Stats),
+            wpool:sync_send_all_state_event(Pool, {erlang, self, []}, Strategy)
+          end || I <- lists:seq(1, ?WORKERS)],
 
   {comment, []}.
 
