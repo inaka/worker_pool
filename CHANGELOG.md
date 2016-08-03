@@ -1,5 +1,21 @@
 # Change Log
 
+## [2.1.0](https://github.com/inaka/worker_pool/tree/2.1.0) (2016-08-03)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.0.1...2.1.0)
+
+**Fixed bugs:**
+
+- Tests are unstable [\#56](https://github.com/inaka/worker_pool/pull/56) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
+**Merged pull requests:**
+
+- Added a function to retrieve the stats for all pools [\#76](https://github.com/inaka/worker_pool/pull/76) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
+- We no longer have support for erlang.mk [\#75](https://github.com/inaka/worker_pool/pull/75) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
+- Standarize code style [\#68](https://github.com/inaka/worker_pool/pull/68) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Remove wpool\_shutdown [\#67](https://github.com/inaka/worker_pool/pull/67) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Remove wpool:call/5 [\#57](https://github.com/inaka/worker_pool/pull/57) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Complete Test Coverage [\#10](https://github.com/inaka/worker_pool/pull/10) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [2.0.1](https://github.com/inaka/worker_pool/tree/2.0.1) (2016-06-27)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.0.0...2.0.1)
 
@@ -9,6 +25,7 @@
 
 **Merged pull requests:**
 
+- Version Bump to 2.0.1 [\#74](https://github.com/inaka/worker_pool/pull/74) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Remove compiler warnings about random module [\#73](https://github.com/inaka/worker_pool/pull/73) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Actually remove the usage of random module if we're on OTP18+ [\#72](https://github.com/inaka/worker_pool/pull/72) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Upgrade katana-test [\#66](https://github.com/inaka/worker_pool/pull/66) ([elbrujohalcon](https://github.com/elbrujohalcon))
