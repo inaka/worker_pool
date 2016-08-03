@@ -37,8 +37,8 @@ init(Something) -> Something.
 -spec terminate(Any, term()) -> Any.
 terminate(Reason, _State) -> Reason.
 
--spec code_change(string(), State, any()) -> {ok, State}.
-code_change(_OldVsn, State, _Extra) -> {ok, State}.
+-spec code_change(string(), State, any()) -> any() | {ok, State}.
+code_change(_OldVsn, _State, Extra) -> Extra.
 
 -spec handle_info(timeout | Info, term()) -> {noreply, timeout} | Info.
 handle_info(timeout, _State) -> {noreply, timeout};

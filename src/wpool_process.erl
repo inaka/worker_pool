@@ -24,8 +24,7 @@
                 state   :: term(),
                 options :: [ {time_checker|queue_manager, atom()}
                            | wpool:option()
-                           ],
-                born = os:timestamp() :: erlang:timestamp()
+                           ]
                }).
 -type state() :: #state{}.
 
@@ -36,7 +35,6 @@
         , call/3
         , cast/2
         , cast_call/3
-        , age/1
         ]).
 
 %% gen_server callbacks
@@ -71,10 +69,6 @@ cast(Process, Cast) -> gen_server:cast(Process, {cast, Cast}).
 -spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
 cast_call(Process, From, Call) ->
   gen_server:cast(Process, {call, From, Call}).
-
-%% @doc Report how old a process is in <b>microseconds</b>
--spec age(wpool:name() | pid()) -> non_neg_integer().
-age(Process) -> gen_server:call(Process, age).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -120,19 +114,13 @@ code_change(OldVsn, State, Extra) ->
 -spec handle_info(any(), state()) ->
         {noreply, state()} | {stop, term(), state()}.
 handle_info(Info, State) ->
-  try (State#state.mod):handle_info(Info, State#state.state) of
+  case do_try(
+        fun() -> (State#state.mod):handle_info(Info, State#state.state) end) of
     {noreply, NewState} ->
       {noreply, State#state{state = NewState}};
     {noreply, NewState, Timeout} ->
       {noreply, State#state{state = NewState}, Timeout};
     {stop, Reason, NewState} ->
-      {stop, Reason, State#state{state = NewState}}
-  catch
-    _:{noreply, NewState} ->
-      {noreply, State#state{state = NewState}};
-    _:{noreply, NewState, Timeout} ->
-      {noreply, State#state{state = NewState}, Timeout};
-    _:{stop, Reason, NewState} ->
       {stop, Reason, State#state{state = NewState}}
   end.
 
@@ -162,19 +150,13 @@ handle_cast({cast, Cast}, State) ->
       proplists:get_value(overrun_warning, State#state.options, infinity)),
   ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
-    try (State#state.mod):handle_cast(Cast, State#state.state) of
+    case do_try(
+        fun() -> (State#state.mod):handle_cast(Cast, State#state.state) end) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
       {noreply, NewState, Timeout} ->
         {noreply, State#state{state = NewState}, Timeout};
       {stop, Reason, NewState} ->
-        {stop, Reason, State#state{state = NewState}}
-    catch
-      _:{noreply, NewState} ->
-        {noreply, State#state{state = NewState}};
-      _:{noreply, NewState, Timeout} ->
-        {noreply, State#state{state = NewState}, Timeout};
-      _:{stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}}
     end,
   task_end(Task),
@@ -190,8 +172,6 @@ handle_cast({cast, Cast}, State) ->
       | {noreply, state(), timeout() | hibernate}
       | {stop, term(), term(), state()}
       | {stop, term(), state()}.
-handle_call(age, _From, #state{born=Born} = State) ->
-  {reply, timer:now_diff(os:timestamp(), Born), State};
 handle_call(Call, From, State) ->
   Task =
     task_init(
@@ -200,7 +180,9 @@ handle_call(Call, From, State) ->
       proplists:get_value(overrun_warning, State#state.options, infinity)),
   ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
   Reply =
-    try (State#state.mod):handle_call(Call, From, State#state.state) of
+    case do_try(
+        fun() -> (State#state.mod):handle_call(Call, From, State#state.state)
+        end) of
       {noreply, NewState} ->
         {stop, can_not_hold_a_reply, State#state{state = NewState}};
       {noreply, NewState, _Timeout} ->
@@ -212,19 +194,6 @@ handle_call(Call, From, State) ->
       {stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}};
       {stop, Reason, Response, NewState} ->
-        {stop, Reason, Response, State#state{state = NewState}}
-    catch
-      _:{noreply, NewState} ->
-        {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      _:{noreply, NewState, _Timeout} ->
-        {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      _:{reply, Response, NewState} ->
-        {reply, Response, State#state{state = NewState}};
-      _:{reply, Response, NewState, Timeout} ->
-        {reply, Response, State#state{state = NewState}, Timeout};
-      _:{stop, Reason, NewState} ->
-        {stop, Reason, State#state{state = NewState}};
-      _:{stop, Reason, Response, NewState} ->
         {stop, Reason, Response, State#state{state = NewState}}
     end,
   task_end(Task),
@@ -261,3 +230,5 @@ notify_queue_manager(Function, Name, Options) ->
     undefined -> ok;
     QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
   end.
+
+do_try(Fun) -> try Fun() catch _:Error -> Error end.

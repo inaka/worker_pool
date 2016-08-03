@@ -35,8 +35,11 @@ start_pool(Name, Options) -> supervisor:start_child(?MODULE, [Name, Options]).
 -spec stop_pool(wpool:name()) -> ok.
 stop_pool(Name) ->
   case erlang:whereis(Name) of
-    undefined -> ok;
-    Pid       -> supervisor:terminate_child(?MODULE, Pid)
+    undefined ->
+      error_logger:warning_msg("Couldn't stop ~p. It was not running", [Name]),
+      ok;
+    Pid ->
+      ok = supervisor:terminate_child(?MODULE, Pid)
   end.
 
 %%----------------------------------------------------------------------

@@ -61,7 +61,7 @@ init(undefined) -> {ok, #state{}}.
 -spec terminate(atom(), state()) -> ok.
 terminate(_Reason, _State) -> ok.
 %% @private
--spec code_change(string(), state(), any()) -> {ok, {}}.
+-spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.

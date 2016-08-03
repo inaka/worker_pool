@@ -24,6 +24,9 @@
         ]).
 -export([ sync_send_event/1
         , send_event/1
+        , sync_send_all_state_event/1
+        , send_all_state_event/1
+        , complete_coverage/1
         ]).
 -export([ ok/0
         , error/0
@@ -49,7 +52,7 @@ ok() -> ?MODULE.
 -spec error() -> no_return().
 error() -> throw(?MODULE).
 
--spec sync_send_event(config()) -> _.
+-spec sync_send_event(config()) -> {comment, []}.
 sync_send_event(_Config) ->
   start_pool(),
   ?MODULE = wpool_fsm_worker:sync_send_event(?MODULE, ?MODULE, ok, []),
@@ -59,16 +62,62 @@ sync_send_event(_Config) ->
     throw:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:sync_send_event(?MODULE, error),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec send_event(config()) -> _.
+  {comment, []}.
+
+-spec send_event(config()) -> {comment, []}.
 send_event(_Config) ->
   start_pool(),
   ok = wpool_fsm_worker:send_event(?MODULE, ?MODULE, ok, []),
   ok = wpool_fsm_worker:send_event(?MODULE, ?MODULE, error, []),
-  ok = wpool:cast(?MODULE, x),
+  ok = wpool:send_event(?MODULE, x),
   timer:sleep(1000),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
+
+  {comment, []}.
+
+-spec sync_send_all_state_event(config()) -> {comment, []}.
+sync_send_all_state_event(_Config) ->
+  start_pool(),
+  ?MODULE =
+    wpool_fsm_worker:sync_send_all_state_event(?MODULE, ?MODULE, ok, []),
+  try wpool_fsm_worker:sync_send_all_state_event(?MODULE, ?MODULE, error, []) of
+    R -> no_result = R
+  catch
+    throw:?MODULE -> ok
+  end,
+  {error, invalid_request} = wpool:sync_send_all_state_event(?MODULE, error),
+  ok = wpool:stop_pool(?MODULE),
+
+  {comment, []}.
+
+-spec send_all_state_event(config()) -> {comment, []}.
+send_all_state_event(_Config) ->
+  start_pool(),
+  ok = wpool_fsm_worker:send_all_state_event(?MODULE, ?MODULE, ok, []),
+  ok = wpool_fsm_worker:send_all_state_event(?MODULE, ?MODULE, error, []),
+  ok = wpool:send_all_state_event(?MODULE, x),
+  timer:sleep(1000),
+  ok = wpool:stop_pool(?MODULE),
+
+  {comment, []}.
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+  start_pool(),
+  {ok, AWorker} = wpool:sync_send_event(?MODULE, {erlang, self, []}),
+  true = is_process_alive(AWorker),
+  AWorker ! info,
+
+  true = is_process_alive(AWorker),
+
+  {ok, common_state, {state}} =
+    wpool_fsm_worker:code_change("oldvsn", common_state, {state}, extra),
+
+  ok = wpool_fsm_worker:terminate(reason, common_state, {state}),
+
+  {comment, []}.
 
 start_pool() ->
   {ok, _Pid} =

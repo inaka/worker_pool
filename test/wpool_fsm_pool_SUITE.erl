@@ -31,11 +31,13 @@
         , random_worker/1
         , available_worker/1
         , hash_worker/1
+        , custom_worker/1
         , next_available_worker/1
         ]).
 -export([ wait_and_self/1
         ]).
 -export([ manager_crash/1
+        , super_fast/1
         ]).
 
 -spec all() -> [atom()].
@@ -73,11 +75,17 @@ wait_and_self(Time) ->
   {registered_name, Self} = process_info(self(), registered_name),
   Self.
 
--spec available_worker(config()) -> _.
+-spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
   Pool = available_worker,
   try wpool:sync_send_event(not_a_pool, x) of
     Result -> no_result = Result
+  catch
+    _:no_workers -> ok
+  end,
+
+  try wpool:sync_send_all_state_event(not_a_pool, x) of
+    Result2 -> no_result = Result2
   catch
     _:no_workers -> ok
   end,
@@ -95,7 +103,7 @@ available_worker(_Config) ->
   ct:log(
     "Now send another round of messages,
      the workers queues should still be empty"),
-  [wpool:send_event(
+  [wpool:send_all_state_event(
     Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
   timer:sleep(500),
   Stats1 = wpool:stats(Pool),
@@ -106,15 +114,26 @@ available_worker(_Config) ->
           || {_, WS} <- proplists:get_value(workers, Stats1)])),
   % Check that we have ?WORKERS pending tasks
   ?WORKERS = proplists:get_value(total_message_queue_len, Stats1),
+
   ct:log("If we can't wait we get no workers"),
-  try wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, 100) of
+  try wpool:sync_send_all_state_event(
+        Pool, {erlang, self, []}, available_worker, 100) of
     R -> should_fail = R
   catch
     _:Error -> timeout = Error
   end,
 
+  try wpool:sync_send_event(
+        Pool, {erlang, self, []}, available_worker, 100) of
+    R2 -> should_fail = R2
+  catch
+    _:Error2 -> timeout = Error2
+  end,
+
   ct:log("Let's wait until all workers are free"),
   wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, infinity),
+  wpool:sync_send_all_state_event(
+    Pool, {erlang, self, []}, available_worker, infinity),
 
   % Check we have no pending tasks
   Stats2 = wpool:stats(Pool),
@@ -135,13 +154,16 @@ available_worker(_Config) ->
     "We run tons of sync send events, and none is blocked,
      because all of them are handled by different workers"),
   Workers =
-    [ wpool:sync_send_event(Pool, {erlang, self, []}, available_worker, 5000)
+    [ wpool:sync_send_all_state_event(
+        Pool, {erlang, self, []}, available_worker, 5000)
      || _ <- lists:seq(1, 20 * ?WORKERS)],
   UniqueWorkers = sets:to_list(sets:from_list(Workers)),
   {?WORKERS, UniqueWorkers, true} =
-    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)}.
+    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)},
 
--spec best_worker(config()) -> _.
+  {comment, []}.
+
+-spec best_worker(config()) -> {comment, []}.
 best_worker(_Config) ->
   Pool = best_worker,
   try wpool:sync_send_event(not_a_pool, x, best_worker) of
@@ -151,7 +173,7 @@ best_worker(_Config) ->
   end,
 
   %% Fill up their message queues...
-  [ wpool:send_event(Pool, {timer, sleep, [60000]}, next_worker)
+  [ wpool:send_all_state_event(Pool, {timer, sleep, [60000]}, next_worker)
    || _ <- lists:seq(1, ?WORKERS)],
   timer:sleep(1500),
   [0] = sets:to_list(
@@ -166,19 +188,21 @@ best_worker(_Config) ->
         [proplists:get_value(message_queue_len, WS)
           || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
   %% Now try best worker once per worker
-  [ wpool:send_event(Pool, {timer, sleep, [60000]}, best_worker)
+  [ wpool:send_all_state_event(Pool, {timer, sleep, [60000]}, best_worker)
    || _ <- lists:seq(1, ?WORKERS)],
   %% The load should be evenly distributed...
   [2] = sets:to_list(
       sets:from_list(
         [proplists:get_value(message_queue_len, WS)
-          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
--spec next_worker(config()) -> _.
+  {comment, []}.
+
+-spec next_worker(config()) -> {comment, []}.
 next_worker(_Config) ->
   Pool = next_worker,
 
-  try wpool:sync_send_event(not_a_pool, x, next_worker) of
+  try wpool:sync_send_all_state_event(not_a_pool, x, next_worker) of
     Result -> no_result = Result
   catch
     _:no_workers -> ok
@@ -197,10 +221,13 @@ next_worker(_Config) ->
   Res0 = [begin
             Stats = wpool:stats(Pool),
             I = proplists:get_value(next_worker, Stats),
-            wpool:sync_send_event(Pool, {erlang, self, []}, next_worker)
-          end || I <- lists:seq(1, ?WORKERS)].
+            wpool:sync_send_all_state_event(
+              Pool, {erlang, self, []}, next_worker)
+          end || I <- lists:seq(1, ?WORKERS)],
 
--spec random_worker(config()) -> _.
+  {comment, []}.
+
+-spec random_worker(config()) -> {comment, []}.
 random_worker(_Config) ->
   Pool = random_worker,
 
@@ -213,7 +240,7 @@ random_worker(_Config) ->
   %% Ask for a random worker's identity 20x more than the number of workers
   %% and expect to get an answer from every worker at least once.
   Serial =
-    [ wpool:sync_send_event(Pool, {erlang, self, []}, random_worker)
+    [ wpool:sync_send_all_state_event(Pool, {erlang, self, []}, random_worker)
      || _ <- lists:seq(1, 20 * ?WORKERS)],
   ?WORKERS = sets:size(sets:from_list(Serial)),
 
@@ -228,13 +255,14 @@ random_worker(_Config) ->
                Self ! {worker, WorkerId}
              end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
-  ?WORKERS = sets:size(sets:from_list(Concurrent)).
+  ?WORKERS = sets:size(sets:from_list(Concurrent)),
+  {comment, []}.
 
--spec hash_worker(config()) -> _.
+-spec hash_worker(config()) -> {comment, []}.
 hash_worker(_Config) ->
   Pool = hash_worker,
 
-  try wpool:sync_send_event(not_a_pool, x, {hash_worker, 1}) of
+  try wpool:sync_send_all_state_event(not_a_pool, x, {hash_worker, 1}) of
     Result -> no_result = Result
   catch
     _:no_workers -> ok
@@ -249,11 +277,67 @@ hash_worker(_Config) ->
 
   %% Now use many different hash keys. All workers should be hit.
   Spread =
-    [ wpool:sync_send_event(Pool, {erlang, self, []}, {hash_worker, I})
+    [ wpool:sync_send_all_state_event(
+        Pool, {erlang, self, []}, {hash_worker, I})
      || I <- lists:seq(1, 20 * ?WORKERS)],
-  ?WORKERS = sets:size(sets:from_list(Spread)).
+  ?WORKERS = sets:size(sets:from_list(Spread)),
 
--spec next_available_worker(config()) -> _.
+  %% Fill up their message queues...
+  [ wpool:send_all_state_event(Pool, {timer, sleep, [60000]}, {hash_worker, I})
+    || I <- lists:seq(1, 10 * ?WORKERS)],
+  [ wpool:send_event(Pool, {timer, sleep, [60000]}, {hash_worker, I})
+    || I <- lists:seq(1, 10 * ?WORKERS)],
+  timer:sleep(1500),
+  false =
+    lists:member(
+      0, [ proplists:get_value(message_queue_len, WS)
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]),
+
+  {comment, []}.
+
+-spec custom_worker(config()) -> {comment, []}.
+custom_worker(_Config) ->
+  Pool = custom_worker,
+
+  Strategy = fun wpool_pool:best_worker/1,
+
+  try wpool:sync_send_event(not_a_pool, x, Strategy) of
+    Result -> no_result = Result
+  catch
+    _:no_workers -> ok
+  end,
+
+  {ok, AWorker} =
+    wpool:sync_send_all_state_event(Pool, {erlang, self, []}, Strategy),
+  true = is_pid(AWorker),
+
+  %% Fill up their message queues...
+  [ wpool:send_event(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  timer:sleep(1500),
+  [0] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  [ wpool:send_all_state_event(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  timer:sleep(500),
+  [1] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  %% Now try best worker once per worker
+  [ wpool:send_event(Pool, {timer, sleep, [60000]}, Strategy)
+    || _ <- lists:seq(1, ?WORKERS)],
+  %% The load should be evenly distributed...
+  [2] = sets:to_list(
+    sets:from_list(
+      [proplists:get_value(message_queue_len, WS)
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+
+  {comment, []}.
+
+-spec next_available_worker(config()) -> {comment, []}.
 next_available_worker(_Config) ->
   Pool = next_available_worker,
   ct:log("not_a_pool is not a pool"),
@@ -279,7 +363,8 @@ next_available_worker(_Config) ->
   [] = AvailableWorkers(),
 
   ct:log("No available workers..."),
-  try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
+  try wpool:send_all_state_event(
+        Pool, {timer, sleep, [60000]}, next_available_worker) of
     ok -> ct:fail("Exception expected")
   catch
     _:no_available_workers -> ok
@@ -292,15 +377,16 @@ next_available_worker(_Config) ->
   ok = wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker),
 
   ct:log("No more available workers..."),
-  try wpool:send_event(Pool, {timer, sleep, [60000]}, next_available_worker) of
+  try wpool:send_all_state_event(
+        Pool, {timer, sleep, [60000]}, next_available_worker) of
     ok -> ct:fail("Exception expected")
   catch
     _:no_available_workers -> ok
   end,
 
-  {comment, ""}.
+  {comment, []}.
 
--spec manager_crash(config()) -> _.
+-spec manager_crash(config()) -> {comment, []}.
 manager_crash(_Config) ->
   Pool = manager_crash,
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
@@ -316,9 +402,43 @@ manager_crash(_Config) ->
 
   ct:log("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),
-  ok.
 
+  {comment, []}.
 
+-spec super_fast(config()) -> {comment, []}.
+super_fast(_Config) ->
+  Pool = super_fast,
+
+  ct:log("Check that the pool is working"),
+  {ok, ok} = send_io_format(Pool),
+
+  ct:log("Impossible task"),
+  Self = self(),
+  try wpool:sync_send_event(
+        Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+    R -> ct:fail("Unexpected ~p", [R])
+  catch
+    _:timeout -> ok
+  end,
+
+  try wpool:sync_send_all_state_event(
+        Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+    R2 -> ct:fail("Unexpected ~p", [R2])
+  catch
+    _:timeout -> ok
+  end,
+
+  ct:log("Wait a second"),
+  timer:sleep(1000),
+
+  ct:log("Nothing gets here"),
+  receive
+    X -> ct:fail("Unexpected ~p", [X])
+  after 0 ->
+    ok
+  end,
+
+  {comment, []}.
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
   receive {worker, WorkerId} -> collect_results(N-1, [WorkerId | Results])
@@ -326,6 +446,4 @@ collect_results(N, Results) ->
   end.
 
 send_io_format(Pool) ->
-  {ok, ok} =
-    wpool:sync_send_event(
-      Pool, {io, format, ["ok!~n"]}, available_worker).
+  {ok, ok} = wpool:sync_send_all_state_event(Pool, {io, format, ["ok!~n"]}).

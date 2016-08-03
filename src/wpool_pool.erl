@@ -39,13 +39,11 @@
 -export([ stats/0
         , stats/1
         ]).
--export([ wpool_size/1
-        , worker_names/1
-        , worker_name/2
+-export([ worker_name/2
         , find_wpool/1
         , all/0
         ]).
--export([ wpool_set/2
+-export([ next/2
         , wpool_get/2
         ]).
 
@@ -64,16 +62,12 @@
 %% @doc Creates the ets table that will hold the information about active pools
 -spec create_table() -> ok.
 create_table() ->
-  case ets:info(?MODULE, named_table) of
-    true      -> ok;
-    undefined ->
-      error_logger:info_msg("Creating wpool ETS table"),
-      _ = ets:new(
-            ?MODULE,
-            [public, named_table, set,
-             {read_concurrency, true}, {keypos, #wpool.name}]),
-      ok
-  end.
+  error_logger:info_msg("Creating wpool ETS table"),
+  _ = ets:new(
+        ?MODULE,
+        [public, named_table, set,
+         {read_concurrency, true}, {keypos, #wpool.name}]),
+  ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->
@@ -204,7 +198,9 @@ send_all_event_to_available_worker(Sup, Event) ->
     queue_manager_name(Sup), Event).
 
 -spec all() -> [wpool:name()].
-all() -> [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)].
+all() ->
+  [Name || #wpool{name = Name} <- ets:tab2list(?MODULE)
+         , find_wpool(Name) /= undefined].
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
@@ -262,15 +258,6 @@ stats(Wpool, Sup) ->
   , {workers,                  WorkerStats}
   ].
 
-%% @doc Returns the names of the workers in the pool
--spec worker_names(wpool:name()) -> [atom()].
-worker_names(PoolName) ->
-  case find_wpool(PoolName) of
-    undefined -> [];
-    #wpool{size=Size} ->
-      [worker_name(PoolName, N) || N <- lists:seq(1, Size)]
-  end.
-
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
 wpool_size(Name) ->
@@ -292,23 +279,10 @@ wpool_size(Name) ->
   end.
 
 
-%% @doc Set values from the worker pool record. Useful when using
+%% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
--spec wpool_set([{atom(), any()}], wpool()) -> wpool().
-wpool_set([], WPool) ->
-  WPool;
-wpool_set([{name, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{name=Val});
-wpool_set([{size, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{size=Val});
-wpool_set([{next, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{next=Val});
-wpool_set([{opts, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{opts=Val});
-wpool_set([{qmanager, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{qmanager=Val});
-wpool_set([{born, Val} | Tail], WPool) ->
-  wpool_set(Tail, WPool#wpool{born=Val}).
+-spec next(pos_integer(), wpool()) -> wpool().
+next(Next, WPool) -> WPool#wpool{next = Next}.
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
@@ -431,8 +405,7 @@ min_message_queue(Checked, Wpool, Found) ->
   case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
     {message_queue_len, 0} -> Worker;
     {message_queue_len, L} ->
-      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found]);
-    Error -> throw(Error)
+      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found])
   end.
 
 %% ===================================================================
@@ -479,12 +452,15 @@ build_wpool(Name) ->
     "Building a #wpool record for ~p. Something must have failed.", [Name]),
   try supervisor:count_children(process_sup_name(Name)) of
     Children ->
-      case proplists:get_value(active, Children, 0) of
-        0 -> undefined;
-        Size ->
-          Wpool = #wpool{name = Name, size = Size, next = 1, opts = []},
-          store_wpool(Wpool)
-      end
+      Size = proplists:get_value(active, Children, 0),
+      Wpool =
+        #wpool{ name = Name
+              , size = Size
+              , next = 1
+              , opts = []
+              , qmanager = queue_manager_name(Name)
+              },
+      store_wpool(Wpool)
   catch
     _:Error ->
       error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),

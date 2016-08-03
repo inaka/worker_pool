@@ -38,6 +38,8 @@
 -export([ wait_and_self/1
         ]).
 -export([ manager_crash/1
+        , super_fast/1
+        , ets_mess_up/1
         ]).
 
 -spec all() -> [atom()].
@@ -68,7 +70,7 @@ init_per_testcase(TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(TestCase, Config) ->
-  wpool:stop_pool(TestCase),
+  catch wpool:stop_pool(TestCase),
   Config.
 
 -spec wait_and_self(pos_integer()) -> pid().
@@ -77,7 +79,7 @@ wait_and_self(Time) ->
   {registered_name, Self} = process_info(self(), registered_name),
   Self.
 
--spec available_worker(config()) -> _.
+-spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
   Pool = available_worker,
   try wpool:call(not_a_pool, x) of
@@ -139,9 +141,11 @@ available_worker(_Config) ->
      || _ <- lists:seq(1, 20 * ?WORKERS)],
   UniqueWorkers = sets:to_list(sets:from_list(Workers)),
   {?WORKERS, UniqueWorkers, true} =
-    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)}.
+    {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)},
 
--spec best_worker(config()) -> _.
+  {comment, []}.
+
+-spec best_worker(config()) -> {comment, []}.
 best_worker(_Config) ->
   Pool = best_worker,
   try wpool:call(not_a_pool, x, best_worker) of
@@ -172,9 +176,11 @@ best_worker(_Config) ->
   [2] = sets:to_list(
       sets:from_list(
         [proplists:get_value(message_queue_len, WS)
-          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
--spec next_available_worker(config()) -> _.
+  {comment, []}.
+
+-spec next_available_worker(config()) -> {comment, []}.
 next_available_worker(_Config) ->
   Pool = next_available_worker,
   ct:log("not_a_pool is not a pool"),
@@ -219,9 +225,9 @@ next_available_worker(_Config) ->
     _:no_available_workers -> ok
   end,
 
-  {comment, ""}.
+  {comment, []}.
 
--spec next_worker(config()) -> _.
+-spec next_worker(config()) -> {comment, []}.
 next_worker(_Config) ->
   Pool = next_worker,
 
@@ -241,9 +247,11 @@ next_worker(_Config) ->
             Stats = wpool:stats(Pool),
             I = proplists:get_value(next_worker, Stats),
             wpool:call(Pool, {erlang, self, []}, next_worker)
-          end || I <- lists:seq(1, ?WORKERS)].
+          end || I <- lists:seq(1, ?WORKERS)],
 
--spec random_worker(config()) -> _.
+  {comment, []}.
+
+-spec random_worker(config()) -> {comment, []}.
 random_worker(_Config) ->
   Pool = random_worker,
 
@@ -268,9 +276,11 @@ random_worker(_Config) ->
                Self ! {worker, WorkerId}
              end) || _ <- lists:seq(1, 20 * ?WORKERS)],
   Concurrent = collect_results(20 * ?WORKERS, []),
-  ?WORKERS = sets:size(sets:from_list(Concurrent)).
+  ?WORKERS = sets:size(sets:from_list(Concurrent)),
 
--spec hash_worker(config()) -> _.
+  {comment, []}.
+
+-spec hash_worker(config()) -> {comment, []}.
 hash_worker(_Config) ->
   Pool = hash_worker,
 
@@ -291,9 +301,20 @@ hash_worker(_Config) ->
   Spread =
     [ wpool:call(Pool, {erlang, self, []}, {hash_worker, I})
      || I <- lists:seq(1, 20 * ?WORKERS)],
-  ?WORKERS = sets:size(sets:from_list(Spread)).
+  ?WORKERS = sets:size(sets:from_list(Spread)),
 
--spec custom_worker(config()) -> _.
+  %% Fill up their message queues...
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, {hash_worker, I})
+    || I <- lists:seq(1, 20 * ?WORKERS)],
+  timer:sleep(1500),
+  false =
+    lists:member(
+      0, [ proplists:get_value(message_queue_len, WS)
+          || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]),
+
+  {comment, []}.
+
+-spec custom_worker(config()) -> {comment, []}.
 custom_worker(_Config) ->
   Pool = custom_worker,
 
@@ -327,9 +348,11 @@ custom_worker(_Config) ->
   [2] = sets:to_list(
     sets:from_list(
       [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])).
+        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
 
--spec manager_crash(config()) -> _.
+  {comment, []}.
+
+-spec manager_crash(config()) -> {comment, []}.
 manager_crash(_Config) ->
   Pool = manager_crash,
   QueueManager = 'wpool_pool-manager_crash-queue-manager',
@@ -346,15 +369,94 @@ manager_crash(_Config) ->
   ct:log("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),
 
-  ok.
+  {comment, []}.
 
--spec wpool_record(config()) -> _.
+-spec super_fast(config()) -> {comment, []}.
+super_fast(_Config) ->
+  Pool = super_fast,
+
+  ct:log("Check that the pool is working"),
+  {ok, ok} = send_io_format(Pool),
+
+  ct:log("Impossible task"),
+  Self = self(),
+  try wpool:call(
+        Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+    R -> ct:fail("Unexpected ~p", [R])
+  catch
+    _:timeout -> ok
+  end,
+
+  ct:log("Wait a second"),
+  timer:sleep(1000),
+
+  ct:log("Nothing gets here"),
+  receive
+    X -> ct:fail("Unexpected ~p", [X])
+  after 0 ->
+    ok
+  end,
+
+  {comment, []}.
+
+-spec wpool_record(config()) -> {comment, []}.
 wpool_record(_Config) ->
   WPool = wpool_pool:find_wpool(wpool_record),
   wpool_record = wpool_pool:wpool_get(name, WPool),
   6 = wpool_pool:wpool_get(size, WPool),
-  ok.
+  [_, _, _, _] = wpool_pool:wpool_get([next, opts, qmanager, born], WPool),
 
+  WPool2 = wpool_pool:next(3, WPool),
+  3 = wpool_pool:wpool_get(next, WPool2),
+
+  {comment, []}.
+
+
+-spec ets_mess_up(config()) -> {comment, []}.
+ets_mess_up(_Config) ->
+  Pool = ets_mess_up,
+
+  ct:comment("Mess up with ets table..."),
+  true = ets:delete(wpool_pool, Pool),
+
+  ct:comment("Rebuild stats"),
+  1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+
+  ct:comment("Mess up with ets table again..."),
+  true = ets:delete(wpool_pool, Pool),
+  {ok, ok} = wpool:call(Pool, {io, format, ["1!~n"]}, random_worker),
+
+  ct:comment("Mess up with ets table once more..."),
+  {ok, ok} = wpool:call(Pool, {io, format, ["2!~n"]}, next_worker),
+  2 = proplists:get_value(next_worker, wpool:stats(Pool)),
+  true = ets:delete(wpool_pool, Pool),
+  {ok, ok} = wpool:call(Pool, {io, format, ["3!~n"]}, next_worker),
+  1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+
+  ct:comment("Mess up with ets table one final time..."),
+  true = ets:delete(wpool_pool, Pool),
+  _ = wpool_pool:find_wpool(Pool),
+
+  ct:comment("Now, delete the pool"),
+  Flag = process_flag(trap_exit, true),
+  exit(whereis(Pool), kill),
+  timer:sleep(100),
+  try wpool:call(Pool, {io, format, ["1!~n"]}, random_worker) of
+    X -> ct:fail("Unexpected ~p", [X])
+  catch
+    _:no_workers -> ok
+  end,
+
+  true = process_flag(trap_exit, Flag),
+
+  ct:comment("And now delete the ets table altogether"),
+  true = ets:delete(wpool_pool),
+  _ = wpool_pool:find_wpool(Pool),
+
+  wpool:stop(),
+  ok = wpool:start(),
+
+  {comment, []}.
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->

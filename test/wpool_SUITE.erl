@@ -17,11 +17,20 @@
 
 -type config() :: [{atom(), term()}].
 
--export([all/0]).
--export([init_per_suite/1, end_per_suite/1]).
--export([stats/1, stop_pool/1, overrun/1]).
--export([default_strategy/1]).
--export([overrun_handler/1]).
+-export([ all/0
+        ]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        ]).
+-export([ stats/1
+        , stop_pool/1
+        , overrun/1
+        , too_much_overrun/1
+        , default_strategy/1
+        , overrun_handler/1
+        , default_options/1
+        , complete_coverage/1
+        ]).
 
 -spec all() -> [atom()].
 all() ->
@@ -46,7 +55,65 @@ end_per_suite(Config) ->
 -spec overrun_handler(M) -> M.
 overrun_handler(M) -> overrun_handler ! {overrun, M}.
 
--spec overrun(config()) -> _.
+-spec too_much_overrun(config()) -> {comment, []}.
+too_much_overrun(_Config) ->
+  ct:comment("Receiving overruns here..."),
+  true = register(overrun_handler, self()),
+  {ok, PoolPid} =
+    wpool:start_sup_pool(
+      too_much_overrun,
+      [ {workers, 1}
+      , {overrun_warning, 999}
+      , {overrun_handler, {?MODULE, overrun_handler}}
+      ]),
+
+  ct:comment("Find the worker and the time checker..."),
+  {ok, Worker} = wpool:call(too_much_overrun, {erlang, self, []}),
+  TCPid = get_time_checker(PoolPid),
+
+  ct:comment("Start a long running task..."),
+  ok = wpool:cast(too_much_overrun, {timer, sleep, [5000]}),
+  timer:sleep(100),
+  {dictionary, Dict} = erlang:process_info(Worker, dictionary),
+  {TaskId, _, _} = proplists:get_value(wpool_task, Dict),
+
+  ct:comment("Simulate overrun warning..."),
+  TCPid ! {check, Worker, TaskId, 9999999999}, % huge runtime… no more overruns
+
+  ct:comment("Get overrun message..."),
+  receive
+    {overrun, Message} ->
+      overrun = proplists:get_value(alert,  Message),
+      too_much_overrun = proplists:get_value(pool,   Message),
+      Worker  = proplists:get_value(worker,   Message),
+      {cast, {timer, sleep, [5000]}} = proplists:get_value(task, Message),
+      9999999999 = proplists:get_value(runtime,  Message)
+  after 1500 ->
+    throw(no_overrun)
+  end,
+
+  ct:comment("No more overruns..."),
+  receive
+  after 1500 -> ok
+  end,
+
+  ct:comment("Kill the worker..."),
+  exit(Worker, kill),
+
+  ct:comment("Simulate overrun warning..."),
+  TCPid ! {check, Worker, TaskId, 100}, % tiny runtime, to check
+
+  ct:comment("Nothing happens..."),
+  receive
+  after 1000 -> ok
+  end,
+
+  ct:comment("Stop pool..."),
+  ok = wpool:stop_pool(too_much_overrun),
+
+  {comment, []}.
+
+-spec overrun(config()) -> {comment, []}.
 overrun(_Config) ->
   true = register(overrun_handler, self()),
   {ok, _Pid} =
@@ -72,17 +139,21 @@ overrun(_Config) ->
   receive
   after 1000 -> ok
   end,
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec stop_pool(config()) -> _.
+  {comment, []}.
+
+-spec stop_pool(config()) -> {comment, []}.
 stop_pool(_Config) ->
   {ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 1}]),
   true = erlang:is_process_alive(PoolPid),
   ok = wpool:stop_pool(?MODULE),
   false = erlang:is_process_alive(PoolPid),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec stats(config()) -> _.
+  {comment, []}.
+
+-spec stats(config()) -> {comment, []}.
 stats(_Config) ->
   Get = fun proplists:get_value/2,
 
@@ -90,11 +161,12 @@ stats(_Config) ->
   catch _:no_workers -> ok
   end,
 
-  {ok, PoolPid} = wpool:start_pool(?MODULE, [{workers, 10}]),
-  true = is_pid(PoolPid),
+  {ok, PoolPid} = wpool:start_sup_pool(?MODULE, [{workers, 10}]),
+  true = is_process_alive(PoolPid),
+  PoolPid = erlang:whereis(?MODULE),
 
   % Checks ...
-  InitStats = wpool:stats(?MODULE),
+  [InitStats] = wpool:stats(),
   ?MODULE = Get(pool, InitStats),
   PoolPid = Get(supervisor, InitStats),
   Options = Get(options, InitStats),
@@ -114,7 +186,7 @@ stats(_Config) ->
     end || I <- lists:seq(1, 10)],
 
   % Start a long task on every worker
-  Sleep = {timer, sleep, [10000]},
+  Sleep = {timer, sleep, [2000]},
   [wpool:cast(?MODULE, Sleep, next_worker) || _ <- lists:seq(1, 10)],
 
   timer:sleep(100),
@@ -138,11 +210,17 @@ stats(_Config) ->
     end || I <- lists:seq(1, 10)],
 
   wpool:stop_pool(?MODULE),
-  try wpool:stats(?MODULE)
-  catch _:no_workers -> ok
-  end.
 
--spec default_strategy(config()) -> _.
+  timer:sleep(5000),
+
+  no_workers =
+    try wpool:stats(?MODULE)
+    catch _:E -> E
+    end,
+
+  {comment, []}.
+
+-spec default_strategy(config()) -> {comment, []}.
 default_strategy(_Config) ->
   application:unset_env(worker_pool, default_strategy),
   available_worker = wpool:default_strategy(),
@@ -150,4 +228,56 @@ default_strategy(_Config) ->
   best_worker = wpool:default_strategy(),
   application:unset_env(worker_pool, default_strategy),
   available_worker = wpool:default_strategy(),
-  ok.
+  {comment, []}.
+
+-spec default_options(config()) -> {comment, []}.
+default_options(_Config) ->
+  ct:comment("Starts a pool with default options"),
+  {ok, PoolPid} = wpool:start_pool(default_pool),
+  true = is_pid(PoolPid),
+
+  ct:comment("Starts a supervised pool with default options"),
+  {ok, SupPoolPid} = wpool:start_sup_pool(default_sup_pool),
+  true = is_pid(SupPoolPid),
+
+  {comment, []}.
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+
+  ct:comment("Time checker"),
+  {ok, State} = wpool_time_checker:init({pool, {x, y}}),
+  ok = wpool_time_checker:terminate(reason, State),
+  {ok, State} = wpool_time_checker:code_change("oldvsn", State, extra),
+
+  {ok, PoolPid} = wpool:start_pool(coverage, []),
+  TCPid = get_time_checker(PoolPid),
+  TCPid ! info,
+  ok = gen_server:cast(TCPid, cast),
+  ok = gen_server:call(TCPid, call),
+
+  ct:comment("Queue Manager"),
+  {error, {invalid_pool, invalid}} = wpool_queue_manager:stats(invalid),
+  QMPid = get_queue_manager(PoolPid),
+  QMPid ! info,
+  {ok, QMState} = wpool_queue_manager:init(pool),
+  ok = wpool_queue_manager:terminate(reason, QMState),
+  {ok, QMState} = wpool_queue_manager:code_change("oldvsn", QMState, extra),
+
+  {comment, []}.
+
+get_time_checker(PoolPid) ->
+  [TCPid] =
+    [ P
+    || {_, P, worker, [wpool_time_checker]} <-
+        supervisor:which_children(PoolPid)
+    ],
+  TCPid.
+
+get_queue_manager(PoolPid) ->
+  [QMPid] =
+    [ P
+    || {_, P, worker, [wpool_queue_manager]} <-
+        supervisor:which_children(PoolPid)
+    ],
+  QMPid.

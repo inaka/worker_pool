@@ -21,6 +21,8 @@
 %% api
 -export([ sync_send_event/4
         , send_event/4
+        , sync_send_all_state_event/4
+        , send_all_state_event/4
         ]).
 
 %% gen_fsm states
@@ -35,7 +37,6 @@
         , handle_info/3
         , handle_event/3
         , handle_sync_event/4
-        , format_status/2
         ]).
 
 %%%===================================================================
@@ -52,6 +53,19 @@ sync_send_event(S, M, F, A) ->
 %% @doc Executes M:F(A) in any of the workers of the pool S
 -spec send_event(wpool:name(), module(), atom(), [term()]) -> ok.
 send_event(S, M, F, A) -> wpool:send_event(S, {M, F, A}).
+
+%% @doc Returns the result of M:F(A) from any of the workers of the pool S
+-spec sync_send_all_state_event(wpool:name(), module(), atom(), [term()]) ->
+        term().
+sync_send_all_state_event(S, M, F, A) ->
+  case wpool:sync_send_all_state_event(S, {M, F, A}) of
+    {ok, Result} -> Result;
+    {error, Error} -> throw(Error)
+  end.
+
+%% @doc Executes M:F(A) in any of the workers of the pool S
+-spec send_all_state_event(wpool:name(), module(), atom(), [term()]) -> ok.
+send_all_state_event(S, M, F, A) -> wpool:send_all_state_event(S, {M, F, A}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -75,9 +89,6 @@ code_change(_OldVsn, _StateName, State, _Extra) -> {ok, common_state, State}.
         {next_state, common_state, StateData}.
 handle_info(_Info, _StateName, StateData) ->
   {next_state, common_state, StateData}.
-%% @private
--spec format_status(normal | terminate, list()) -> ok.
-format_status(_Opt, [_PDict, _StateData]) -> ok.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
@@ -85,68 +96,47 @@ format_status(_Opt, [_PDict, _StateData]) -> ok.
 %% @private
 -spec handle_event(term(), atom(), StateData) ->
         {next_state, common_state, StateData}.
-handle_event({M, F, A}, _StateName, StateData) ->
+handle_event({M, F, A}, StateName, StateData) ->
   try erlang:apply(M, F, A) of
     _ ->
-      {next_state, common_state, StateData}
+      {next_state, StateName, StateData}
   catch
     _:Error ->
       log_error(M, F, A, Error),
-      {next_state, common_state, StateData}
+      {next_state, StateName, StateData}
   end;
-handle_event(Event, common_state, StateData) ->
+handle_event(Event, StateName, StateData) ->
   error_logger:error_msg("Invalid event:~p", [Event]),
-  {next_state, common_state, StateData}.
+  {next_state, StateName, StateData}.
 
 %% @private
 -spec handle_sync_event(term(), any(), atom(), StateData) ->
-  {reply, term(), common_state, StateData}.
-handle_sync_event({M, F, A}, _From, _StateName, StateData) ->
+  {reply, term(), atom(), StateData}.
+handle_sync_event({M, F, A}, _From, StateName, StateData) ->
   try erlang:apply(M, F, A) of
-    Reply ->
-      {reply, Reply, common_state, StateData}
+    R ->
+      {reply, {ok, R}, StateName, StateData}
   catch
     _:Error ->
       log_error(M, F, A, Error),
-      {reply, {error, Error}, common_state, StateData}
+      {reply, {error, Error}, StateName, StateData}
   end;
-handle_sync_event(Event, _From, common_state, StateData) ->
+handle_sync_event(Event, _From, StateName, StateData) ->
   error_logger:error_msg("Invalid event:~p", [Event]),
-  {reply, {error, invalid_request}, common_state, StateData}.
+  {reply, {error, invalid_request}, StateName, StateData}.
 
 %%%===================================================================
 %%% FSM States
 %%%===================================================================
 %% @private
 -spec common_state(term(), term()) -> {next_state, common_state, term()}.
-common_state({M, F, A}, StateData) ->
-  try erlang:apply(M, F, A) of
-    _ ->
-      {next_state, common_state, StateData}
-  catch
-    _:Error ->
-      log_error(M, F, A, Error),
-      {next_state, common_state, StateData}
-  end;
-common_state(Event, StateData) ->
-  error_logger:error_msg("Invalid event:~p", [Event]),
-  {next_state, common_state, StateData}.
+common_state(Msg, StateData) -> handle_event(Msg, common_state, StateData).
 
 %% @private
 -spec common_state(term(), term(), term()) ->
         {reply, term(), common_state, term()}.
-common_state({M, F, A}, _From, StateData) ->
-  try erlang:apply(M, F, A) of
-    R ->
-      {reply, {ok, R}, common_state, StateData}
-  catch
-    _:Error ->
-      log_error(M, F, A, Error),
-      {reply, {error, Error}, common_state, StateData}
-  end;
-common_state(Event, _From, StateData) ->
-  error_logger:error_msg("Invalid event:~p", [Event]),
-  {reply, {error, invalid_request}, common_state, StateData}.
+common_state(Msg, From, StateData) ->
+  handle_sync_event(Msg, From, common_state, StateData).
 
 log_error(M, F, A, Error) ->
   error_logger:error_msg(

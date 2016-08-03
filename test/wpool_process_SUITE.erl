@@ -17,12 +17,23 @@
 
 -type config() :: [{atom(), term()}].
 
--export([all/0]).
--export([init_per_suite/1, end_per_suite/1,
-         init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1, cast/1, call/1]).
+-export([ all/0
+        ]).
+-export([ init_per_suite/1
+        , end_per_suite/1
+        , init_per_testcase/2
+        , end_per_testcase/2
+        ]).
+-export([ init/1
+        , init_timeout/1
+        , info/1
+        , cast/1
+        , call/1
+        , stop/1
+        ]).
 -export([ pool_restart_crash/1
         , pool_norestart_crash/1
+        , complete_coverage/1
         ]).
 
 
@@ -52,16 +63,18 @@ end_per_testcase(_TestCase, Config) ->
   receive after 0 -> ok end,
   Config.
 
--spec init(config()) -> _.
+-spec init(config()) -> {comment, []}.
 init(_Config) ->
   {error, can_not_ignore} =
     wpool_process:start_link(?MODULE, echo_server, ignore, []),
   {error, ?MODULE} =
     wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, []),
   {ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
-  wpool_process:cast(?MODULE, {stop, normal, state}).
+  wpool_process:cast(?MODULE, {stop, normal, state}),
 
--spec init_timeout(config()) -> _.
+  {comment, []}.
+
+-spec init_timeout(config()) -> {comment, []}.
 init_timeout(_Config) ->
   {ok, Pid} =
     wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, []),
@@ -69,9 +82,11 @@ init_timeout(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   Pid ! {stop, normal, state},
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec info(config()) -> _.
+  {comment, []}.
+
+-spec info(config()) -> {comment, []}.
 info(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   Pid ! {noreply, newstate},
@@ -81,9 +96,11 @@ info(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   Pid ! {stop, normal, state},
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec cast(config()) -> _.
+  {comment, []}.
+
+-spec cast(config()) -> {comment, []}.
 cast(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   wpool_process:cast(Pid, {noreply, newstate}),
@@ -93,9 +110,11 @@ cast(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   wpool_process:cast(Pid, {stop, normal, state}),
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec call(config()) -> _.
+  {comment, []}.
+
+-spec call(config()) -> {comment, []}.
 call(_Config) ->
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
   ok1 = wpool_process:call(Pid, {reply, ok1, newstate}, 5000),
@@ -105,9 +124,11 @@ call(_Config) ->
   timeout = wpool_process:call(?MODULE, state, 5000),
   ok3 = wpool_process:call(Pid, {stop, normal, ok3, state}, 5000),
   timer:sleep(1000),
-  false = erlang:is_process_alive(Pid).
+  false = erlang:is_process_alive(Pid),
 
--spec pool_restart_crash(config()) -> _.
+  {comment, []}.
+
+-spec pool_restart_crash(config()) -> {comment, []}.
 pool_restart_crash(_Config) ->
   Pool = pool_restart_crash,
   PoolOptions = [{workers, 2}, {worker, {crashy_server, []}}],
@@ -122,9 +143,11 @@ pool_restart_crash(_Config) ->
 
   ct:log("Check that the pool is working"),
   true = erlang:is_process_alive(Pid),
-  hello = wpool:call(Pool, hello).
+  hello = wpool:call(Pool, hello),
 
--spec pool_norestart_crash(config()) -> _.
+  {comment, []}.
+
+-spec pool_norestart_crash(config()) -> {comment, []}.
 pool_norestart_crash(_Config) ->
   Pool = pool_norestart_crash,
   PoolOptions = [ {workers, 2}
@@ -144,4 +167,72 @@ pool_norestart_crash(_Config) ->
 
   ct:log("Check that the pool is working"),
   false = erlang:is_process_alive(Pid),
-  ok.
+
+  {comment, []}.
+
+-spec stop(config()) -> {comment, []}.
+stop(_Config) ->
+  From = {self(), Ref = make_ref()},
+
+  ct:comment("cast_call with stop/reply"),
+  {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  ok = wpool_process:cast_call(stopper, From, {stop, reason, response, state}),
+  receive
+    {Ref, response} -> ok
+  after 5000 ->
+    ct:fail("no response")
+  end,
+  receive
+    {'EXIT', Pid1, reason} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("cast_call with regular stop"),
+  {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  ok = wpool_process:cast_call(stopper, From, {stop, reason, state}),
+  receive
+    {Ref, _} -> ct:fail("unexpected response");
+    {'EXIT', Pid2, reason} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("call with regular stop"),
+  {ok, Pid3} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  try wpool_process:call(stopper, {noreply, state}, 100) of
+    _ -> ct:fail("unexpected response")
+  catch
+    _:{can_not_hold_a_reply, _} -> ok
+  end,
+  receive
+    {'EXIT', Pid3, can_not_hold_a_reply} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  ct:comment("call with timeout stop"),
+  {ok, Pid4} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+  try wpool_process:call(stopper, {noreply, state, hibernate}, 100) of
+    _ -> ct:fail("unexpected response")
+  catch
+    _:{can_not_hold_a_reply, _} -> ok
+  end,
+  receive
+    {'EXIT', Pid4, can_not_hold_a_reply} -> ok
+  after 500 ->
+    ct:fail("Missing exit signal")
+  end,
+
+  {comment, []}.
+
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+  ct:comment("Code Change"),
+  {ok, State} =
+    wpool_process:init({complete_coverage, echo_server, {ok, state}, []}),
+  {ok, _} = wpool_process:code_change("oldvsn", State, {ok, state}),
+  {error, bad} = wpool_process:code_change("oldvsn", State, bad),
+
+  {comment, []}.

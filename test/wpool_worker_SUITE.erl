@@ -19,7 +19,7 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
--export([call/1, cast/1]).
+-export([call/1, cast/1, complete_coverage/1]).
 -export([ok/0, error/0]).
 
 -spec all() -> [atom()].
@@ -42,7 +42,7 @@ ok() -> ?MODULE.
 -spec error() -> no_return().
 error() -> throw(?MODULE).
 
--spec call(config()) -> _.
+-spec call(config()) -> {comment, []}.
 call(_Config) ->
   start_pool(),
   ?MODULE = wpool_worker:call(?MODULE, ?MODULE, ok, []),
@@ -52,16 +52,35 @@ call(_Config) ->
     throw:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:call(?MODULE, error),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
 
--spec cast(config()) -> _.
+  {comment, []}.
+
+-spec cast(config()) -> {comment, []}.
 cast(_Config) ->
   start_pool(),
   ok = wpool_worker:cast(?MODULE, ?MODULE, ok, []),
   ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
   ok = wpool:cast(?MODULE, x),
   timer:sleep(1000),
-  ok = wpool:stop_pool(?MODULE).
+  ok = wpool:stop_pool(?MODULE),
+
+  {comment, []}.
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+  start_pool(),
+  {ok, AWorker} = wpool:call(?MODULE, {erlang, self, []}),
+  true = is_process_alive(AWorker),
+  AWorker ! info,
+
+  true = is_process_alive(AWorker),
+
+  {ok, {state}} = wpool_worker:code_change("oldvsn", {state}, extra),
+
+  ok = wpool_worker:terminate(reason, {state}),
+
+  {comment, []}.
 
 start_pool() ->
   {ok, _Pid} =
