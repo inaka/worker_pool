@@ -318,7 +318,7 @@ hash_worker(_Config) ->
 custom_worker(_Config) ->
   Pool = custom_worker,
 
-  Strategy = fun wpool_pool:best_worker/1,
+  Strategy = fun wpool_pool:next_worker/1,
 
   try wpool:call(not_a_pool, x, Strategy) of
     Result -> no_result = Result
@@ -326,29 +326,24 @@ custom_worker(_Config) ->
     _:no_workers -> ok
   end,
 
-  %% Fill up their message queues...
-  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(1500),
-  [0] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
-  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  timer:sleep(500),
-  [1] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
-  %% Now try best worker once per worker
-  [ wpool:cast(Pool, {timer, sleep, [60000]}, Strategy)
-    || _ <- lists:seq(1, ?WORKERS)],
-  %% The load should be evenly distributed...
-  [2] = sets:to_list(
-    sets:from_list(
-      [proplists:get_value(message_queue_len, WS)
-        || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))])),
+  _ =
+    [ begin
+        Stats = wpool:stats(Pool),
+        I = proplists:get_value(next_worker, Stats),
+        wpool:cast(Pool, {io, format, ["ok!"]}, Strategy)
+      end || I <- lists:seq(1, ?WORKERS)],
+
+  Res0 = [begin
+            Stats = wpool:stats(Pool),
+            I = proplists:get_value(next_worker, Stats),
+            wpool:call(Pool, {erlang, self, []}, Strategy, infinity)
+          end || I <- lists:seq(1, ?WORKERS)],
+  ?WORKERS = sets:size(sets:from_list(Res0)),
+  Res0 = [begin
+            Stats = wpool:stats(Pool),
+            I = proplists:get_value(next_worker, Stats),
+            wpool:call(Pool, {erlang, self, []}, Strategy)
+          end || I <- lists:seq(1, ?WORKERS)],
 
   {comment, []}.
 
