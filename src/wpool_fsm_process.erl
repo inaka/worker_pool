@@ -140,7 +140,7 @@ code_change(OldVsn, StateName, State, Extra) ->
       {ok, dispatch_state, State#state{ state = NewState
                                       , fsm_state = NextStateName
                                       }};
-    Error -> {error, Error}
+    _Error -> {ok, dispatch_state, State}
   end.
 
 %% @private

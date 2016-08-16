@@ -21,6 +21,7 @@
         , handle_sync_event/4
         , terminate/3
         , code_change/4
+        , format_status/2
         ]).
 -export([ state_one/2
         , state_two/2
@@ -35,12 +36,16 @@
 init(Something) -> Something.
 
 -spec state_one(Event, any()) -> Event.
+state_one(timeout, LoopData) ->
+  {next_state, state_one, LoopData};
 state_one(Event, _LoopData) -> Event.
 
 -spec state_one(Event, any(), any()) -> Event.
 state_one(Event, _From, _LoopData) -> Event.
 
 -spec state_two(Event, any()) -> Event.
+state_two(timeout, LoopData) ->
+  {next_state, state_two, LoopData};
 state_two(Event, _LoopData) -> Event.
 
 -spec state_two(Event, any(), any()) -> Event.
@@ -55,12 +60,26 @@ handle_event(Event, _StateName, _StateData) -> Event.
 -spec handle_sync_event(any(), any(), any(), any()) -> any().
 handle_sync_event(state, _From, StateName, StateData) ->
   {reply, StateData, StateName, StateData};
+handle_sync_event({next_state, NextState, NewStateData}
+    , From, _StateName, _StateData) ->
+  gen_fsm:reply(From, ok),
+  {next_state, NextState, NewStateData};
+handle_sync_event({next_state, NextState, NewStateData, Timeout}
+    , From, _StateName, _StateData) ->
+  gen_fsm:reply(From, ok),
+  {next_state, NextState, NewStateData, Timeout};
+handle_sync_event({stop, Reason, StateData}
+    , From, _StateName, _StateData) ->
+  gen_fsm:reply(From, ok),
+  {stop, Reason, StateData};
 handle_sync_event(Event, _From, _StateName, _StateData) ->
   Event.
 
 -spec terminate(any(), any(), any()) -> ok.
 terminate(_Reason, _StateName, _StateData) -> ok.
 
--spec code_change(any(), any(), any(), any()) -> {ok, state_one, term()}.
-code_change(_OldVsn, _StateName, StateData, _Extra) ->
-  {ok, state_one, StateData}.
+-spec code_change(any(), any(), any(), any()) -> any().
+code_change(_OldVsn, _StateName, _StateData, Extra) -> Extra.
+
+-spec format_status(normal | terminate, [list() | term()]) -> term().
+  format_status(_Opt, [_PDict, StateData]) -> StateData.

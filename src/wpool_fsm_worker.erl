@@ -130,11 +130,25 @@ handle_sync_event(Event, _From, StateName, StateData) ->
 %%%===================================================================
 %% @private
 -spec common_state(term(), term()) -> {next_state, common_state, term()}.
+common_state(timeout, StateData) -> {next_state, common_state, StateData};
 common_state(Msg, StateData) -> handle_event(Msg, common_state, StateData).
 
 %% @private
 -spec common_state(term(), term(), term()) ->
         {reply, term(), common_state, term()}.
+common_state(stop, _From, StateData) ->
+  {stop, normal, ok, StateData};
+common_state(stop_without_reply, From, StateData) ->
+  gen_fsm:reply(From, ok),
+  {stop, normal, StateData};
+common_state({timeout, Timeout}, _From, StateData) ->
+  {reply, ok,  common_state, StateData, Timeout};
+common_state(next_state, From, StateData) ->
+  gen_fsm:reply(From, ok),
+  {next_state, common_state, StateData};
+common_state({next_state, Timeout}, From, StateData) ->
+  gen_fsm:reply(From, ok),
+  {next_state, common_state, StateData, Timeout};
 common_state(Msg, From, StateData) ->
   handle_sync_event(Msg, From, common_state, StateData).
 
