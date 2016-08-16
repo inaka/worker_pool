@@ -29,6 +29,7 @@
         , info/1
         , async_states/1
         , sync_states/1
+        , complete_coverage/1
         ]).
 
 -spec all() -> [atom()].
@@ -73,6 +74,8 @@ init_timeout(_Config) ->
     wpool_fsm_process:start_link(
       ?MODULE, echo_fsm, {ok, state_one, [], 0}, []),
   timer:sleep(1),
+  Pid ! {stop, normal, state},
+  timer:sleep(1),
   false = erlang:is_process_alive(Pid),
   {comment, []}.
 
@@ -83,7 +86,8 @@ info(_Config) ->
       ?MODULE, echo_fsm, {ok, state_one, []}, []),
   Pid ! {next_state, state_two, newstate},
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
-  Pid ! {next_state, state_three, newstate, 0},
+  Pid ! {next_state, state_two, newstate, 0},
+  Pid ! {stop, normal, state},
   timer:sleep(1),
   false = erlang:is_process_alive(Pid),
 
@@ -96,9 +100,18 @@ async_states(_Config) ->
       ?MODULE, echo_fsm, {ok, state_one, []}, []),
   wpool_fsm_process:send_event(Pid, {next_state, state_two, newstate}),
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
-  wpool_fsm_process:send_event(Pid, {next_state, state_one, newerstate, 0}),
+  wpool_fsm_process:send_event(Pid, {next_state, state_one, newerstate, 5000}),
+  wpool_fsm_process:send_all_state_event(Pid, {next_state, state_one
+                                              , newerstate, 5000}),
+  wpool_fsm_process:send_all_state_event(Pid, {stop, normal, state}),
   timer:sleep(1),
   false = erlang:is_process_alive(Pid),
+  {ok, Pid2} =
+    wpool_fsm_process:start_link(
+        ?MODULE, echo_fsm, {ok, state_one, []}, []),
+  wpool_fsm_process:send_event(Pid2, {stop, normal, state}),
+  timer:sleep(1),
+  false = erlang:is_process_alive(Pid2),
 
   {comment, []}.
 
@@ -108,13 +121,47 @@ sync_states(_Config) ->
     wpool_fsm_process:start_link(
       ?MODULE, echo_fsm, {ok, state_one, []}, []),
   ok1 =
+    wpool_fsm_process:sync_send_all_state_event(
+      Pid, {reply, ok1, state_one, newerstate, 5000}, 5000),
+  ok =
+    wpool_fsm_process:sync_send_all_state_event(
+      Pid, {next_state, state_one, newerstate, 5000}, 5000),
+  ok =
+    wpool_fsm_process:sync_send_all_state_event(
+      Pid, {next_state, state_one, newerstate}, 5000),
+  ok3 = wpool_fsm_process:sync_send_all_state_event(
+    Pid, {stop, normal, ok3, state}, 5000),
+  false = erlang:is_process_alive(Pid),
+  {ok, Pid2} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []),
+  ok = wpool_fsm_process:sync_send_all_state_event(
+    Pid2, {stop, normal, state}, 5000),
+  false = erlang:is_process_alive(Pid2),
+  {ok, Pid3} =
+    wpool_fsm_process:start_link(
+      ?MODULE, echo_fsm, {ok, state_one, []}, []),
+  ok1 =
     wpool_fsm_process:sync_send_event(
-      Pid, {reply, ok1, state_two, newstate}, 5000),
+      Pid3, {reply, ok1, state_two, newstate}, 5000),
   newstate = wpool_fsm_process:sync_send_all_state_event(?MODULE, state, 5000),
   ok2 =
     wpool_fsm_process:sync_send_event(
-      Pid, {reply, ok2, state_one, newerstate, 0}, 5000),
-  timer:sleep(1),
-  false = erlang:is_process_alive(Pid),
+      Pid3, {reply, ok2, state_one, newerstate, 5000}, 5000),
+
+  {comment, []}.
+
+-spec complete_coverage(config()) -> {comment, []}.
+complete_coverage(_Config) ->
+  ct:comment("Code Change"),
+  {ok, dispatch_state, State} =
+  wpool_fsm_process:init({complete_coverage, echo_fsm
+                              , {ok, state_one, []}, []}),
+  {ok, dispatch_state, _} = wpool_fsm_process:code_change("oldvsn"
+                              , dispatch_state, State
+                              , {ok, dispatch_state, []}),
+  {ok, dispatch_state, _} = wpool_fsm_process:code_change("oldvsn"
+                              , dispatch_state, State, bad),
+  [] = wpool_fsm_process:format_status(normal, [[], State]),
 
   {comment, []}.

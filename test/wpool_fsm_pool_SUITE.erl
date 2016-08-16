@@ -161,6 +161,21 @@ available_worker(_Config) ->
   {?WORKERS, UniqueWorkers, true} =
     {?WORKERS, UniqueWorkers, (?WORKERS/2) >= length(UniqueWorkers)},
 
+  ct:log(
+    "We put all the workers to run again and test how manage
+    the messages on the queue"),
+  [wpool:send_event(
+    Pool, {timer, sleep, [2000]}) || _ <- lists:seq(1, ?WORKERS)],
+  ok = wpool:sync_send_event(Pool, {timeout, 0}, available_worker, 10000),
+  [wpool:send_event(
+    Pool, {timer, sleep, [2000]}) || _ <- lists:seq(1, ?WORKERS)],
+  ok = wpool:sync_send_event(Pool, stop, available_worker, 10000),
+  [wpool:send_event(
+    Pool, {timer, sleep, [2000]}) || _ <- lists:seq(1, ?WORKERS)],
+  ok = wpool:sync_send_event(Pool, next_state, available_worker, 10000),
+  ok = wpool:sync_send_event(Pool, {next_state, 0}, available_worker, 10000),
+  ok = wpool:sync_send_event(Pool, stop_without_reply, available_worker, 10000),
+
   {comment, []}.
 
 -spec best_worker(config()) -> {comment, []}.
