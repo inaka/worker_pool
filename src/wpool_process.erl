@@ -78,14 +78,14 @@ cast_call(Process, From, Call) ->
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
     {ok, ModState} ->
-      ok = notify_queue_manager(new_worker, Name, Options),
+      ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
                  , options = Options
                  }};
     {ok, ModState, Timeout} ->
-      ok = notify_queue_manager(new_worker, Name, Options),
+      ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
@@ -99,7 +99,7 @@ init({Name, Mod, InitArgs, Options}) ->
 -spec terminate(atom(), state()) -> term().
 terminate(Reason, State) ->
   #state{mod=Mod, state=ModState, name=Name, options=Options} = State,
-  ok = notify_queue_manager(worker_dead, Name, Options),
+  ok = wpool_utils:notify_queue_manager(worker_dead, Name, Options),
   Mod:terminate(Reason, ModState).
 
 %% @private
@@ -114,7 +114,7 @@ code_change(OldVsn, State, Extra) ->
 -spec handle_info(any(), state()) ->
         {noreply, state()} | {stop, term(), state()}.
 handle_info(Info, State) ->
-  case do_try(
+  case wpool_utils:do_try(
         fun() -> (State#state.mod):handle_info(Info, State#state.state) end) of
     {noreply, NewState} ->
       {noreply, State#state{state = NewState}};
@@ -144,13 +144,15 @@ handle_cast({call, From, Call}, State) ->
   end;
 handle_cast({cast, Cast}, State) ->
   Task =
-    task_init(
+    wpool_utils:task_init(
       {cast, Cast},
       proplists:get_value(time_checker, State#state.options, undefined),
       proplists:get_value(overrun_warning, State#state.options, infinity)),
-  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
+  ok = wpool_utils:notify_queue_manager(worker_busy
+                                        , State#state.name
+                                        , State#state.options),
   Reply =
-    case do_try(
+    case wpool_utils:do_try(
         fun() -> (State#state.mod):handle_cast(Cast, State#state.state) end) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
@@ -159,9 +161,11 @@ handle_cast({cast, Cast}, State) ->
       {stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}}
     end,
-  task_end(Task),
+  wpool_utils:task_end(Task),
   ok =
-    notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    wpool_utils:notify_queue_manager(worker_ready
+                                    , State#state.name
+                                    , State#state.options),
   Reply.
 
 %% @private
@@ -174,13 +178,15 @@ handle_cast({cast, Cast}, State) ->
       | {stop, term(), state()}.
 handle_call(Call, From, State) ->
   Task =
-    task_init(
+    wpool_utils:task_init(
       {call, Call},
       proplists:get_value(time_checker, State#state.options, undefined),
       proplists:get_value(overrun_warning, State#state.options, infinity)),
-  ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
+  ok = wpool_utils:notify_queue_manager(worker_busy
+                                        , State#state.name
+                                        , State#state.options),
   Reply =
-    case do_try(
+    case wpool_utils:do_try(
         fun() -> (State#state.mod):handle_call(Call, From, State#state.state)
         end) of
       {noreply, NewState} ->
@@ -196,39 +202,9 @@ handle_call(Call, From, State) ->
       {stop, Reason, Response, NewState} ->
         {stop, Reason, Response, State#state{state = NewState}}
     end,
-  task_end(Task),
+  wpool_utils:task_end(Task),
   ok =
-    notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    wpool_utils:notify_queue_manager(worker_ready
+                                    , State#state.name
+                                    , State#state.options),
   Reply.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% PRIVATE FUNCTIONS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @doc Marks Task as started in this worker
--spec task_init(term(), atom(), infinity | pos_integer()) ->
-        undefined | reference().
-task_init(Task, _TimeChecker, infinity) ->
-  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-  erlang:put(wpool_task, {undefined, Time, Task}),
-  undefined;
-task_init(Task, TimeChecker, OverrunTime) ->
-  TaskId = erlang:make_ref(),
-  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-  erlang:put(wpool_task, {TaskId, Time, Task}),
-  erlang:send_after(
-    OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime}).
-
-%% @doc Removes the current task from the worker
--spec task_end(undefined | reference()) -> ok.
-task_end(undefined) -> erlang:erase(wpool_task);
-task_end(TimerRef) ->
-  _ = erlang:cancel_timer(TimerRef),
-  erlang:erase(wpool_task).
-
-notify_queue_manager(Function, Name, Options) ->
-  case proplists:get_value(queue_manager, Options) of
-    undefined -> ok;
-    QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
-  end.
-
-do_try(Fun) -> try Fun() catch _:Error -> Error end.
