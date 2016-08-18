@@ -17,3 +17,5 @@ erl_crash.dump
 *.beam
 *.log
 *~
+.idea
+*.iml
