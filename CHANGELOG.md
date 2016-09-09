@@ -1,10 +1,19 @@
 # Change Log
 
+## [Unreleased](https://github.com/inaka/worker_pool/tree/HEAD)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.0...HEAD)
+
+**Merged pull requests:**
+
+- Added support for multiple overrun handlers and fixed the tests [\#86](https://github.com/inaka/worker_pool/pull/86) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
+
 ## [2.2.0](https://github.com/inaka/worker_pool/tree/2.2.0) (2016-08-18)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.1.0...2.2.0)
 
 **Closed issues:**
 
+- Version Bump to 2.2.0 [\#84](https://github.com/inaka/worker_pool/issues/84)
 - pool becomes unresponsive [\#81](https://github.com/inaka/worker_pool/issues/81)
 - Implement common functions in the gen\_server or gen\_fsm way in a single shared module [\#80](https://github.com/inaka/worker_pool/issues/80)
 - Complete coverage for wpool\_fsm\_process [\#79](https://github.com/inaka/worker_pool/issues/79)
@@ -12,6 +21,7 @@
 
 **Merged pull requests:**
 
+- \[close \#84\] Version bump 2.2.0 [\#85](https://github.com/inaka/worker_pool/pull/85) ([ferigis](https://github.com/ferigis))
 - \[\#80\] Implemented shared functions in shared module. \[Fix \#80\] [\#83](https://github.com/inaka/worker_pool/pull/83) ([ferigis](https://github.com/ferigis))
 - fsm coverage \[\#79\] [\#82](https://github.com/inaka/worker_pool/pull/82) ([ferigis](https://github.com/ferigis))
 
