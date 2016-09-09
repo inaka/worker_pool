@@ -46,7 +46,7 @@
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Handlers) when is_list(Handlers) ->
   gen_server:start_link({local, Name}, ?MODULE, {WPool, Handlers}, []);
-start_link(WPool, Name, Handler) ->
+start_link(WPool, Name, Handler) when is_tuple(Handler) ->
   start_link(WPool, Name, [Handler]).
 
 %% @private

@@ -91,7 +91,7 @@ too_much_overrun(_Config) ->
           {cast, {timer, sleep, [5000]}} = proplists:get_value(task, Message1),
           9999999999 = proplists:get_value(runtime, Message1)
       after 100 ->
-        throw(no_overrun)
+        ct:fail(no_overrun)
       end,
 
   ct:comment("Get overrun message..."),
@@ -103,13 +103,13 @@ too_much_overrun(_Config) ->
           {cast, {timer, sleep, [5000]}} = proplists:get_value(task, Message2),
           9999999999 = proplists:get_value(runtime, Message2)
       after 100 ->
-        throw(no_overrun)
+        ct:fail(no_overrun)
       end,
 
   ct:comment("No more overruns..."),
   _ = case get_messages(100) of
         []    -> ok;
-        Msgs1 -> throw({unexpected_messages, Msgs1})
+        Msgs1 -> ct:fail({unexpected_messages, Msgs1})
       end,
 
   ct:comment("Kill the worker..."),
@@ -121,7 +121,7 @@ too_much_overrun(_Config) ->
   ct:comment("Nothing happens..."),
   _ = case get_messages(1000) of
         []    -> ok;
-        Msgs2 -> throw({unexpected_messages, Msgs2})
+        Msgs2 -> ct:fail({unexpected_messages, Msgs2})
       end,
 
   ct:comment("Stop pool..."),
@@ -150,12 +150,12 @@ overrun(_Config) ->
           Runtime = proplists:get_value(runtime, Message),
           true = Runtime >= 1000
       after 1500 ->
-        throw(no_overrun)
+        ct:fail(no_overrun)
       end,
 
   _ = case get_messages(1000) of
         []   -> ok;
-        Msgs -> throw({unexpected_messages, Msgs})
+        Msgs -> ct:fail({unexpected_messages, Msgs})
       end,
   ok = wpool:stop_pool(wpool_SUITE_overrun_pool),
 
