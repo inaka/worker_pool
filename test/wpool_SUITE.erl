@@ -265,7 +265,7 @@ default_options(_Config) ->
 complete_coverage(_Config) ->
 
   ct:comment("Time checker"),
-  {ok, State} = wpool_time_checker:init({pool, {x, y}}),
+  {ok, State} = wpool_time_checker:init({pool, [{x, y}]}),
   ok = wpool_time_checker:terminate(reason, State),
   {ok, State} = wpool_time_checker:code_change("oldvsn", State, extra),
 
