@@ -31,6 +31,7 @@
         , call_available_worker/3
         , sync_send_event_to_available_worker/3
         , sync_send_all_event_to_available_worker/3
+        , time_checker_name/1
         ]).
 -export([ cast_to_available_worker/2
         , send_event_to_available_worker/2
@@ -299,6 +300,11 @@ g(opts, #wpool{opts=Ret}) -> Ret;
 g(qmanager, #wpool{qmanager=Ret}) -> Ret;
 g(born, #wpool{born=Ret}) -> Ret.
 
+-spec time_checker_name(wpool:name()) -> atom().
+time_checker_name(Sup) ->
+  list_to_atom(
+    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
+
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
@@ -365,9 +371,6 @@ worker_name(Sup, I) ->
 %% ===================================================================
 process_sup_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-process-sup").
-time_checker_name(Sup) ->
-  list_to_atom(
-    ?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-time-checker").
 queue_manager_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
 

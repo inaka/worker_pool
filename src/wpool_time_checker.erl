@@ -17,13 +17,16 @@
 
 -behaviour(gen_server).
 
--record(state, { wpool   :: wpool:name()
-               , handler :: {atom(), atom()}
+-type handler() :: {atom(), atom()}.
+
+-record(state, { wpool    :: wpool:name()
+               , handlers :: [handler()]
                }).
 -type state() :: #state{}.
 
 %% api
 -export([ start_link/3
+        , add_handler/2
         ]).
 
 %% gen_server callbacks
@@ -39,17 +42,24 @@
 %%% API
 %%%===================================================================
 %% @private
--spec start_link(wpool:name(), atom(), {atom(), atom()}) ->
+-spec start_link(wpool:name(), atom(), handler() | [handler()]) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_link(WPool, Name, Handler) ->
-  gen_server:start_link({local, Name}, ?MODULE, {WPool, Handler}, []).
+start_link(WPool, Name, Handlers) when is_list(Handlers) ->
+  gen_server:start_link({local, Name}, ?MODULE, {WPool, Handlers}, []);
+start_link(WPool, Name, Handler) when is_tuple(Handler) ->
+  start_link(WPool, Name, [Handler]).
+
+%% @private
+-spec add_handler(atom(), handler()) -> ok.
+add_handler(Name, Handler) ->
+  gen_server:call(Name, {add_handler, Handler}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({wpool:name(), {atom(), atom()}}) -> {ok, state()}.
-init({WPool, Handler}) -> {ok, #state{wpool = WPool, handler = Handler}}.
+-spec init({wpool:name(), [{atom(), atom()}]}) -> {ok, state()}.
+init({WPool, Handlers}) -> {ok, #state{wpool = WPool, handlers = Handlers}}.
 
 %% @private
 -spec terminate(atom(), state()) -> ok.
@@ -64,9 +74,10 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 handle_cast(_Cast, State) -> {noreply, State}.
 
 -type from() :: {pid(), reference()}.
-%% @private
--spec handle_call(term(), from(), state()) -> {reply, ok, state()}.
-handle_call(_Call, _From, State) -> {reply, ok, State}.
+-spec handle_call({add_handler, handler()}, from(), state()) ->
+        {reply, ok, state()}.
+handle_call({add_handler, Handler}, _, State = #state{handlers = Handlers}) ->
+  {reply, ok, State#state{handlers = [Handler | Handlers]}}.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
@@ -78,19 +89,16 @@ handle_info({check, Pid, TaskId, Runtime}, State) ->
     {dictionary, Values} ->
       run_task(
         TaskId, proplists:get_value(wpool_task, Values), Pid,
-        State#state.wpool, State#state.handler, Runtime);
+        State#state.wpool, State#state.handlers, Runtime);
     _ -> ok
   end,
   {noreply, State};
 handle_info(_Info, State) -> {noreply, State}.
 
-run_task(TaskId, {TaskId, _, Task}, Pid, Pool, {Mod, Fun}, Runtime) ->
-  catch Mod:Fun([ {alert,   overrun}
-                , {pool,    Pool}
-                , {worker,  Pid}
-                , {task,    Task}
-                , {runtime, Runtime}
-                ]),
+run_task(TaskId, {TaskId, _, Task}, Pid, Pool, Handlers, Runtime) ->
+  Args = [ {alert, overrun}, {pool, Pool}, {worker, Pid}, {task, Task}
+         , {runtime, Runtime}],
+  _ = [catch Mod:Fun(Args) || {Mod, Fun} <- Handlers],
   case 2 * Runtime of
     NewOverrunTime when NewOverrunTime =< 4294967295 ->
       erlang:send_after(
@@ -98,4 +106,4 @@ run_task(TaskId, {TaskId, _, Task}, Pid, Pool, {Mod, Fun}, Runtime) ->
       ok;
     _ -> ok
   end;
-run_task(_TaskId, _Value, _Pid, _Pool, _Handler, _Runtime) -> ok.
+run_task(_TaskId, _Value, _Pid, _Pool, _Handlers, _Runtime) -> ok.
