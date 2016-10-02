@@ -63,7 +63,6 @@
 %% @doc Creates the ets table that will hold the information about active pools
 -spec create_table() -> ok.
 create_table() ->
-  error_logger:info_msg("Creating wpool ETS table"),
   _ = ets:new(
         ?MODULE,
         [public, named_table, set,
