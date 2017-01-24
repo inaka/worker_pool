@@ -24,6 +24,7 @@
         ]).
 -export([ stats/1
         , stop_pool/1
+        , non_brutal_shutdown/1
         , overrun/1
         , too_much_overrun/1
         , default_strategy/1
@@ -35,8 +36,8 @@
 
 -spec all() -> [atom()].
 all() ->
-  [too_much_overrun, overrun, stop_pool, stats, default_strategy,
-   default_options, complete_coverage].
+  [too_much_overrun, overrun, stop_pool, non_brutal_shutdown, stats,
+   default_strategy, default_options, complete_coverage].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -168,6 +169,23 @@ stop_pool(_Config) ->
   ok = wpool:stop_pool(wpool_SUITE_stop_pool),
   false = erlang:is_process_alive(PoolPid),
   ok = wpool:stop_pool(wpool_SUITE_stop_pool),
+
+  {comment, []}.
+
+-spec non_brutal_shutdown(config()) -> {comment, []}.
+non_brutal_shutdown(_Config) ->
+  {ok, PoolPid} = wpool:start_sup_pool(wpool_SUITE_non_brutal_shutdown,
+                                       [{workers, 1},
+                                        {pool_sup_shutdown, 100}]),
+  true = erlang:is_process_alive(PoolPid),
+  Stats = wpool:stats(wpool_SUITE_non_brutal_shutdown),
+  {workers, [{WorkerId, _}]} = lists:keyfind(workers, 1, Stats),
+  Worker = wpool_pool:worker_name(wpool_SUITE_non_brutal_shutdown, WorkerId),
+  monitor(process, Worker),
+  ok = wpool:stop_pool(wpool_SUITE_non_brutal_shutdown),
+  receive {'DOWN', _, process, {Worker, _}, Reason} -> shutdown = Reason
+  after 200 -> ct:fail(worker_not_stopped)
+  end,
 
   {comment, []}.
 

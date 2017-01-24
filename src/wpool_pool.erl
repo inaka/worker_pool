@@ -343,13 +343,14 @@ init({Name, Options}) ->
     , [wpool_queue_manager]
     },
 
+  SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
   WorkerOpts =
     [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options],
   ProcessSupSpec =
     { ProcessSup
     , {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]}
     , permanent
-    , brutal_kill
+    , SupShutdown
     , supervisor
     , [wpool_process_sup]
     },
