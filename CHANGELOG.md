@@ -1,11 +1,24 @@
 # Change Log
 
-## [Unreleased](https://github.com/inaka/worker_pool/tree/HEAD)
+## [2.2.2](https://github.com/inaka/worker_pool/tree/2.2.2) (2017-01-24)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.1...2.2.2)
 
-[Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.0...HEAD)
+**Closed issues:**
+
+- last version is not on hex [\#89](https://github.com/inaka/worker_pool/issues/89)
+- update the state of each workers? [\#70](https://github.com/inaka/worker_pool/issues/70)
 
 **Merged pull requests:**
 
+- Add pool\_sup\_shutdown option to customize shutdown. [\#90](https://github.com/inaka/worker_pool/pull/90) ([kzemek](https://github.com/kzemek))
+- Remove useless ets creation info message [\#88](https://github.com/inaka/worker_pool/pull/88) ([juise](https://github.com/juise))
+
+## [2.2.1](https://github.com/inaka/worker_pool/tree/2.2.1) (2016-09-20)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.0...2.2.1)
+
+**Merged pull requests:**
+
+- Bumped to 2.2.1 [\#87](https://github.com/inaka/worker_pool/pull/87) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
 - Added support for multiple overrun handlers and fixed the tests [\#86](https://github.com/inaka/worker_pool/pull/86) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
 
 ## [2.2.0](https://github.com/inaka/worker_pool/tree/2.2.0) (2016-08-18)
@@ -75,7 +88,7 @@
 
 **Fixed bugs:**
 
-- master is not working with rebar3 projects [\#58](https://github.com/inaka/worker_pool/pull/58) ([akalyaev](https://github.com/akalyaev))
+- master is not working with rebar3 projects [\#58](https://github.com/inaka/worker_pool/pull/58) ([melekes](https://github.com/melekes))
 
 **Closed issues:**
 
@@ -94,7 +107,7 @@
 - Ferigis.46.adding fsm tests [\#54](https://github.com/inaka/worker_pool/pull/54) ([ferigis](https://github.com/ferigis))
 - Replacement for \#47 [\#53](https://github.com/inaka/worker_pool/pull/53) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - handle custom strategy functions [\#52](https://github.com/inaka/worker_pool/pull/52) ([benoitc](https://github.com/benoitc))
-- Updated wpool stats/0 type specification [\#50](https://github.com/inaka/worker_pool/pull/50) ([akalyaev](https://github.com/akalyaev))
+- Updated wpool stats/0 type specification [\#50](https://github.com/inaka/worker_pool/pull/50) ([melekes](https://github.com/melekes))
 - Fix the typespec for the hash\_worker strategy [\#49](https://github.com/inaka/worker_pool/pull/49) ([waisbrot](https://github.com/waisbrot))
 - updating README and creating a default fsm worker [\#47](https://github.com/inaka/worker_pool/pull/47) ([ferigis](https://github.com/ferigis))
 - Ferigis.24.gen fsm as a workers [\#43](https://github.com/inaka/worker_pool/pull/43) ([ferigis](https://github.com/ferigis))
