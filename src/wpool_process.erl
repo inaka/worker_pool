@@ -190,9 +190,9 @@ handle_call(Call, From, State) ->
         fun() -> (State#state.mod):handle_call(Call, From, State#state.state)
         end) of
       {noreply, NewState} ->
-        {stop, can_not_hold_a_reply, State#state{state = NewState}};
-      {noreply, NewState, _Timeout} ->
-        {stop, can_not_hold_a_reply, State#state{state = NewState}};
+        {noreply, State#state{state = NewState}};
+      {noreply, NewState, Timeout} ->
+        {noreply, State#state{state = NewState}, Timeout};
       {reply, Response, NewState} ->
         {reply, Response, State#state{state = NewState}};
       {reply, Response, NewState, Timeout} ->
