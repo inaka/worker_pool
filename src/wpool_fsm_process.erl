@@ -39,6 +39,7 @@
         , sync_send_all_state_event/2
         , sync_send_all_state_event/3
         , cast_call/3
+        , cast_call_all/3
         ]).
 -export([ dispatch_state/2
         , dispatch_state/3
@@ -92,6 +93,11 @@ sync_send_all_state_event(Process, Event, Timeout) ->
 -spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
 cast_call(Process, From, Event) ->
   gen_fsm:send_event(Process, {sync_send_event, From, Event}).
+
+%% @equiv gen_fsm:send_all_state_event(Process, {sync_send_event, From, Event})
+-spec cast_call_all(wpool:name() | pid(), from(), term()) -> ok.
+cast_call_all(Process, From, Event) ->
+  gen_fsm:send_all_state_event(Process, {sync_send_event, From, Event}).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -177,6 +183,20 @@ format_status(Opt, [PDict, StateData]) ->
 %%%===================================================================
 -spec handle_event(term(), fsm_state(), state()) ->
   {next_state, dispatch_state, state()} | {stop, term(), state()}.
+handle_event({sync_send_event, From, Event}, StateName, StateData) ->
+  case handle_sync_event(Event, From, StateName, StateData) of
+    {reply, Reply, NextState, NextData} ->
+      gen_fsm:reply(From, Reply),
+      {next_state, NextState, NextData};
+    {reply, Reply, NextState, NextData, Timeout} ->
+      gen_fsm:reply(From, Reply),
+      {next_state, NextState, NextData, Timeout};
+    {stop, Reason, Reply, NextData} ->
+      gen_fsm:reply(From, Reply),
+      {stop, Reason, NextData};
+    Other ->
+      Other
+  end;
 handle_event(Event, _StateName, StateData) ->
   Task =
     wpool_utils:task_init(
