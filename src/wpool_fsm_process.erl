@@ -182,9 +182,11 @@ format_status(Opt, [PDict, StateData]) ->
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 -spec handle_event(term(), fsm_state(), state()) ->
-  {next_state, dispatch_state, state()} | {stop, term(), state()}.
+    {next_state, dispatch_state, state()}
+  | {next_state, dispatch_state, state(), timeout()} 
+  | {stop, term(), state()}.
 handle_event({sync_send_event, From, Event}, StateName, StateData) ->
-  case handle_sync_event(Event, From, StateName, StateData) of
+  case ?MODULE:handle_sync_event(Event, From, StateName, StateData) of
     {reply, Reply, NextState, NextData} ->
       gen_fsm:reply(From, Reply),
       {next_state, NextState, NextData};
@@ -235,7 +237,10 @@ handle_event(Event, _StateName, StateData) ->
 
 -spec handle_sync_event(term(), from(), fsm_state(), state()) ->
           {reply, term(), dispatch_state, state()}
+        | {reply, term(), dispatch_state, state(), timeout()}
         | {next_state, dispatch_state, state()}
+        | {next_state, dispatch_state, state(), timeout()}
+        | {stop, term(), term(), state()}
         | {stop, term(), state()}.
 handle_sync_event(Event, From, _StateName, StateData) ->
   Task =

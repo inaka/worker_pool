@@ -48,7 +48,7 @@
 -record(state, { wpool                 :: wpool:name()
                , clients               :: queue:queue({cast|{pid(), _}, term()})
                , workers               :: gb_sets:set(atom())
-               , monitors              :: gb_trees:tree(atom(), {reference(), {pid(), any()}})
+               , monitors              :: gb_trees:tree(atom(), {reference(), from()})
                }).
 -type state() :: #state{}.
 
@@ -129,7 +129,8 @@ sync_send_all_event_to_available_worker(QueueManager, Event, Timeout) ->
     {'EXIT', _, noproc} ->
       noproc;
     {'EXIT', Worker, Exit} ->
-      exit({Exit, {gen_fsm, sync_send_all_state_event, [Worker, Event, Timeout]}});
+      exit({Exit,
+            {gen_fsm, sync_send_all_state_event, [Worker, Event, Timeout]}});
     Result ->
       Result
   catch
@@ -200,7 +201,8 @@ stats(PoolName) ->
 -spec init(wpool:name()) -> {ok, state()}.
 init(WPool) ->
   put(pending_tasks, 0),
-  {ok, #state{wpool = WPool, clients = queue:new(), workers = gb_sets:new(), monitors = gb_trees:new()}}.
+  {ok, #state{wpool = WPool, clients = queue:new(),
+              workers = gb_sets:new(), monitors = gb_trees:empty()}}.
 
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 %% @private
@@ -336,7 +338,8 @@ handle_call(
       case erlang:is_process_alive(ClientPid) andalso
            Expires > now_in_microseconds() of
         true  ->
-          NewState = monitor_worker(Worker, Client, State#state{workers = NewWorkers}),
+          NewState = monitor_worker(Worker, Client,
+                                    State#state{workers = NewWorkers}),
           ok = wpool_process:cast_call(Worker, Client, Call),
           {noreply, NewState};
         false ->
@@ -360,7 +363,8 @@ handle_call(
       case erlang:is_process_alive(ClientPid) andalso
         Expires > now_in_microseconds() of
         true  ->
-          NewState = monitor_worker(Worker, Client, State#state{workers = NewWorkers}),
+          NewState = monitor_worker(Worker, Client,
+                                    State#state{workers = NewWorkers}),
           ok = wpool_fsm_process:cast_call(Worker, Client, Event),
           {noreply, NewState};
         false ->
