@@ -405,10 +405,14 @@ min_message_queue(Size, #wpool{size = Size}, Found) ->
   Worker;
 min_message_queue(Checked, Wpool, Found) ->
   Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
-  case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
-    {message_queue_len, 0} -> Worker;
-    {message_queue_len, L} ->
-      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found])
+  min_message_queue(Checked + 1, next_wpool(Wpool), [{queue_length(whereis(Worker)), Worker} | Found]).
+
+queue_length(undefined) ->
+  infinity;
+queue_length(Pid) when is_pid(Pid) ->
+  case erlang:process_info(Pid, message_queue_len) of
+    {message_queue_len, L} -> L;
+    undefined -> infinity
   end.
 
 %% ===================================================================
