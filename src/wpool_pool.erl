@@ -405,7 +405,8 @@ min_message_queue(Size, #wpool{size = Size}, Found) ->
   Worker;
 min_message_queue(Checked, Wpool, Found) ->
   Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
-  min_message_queue(Checked + 1, next_wpool(Wpool), [{queue_length(whereis(Worker)), Worker} | Found]).
+  QLength = queue_length(whereis(Worker)),
+  min_message_queue(Checked + 1, next_wpool(Wpool), [{QLength, Worker} | Found]).
 
 queue_length(undefined) ->
   infinity;
