@@ -234,20 +234,9 @@ stats(Wpool, Sup) ->
                 , current_location
                 , dictionary
                 ]),
-            Time =
-              calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-            WS =
-              case {Function, proplists:get_value(wpool_task, Dictionary)} of
-                {{current_function, {gen_server, loop, 6}}, undefined} ->
-                  [MQLT, Memory];
-                {{current_function, {erlang, hibernate, _}}, undefined} ->
-                  [MQLT, Memory];
-                {_, undefined} ->
-                  [MQLT, Memory, Function, Location];
-                {_, {_TaskId, Started, Task}} ->
-                  [MQLT, Memory, Function, Location,
-                   {task, Task}, {runtime, Time - Started}]
-              end,
+            WS = [MQLT, Memory] ++
+              function_location(Function, Location) ++
+              task(proplists:get_value(wpool_task, Dictionary)),
             {T + MQL, [{N, WS} | L]}
         end
       end, {0, []}, lists:seq(1, Wpool#wpool.size)),
@@ -261,6 +250,19 @@ stats(Wpool, Sup) ->
   , {total_message_queue_len,  Total + PendingTasks}
   , {workers,                  WorkerStats}
   ].
+
+function_location({current_function, {gen_server, loop, 6}}, _) ->
+                  [];
+function_location({current_function, {erlang, hibernate, _}}, _) ->
+                  [];
+function_location(Function, Location) ->
+                 [Function, Location].
+task(undefined) ->
+  [];
+task({_TaskId, Started, Task}) ->
+  Time =
+    calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+  [{task, Task}, {runtime, Time - Started}].
 
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
