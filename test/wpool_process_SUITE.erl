@@ -139,6 +139,10 @@ pool_restart_crash(_Config) ->
 
   ct:log("Crash a worker"),
   wpool:cast(Pool, crash),
+
+  ct:log("Check that the pool wouldn't crash"),
+  wpool:cast(Pool, crash, best_worker),
+
   timer:sleep(500),
 
   ct:log("Check that the pool is working"),

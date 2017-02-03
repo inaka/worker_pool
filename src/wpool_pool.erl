@@ -220,32 +220,25 @@ stats(Wpool, Sup) ->
   {Total, WorkerStats} =
     lists:foldl(
       fun(N, {T, L}) ->
-        Worker = erlang:whereis(worker_name(Sup, N)),
-        [{message_queue_len, MQL} = MQLT,
-         Memory, Function, Location, {dictionary, Dictionary}] =
-          erlang:process_info(
-            Worker,
-            [ message_queue_len
-            , memory
-            , current_function
-            , current_location
-            , dictionary
-            ]),
-        Time =
-          calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-        WS =
-          case {Function, proplists:get_value(wpool_task, Dictionary)} of
-            {{current_function, {gen_server, loop, 6}}, undefined} ->
-              [MQLT, Memory];
-            {{current_function, {erlang, hibernate, _}}, undefined} ->
-              [MQLT, Memory];
-            {_, undefined} ->
-              [MQLT, Memory, Function, Location];
-            {_, {_TaskId, Started, Task}} ->
-              [MQLT, Memory, Function, Location,
-               {task, Task}, {runtime, Time - Started}]
-          end,
-        {T + MQL, [{N, WS} | L]}
+        case erlang:whereis(worker_name(Sup, N)) of
+          undefined ->
+            {T, L};
+          Worker ->
+            [{message_queue_len, MQL} = MQLT,
+             Memory, Function, Location, {dictionary, Dictionary}] =
+              erlang:process_info(
+                Worker,
+                [ message_queue_len
+                , memory
+                , current_function
+                , current_location
+                , dictionary
+                ]),
+            WS = [MQLT, Memory] ++
+              function_location(Function, Location) ++
+              task(proplists:get_value(wpool_task, Dictionary)),
+            {T + MQL, [{N, WS} | L]}
+        end
       end, {0, []}, lists:seq(1, Wpool#wpool.size)),
   ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
   PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
@@ -257,6 +250,19 @@ stats(Wpool, Sup) ->
   , {total_message_queue_len,  Total + PendingTasks}
   , {workers,                  WorkerStats}
   ].
+
+function_location({current_function, {gen_server, loop, 6}}, _) ->
+                  [];
+function_location({current_function, {erlang, hibernate, _}}, _) ->
+                  [];
+function_location(Function, Location) ->
+                 [Function, Location].
+task(undefined) ->
+  [];
+task({_TaskId, Started, Task}) ->
+  Time =
+    calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
+  [{task, Task}, {runtime, Time - Started}].
 
 %% @doc the number of workers in the pool
 -spec wpool_size(atom()) -> non_neg_integer() | undefined.
@@ -384,7 +390,7 @@ worker_with_no_task(Size, #wpool{size = Size}) ->
   undefined;
 worker_with_no_task(Checked, Wpool) ->
   Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
-  case erlang:process_info(whereis(Worker), [message_queue_len, dictionary]) of
+  case try_process_info(whereis(Worker), [message_queue_len, dictionary]) of
     [{message_queue_len, 0}, {dictionary, Dictionary}] ->
       case proplists:get_value(wpool_task, Dictionary) of
         undefined -> Worker;
@@ -393,6 +399,11 @@ worker_with_no_task(Checked, Wpool) ->
     _ ->
       worker_with_no_task(Checked + 1, next_wpool(Wpool))
   end.
+
+try_process_info(undefined, _) ->
+  [];
+try_process_info(Pid, Keys) ->
+  erlang:process_info(Pid, Keys).
 
 min_message_queue(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
@@ -405,10 +416,16 @@ min_message_queue(Size, #wpool{size = Size}, Found) ->
   Worker;
 min_message_queue(Checked, Wpool, Found) ->
   Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
-  case erlang:process_info(erlang:whereis(Worker), message_queue_len) of
-    {message_queue_len, 0} -> Worker;
-    {message_queue_len, L} ->
-      min_message_queue(Checked + 1, next_wpool(Wpool), [{L, Worker} | Found])
+  QLength = queue_length(whereis(Worker)),
+  min_message_queue(Checked + 1, next_wpool(Wpool),
+                    [{QLength, Worker} | Found]).
+
+queue_length(undefined) ->
+  infinity;
+queue_length(Pid) when is_pid(Pid) ->
+  case erlang:process_info(Pid, message_queue_len) of
+    {message_queue_len, L} -> L;
+    undefined -> infinity
   end.
 
 %% ===================================================================
