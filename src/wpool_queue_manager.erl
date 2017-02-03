@@ -301,7 +301,8 @@ handle_cast({send_event_to_available_worker, Event}, State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
-      {noreply, State#state{clients = queue:in({send_event, Event}, Clients)}};
+      {noreply, State#state{clients =
+                            queue:in({send_event, Event}, Clients)}};
     false ->
       {Worker, NewWorkers} = gb_sets:take_smallest(Workers),
       ok = wpool_fsm_process:send_event(Worker, Event),
@@ -312,7 +313,8 @@ handle_cast({send_all_event_to_available_worker, Event}, State) ->
   case gb_sets:is_empty(Workers) of
     true ->
       inc_pending_tasks(),
-      {noreply, State#state{clients = queue:in({send_all_event, Event}, Clients)}};
+      {noreply, State#state{clients =
+                            queue:in({send_all_event, Event}, Clients)}};
     false ->
       {Worker, NewWorkers} = gb_sets:take_smallest(Workers),
       ok = wpool_fsm_process:send_all_state_event(Worker, Event),
@@ -389,7 +391,8 @@ handle_call(
       case erlang:is_process_alive(ClientPid) andalso
         Expires > now_in_microseconds() of
         true  ->
-          NewState = monitor_worker(Worker, Client, State#state{workers = NewWorkers}),
+          NewState = monitor_worker(Worker, Client,
+                                    State#state{workers = NewWorkers}),
           ok = wpool_fsm_process:cast_call_all(Worker, Client, Event),
           {noreply, NewState};
         false ->
@@ -403,7 +406,7 @@ handle_call(worker_counts, _From, State) ->
 
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({'DOWN', _Ref, process, Worker, Exit}, State = #state{monitors = Mons}) ->
+handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
   case gb_trees:is_defined(Worker, Mons) of
     true ->
       {__Ref, Client} = gb_trees:get(Worker, Mons),
