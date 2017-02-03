@@ -48,11 +48,12 @@
 -record(state, { wpool                 :: wpool:name()
                , clients               :: queue:queue({cast|{pid(), _}, term()})
                , workers               :: gb_sets:set(atom())
-               , monitors              :: gb_trees:tree(atom(), {reference(), from()})
+               , monitors              :: gb_trees:tree(atom(), monitored_from())
                }).
 -type state() :: #state{}.
 
 -type from() :: {pid(), reference()}.
+-type monitored_from() :: {reference(), from()}.
 
 -type queue_mgr() :: atom().
 -export_type([queue_mgr/0]).
