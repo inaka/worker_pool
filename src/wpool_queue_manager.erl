@@ -45,10 +45,10 @@
 
 -include("wpool.hrl").
 
--record(state, { wpool                 :: wpool:name()
-               , clients               :: queue:queue({cast|{pid(), _}, term()})
-               , workers               :: gb_sets:set(atom())
-               , monitors              :: gb_trees:tree(atom(), monitored_from())
+-record(state, { wpool             :: wpool:name()
+               , clients           :: queue:queue({cast|{pid(), _}, term()})
+               , workers           :: gb_sets:set(atom())
+               , monitors          :: gb_trees:tree(atom(), monitored_from())
                }).
 -type state() :: #state{}.
 
