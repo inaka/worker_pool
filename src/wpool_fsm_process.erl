@@ -183,7 +183,7 @@ format_status(Opt, [PDict, StateData]) ->
 %%%===================================================================
 -spec handle_event(term(), fsm_state(), state()) ->
     {next_state, dispatch_state, state()}
-  | {next_state, dispatch_state, state(), timeout()} 
+  | {next_state, dispatch_state, state(), timeout()}
   | {stop, term(), state()}.
 handle_event({sync_send_event, From, Event}, StateName, StateData) ->
   case ?MODULE:handle_sync_event(Event, From, StateName, StateData) of

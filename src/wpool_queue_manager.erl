@@ -409,7 +409,7 @@ handle_call(worker_counts, _From, State) ->
 handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
   case gb_trees:is_defined(Worker, Mons) of
     true ->
-      {__Ref, Client} = gb_trees:get(Worker, Mons),
+      {_Ref, Client} = gb_trees:get(Worker, Mons),
       gen_server:reply(Client, {'EXIT', Worker, Exit}),
       {noreply, State#state{monitors = gb_trees:delete(Worker, Mons)}};
     false ->
