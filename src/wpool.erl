@@ -22,13 +22,25 @@
                   , {workers, 100}, {worker_opt, []}
                   ]).
 
+%% Copied from gen.erl
+-type debug_flag() :: 'trace' | 'log' | 'statistics' | 'debug'
+                    | {'logfile', string()}.
+-type gen_option() :: {'timeout', timeout()}
+                    | {'debug', [debug_flag()]}
+                    | {'spawn_opt', [proc_lib:spawn_option()]}.
+-type gen_options() :: [gen_option()].
+
 -type name() :: atom().
+-type supervisor_strategy() :: { supervisor:strategy()
+                               , non_neg_integer()
+                               , pos_integer()
+                               }.
 -type option() :: {overrun_warning, infinity|pos_integer()}
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
-                | {worker_opt, gen:options()}
+                | {worker_opt, gen_options()}
                 | {worker, {Module::atom(), InitArg::term()}}
-                | {strategy, supervisor:strategy()}
+                | {strategy, supervisor_strategy()}
                 | {worker_type, gen_fsm | gen_server}
                 | {pool_sup_intensity, non_neg_integer()}
                 | {pool_sup_period, non_neg_integer()}
@@ -40,7 +52,7 @@
                   | available_worker
                   | next_available_worker
                   | {hash_worker, term()}
-                  | custom_strategy().
+                  | custom_strategy().
 -type worker_stats() :: [ {messsage_queue_len, non_neg_integer()}
                         | {memory, pos_integer()}
                         ].

@@ -161,6 +161,7 @@ pool_norestart_crash(_Config) ->
                 , {pool_sup_period, 10}
                 ],
   {ok, Pid} = wpool:start_pool(Pool, PoolOptions),
+
   ct:log("Check that the pool is working"),
   true = erlang:is_process_alive(Pid),
   hello = wpool:call(Pool, hello),
