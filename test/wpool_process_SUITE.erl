@@ -207,25 +207,24 @@ stop(_Config) ->
   try wpool_process:call(stopper, {noreply, state}, 100) of
     _ -> ct:fail("unexpected response")
   catch
-    _:{can_not_hold_a_reply, _} -> ok
+    _:{timeout, _} -> ok
   end,
   receive
-    {'EXIT', Pid3, can_not_hold_a_reply} -> ok
+    {'EXIT', Pid3, _} -> ct:fail("Unexpected process crash")
   after 500 ->
-    ct:fail("Missing exit signal")
+    ok
   end,
 
   ct:comment("call with timeout stop"),
-  {ok, Pid4} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
   try wpool_process:call(stopper, {noreply, state, hibernate}, 100) of
     _ -> ct:fail("unexpected response")
   catch
-    _:{can_not_hold_a_reply, _} -> ok
+    _:{timeout, _} -> ok
   end,
   receive
-    {'EXIT', Pid4, can_not_hold_a_reply} -> ok
+    {'EXIT', Pid3, _} -> ct:fail("Unexpected process crash")
   after 500 ->
-    ct:fail("Missing exit signal")
+    ok
   end,
 
   {comment, []}.
