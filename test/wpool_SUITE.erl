@@ -120,10 +120,7 @@ too_much_overrun(_Config) ->
   TCPid ! {check, Worker, TaskId, 100}, % tiny runtime, to check
 
   ct:comment("Nothing happens..."),
-  _ = case get_messages(1000) of
-        []    -> ok;
-        Msgs2 -> ct:fail({unexpected_messages, Msgs2})
-      end,
+  ok = no_messages(),
 
   ct:comment("Stop pool..."),
   ok = wpool:stop_pool(wpool_SUITE_too_much_overrun),
@@ -154,10 +151,8 @@ overrun(_Config) ->
         ct:fail(no_overrun)
       end,
 
-  _ = case get_messages(1000) of
-        []   -> ok;
-        Msgs -> ct:fail({unexpected_messages, Msgs})
-      end,
+  ok = no_messages(),
+
   ok = wpool:stop_pool(wpool_SUITE_overrun_pool),
 
   {comment, []}.
@@ -324,4 +319,10 @@ get_messages(MaxTimeout) ->
 get_messages(MaxTimeout, Acc) ->
   receive Any -> get_messages(MaxTimeout, [Any | Acc])
   after MaxTimeout -> Acc
+  end.
+
+no_messages() ->
+  case get_messages(1000) of
+    []    -> ok;
+    Msgs2 -> ct:fail({unexpected_messages, Msgs2})
   end.
