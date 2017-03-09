@@ -216,7 +216,6 @@ stop(_Config) ->
   end,
 
   ct:comment("call with timeout stop"),
-  {ok, Pid4} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
   try wpool_process:call(stopper, {noreply, state, hibernate}, 100) of
     _ -> ct:fail("unexpected response")
   catch
