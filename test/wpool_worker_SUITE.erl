@@ -40,7 +40,7 @@ end_per_suite(Config) ->
 -spec ok() -> ?MODULE.
 ok() -> ?MODULE.
 -spec error() -> no_return().
-error() -> throw(?MODULE).
+error() -> exit(?MODULE).
 
 -spec call(config()) -> {comment, []}.
 call(_Config) ->
@@ -49,7 +49,7 @@ call(_Config) ->
   try wpool_worker:call(?MODULE, ?MODULE, error, []) of
     R -> no_result = R
   catch
-    throw:?MODULE -> ok
+    exit:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:call(?MODULE, error),
   ok = wpool:stop_pool(?MODULE),

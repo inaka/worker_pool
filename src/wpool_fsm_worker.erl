@@ -47,7 +47,7 @@
 sync_send_event(S, M, F, A) ->
   case wpool:sync_send_event(S, {M, F, A}) of
     {ok, Result} -> Result;
-    {error, Error} -> throw(Error)
+    {error, Error} -> exit(Error)
   end.
 
 %% @doc Executes M:F(A) in any of the workers of the pool S
@@ -60,7 +60,7 @@ send_event(S, M, F, A) -> wpool:send_event(S, {M, F, A}).
 sync_send_all_state_event(S, M, F, A) ->
   case wpool:sync_send_all_state_event(S, {M, F, A}) of
     {ok, Result} -> Result;
-    {error, Error} -> throw(Error)
+    {error, Error} -> exit(Error)
   end.
 
 %% @doc Executes M:F(A) in any of the workers of the pool S

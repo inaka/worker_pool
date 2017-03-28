@@ -50,7 +50,7 @@ end_per_suite(Config) ->
 -spec ok() -> ?MODULE.
 ok() -> ?MODULE.
 -spec error() -> no_return().
-error() -> throw(?MODULE).
+error() -> exit(?MODULE).
 
 -spec sync_send_event(config()) -> {comment, []}.
 sync_send_event(_Config) ->
@@ -59,7 +59,7 @@ sync_send_event(_Config) ->
   try wpool_fsm_worker:sync_send_event(?MODULE, ?MODULE, error, []) of
     R -> no_result = R
   catch
-    throw:?MODULE -> ok
+    exit:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:sync_send_event(?MODULE, error),
   ok = wpool:stop_pool(?MODULE),
@@ -85,7 +85,7 @@ sync_send_all_state_event(_Config) ->
   try wpool_fsm_worker:sync_send_all_state_event(?MODULE, ?MODULE, error, []) of
     R -> no_result = R
   catch
-    throw:?MODULE -> ok
+    exit:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:sync_send_all_state_event(?MODULE, error),
   ok = wpool:stop_pool(?MODULE),
