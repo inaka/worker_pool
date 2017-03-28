@@ -40,7 +40,7 @@
 call(S, M, F, A) ->
   case wpool:call(S, {M, F, A}) of
     {ok, Result} -> Result;
-    {error, Error} -> throw(Error)
+    {error, Error} -> exit(Error)
   end.
 
 %% @doc Executes M:F(A) in any of the workers of the pool S

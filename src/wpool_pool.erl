@@ -80,7 +80,7 @@ start_link(Name, Options) ->
 -spec best_worker(wpool:name()) -> atom().
 best_worker(Sup) ->
   case find_wpool(Sup) of
-    undefined -> throw(no_workers);
+    undefined -> exit(no_workers);
     Wpool -> min_message_queue(Wpool)
   end.
 
@@ -89,7 +89,7 @@ best_worker(Sup) ->
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Sup) ->
   case wpool_size(Sup) of
-    undefined  -> throw(no_workers);
+    undefined  -> exit(no_workers);
     WpoolSize ->
       WorkerNumber = rnd(WpoolSize),
       worker_name(Sup, WorkerNumber)
@@ -100,7 +100,7 @@ random_worker(Sup) ->
 -spec next_worker(wpool:name()) -> atom().
 next_worker(Sup) ->
   case move_wpool(Sup) of
-    undefined -> throw(no_workers);
+    undefined -> exit(no_workers);
     Next -> worker_name(Sup, Next)
   end.
 
@@ -109,10 +109,10 @@ next_worker(Sup) ->
 -spec next_available_worker(wpool:name()) -> atom().
 next_available_worker(Sup) ->
   case find_wpool(Sup) of
-    undefined -> throw(no_workers);
+    undefined -> exit(no_workers);
     Wpool ->
       case worker_with_no_task(Wpool) of
-        undefined -> throw(no_available_workers);
+        undefined -> exit(no_available_workers);
         Worker -> Worker
       end
   end.
@@ -125,8 +125,8 @@ next_available_worker(Sup) ->
 call_available_worker(Sup, Call, Timeout) ->
   case wpool_queue_manager:call_available_worker(
         queue_manager_name(Sup), Call, Timeout) of
-    noproc  -> throw(no_workers);
-    timeout -> throw(timeout);
+    noproc  -> exit(no_workers);
+    timeout -> exit(timeout);
     Result  -> Result
   end.
 
@@ -139,8 +139,8 @@ call_available_worker(Sup, Call, Timeout) ->
 sync_send_event_to_available_worker(Sup, Event, Timeout) ->
   case wpool_queue_manager:sync_send_event_to_available_worker(
         queue_manager_name(Sup), Event, Timeout) of
-    noproc  -> throw(no_workers);
-    timeout -> throw(timeout);
+    noproc  -> exit(no_workers);
+    timeout -> exit(timeout);
     Result  -> Result
   end.
 
@@ -153,8 +153,8 @@ sync_send_event_to_available_worker(Sup, Event, Timeout) ->
 sync_send_all_event_to_available_worker(Sup, Event, Timeout) ->
   case wpool_queue_manager:sync_send_all_event_to_available_worker(
         queue_manager_name(Sup), Event, Timeout) of
-    noproc  -> throw(no_workers);
-    timeout -> throw(timeout);
+    noproc  -> exit(no_workers);
+    timeout -> exit(timeout);
     Result  -> Result
   end.
 
@@ -165,7 +165,7 @@ sync_send_all_event_to_available_worker(Sup, Event, Timeout) ->
 -spec hash_worker(wpool:name(), term()) -> atom().
 hash_worker(Sup, HashKey) ->
   case wpool_size(Sup) of
-    undefined -> throw(no_workers);
+    undefined -> exit(no_workers);
     WpoolSize ->
       Index = 1 + erlang:phash2(HashKey, WpoolSize),
       worker_name(Sup, Index)
@@ -211,7 +211,7 @@ stats() -> [stats(Sup) || Sup <- all()].
 -spec stats(wpool:name()) -> wpool:stats().
 stats(Sup) ->
   case find_wpool(Sup) of
-    undefined -> throw(no_workers);
+    undefined -> exit(no_workers);
     Wpool ->
       stats(Wpool, Sup)
   end.
