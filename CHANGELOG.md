@@ -1,15 +1,37 @@
 # Change Log
 
+## [2.2.3](https://github.com/inaka/worker_pool/tree/2.2.3) (2017-04-03)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.2...2.2.3)
+
+**Fixed bugs:**
+
+- wpool fails to handle temporarily dead workers [\#94](https://github.com/inaka/worker_pool/issues/94)
+
+**Closed issues:**
+
+- available\_worker doesn't handle worker exit [\#93](https://github.com/inaka/worker_pool/issues/93)
+- can\_not\_hold\_a\_reply error for handle\_call with {noreply, State} result [\#78](https://github.com/inaka/worker_pool/issues/78)
+
+**Merged pull requests:**
+
+- Misuse of throw\(\) in the interface code [\#100](https://github.com/inaka/worker_pool/pull/100) ([ElectronicRU](https://github.com/ElectronicRU))
+- Update Dependencies [\#99](https://github.com/inaka/worker_pool/pull/99) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Added monitoring to sync calls & made all sync calls the same scheme. [\#97](https://github.com/inaka/worker_pool/pull/97) ([ElectronicRU](https://github.com/ElectronicRU))
+- Got rid of can\_not\_hold\_a\_reply error. [\#96](https://github.com/inaka/worker_pool/pull/96) ([ElectronicRU](https://github.com/ElectronicRU))
+- Prevent wpool\_pool from crashing on dead workers with best\_worker strategy. [\#95](https://github.com/inaka/worker_pool/pull/95) ([ElectronicRU](https://github.com/ElectronicRU))
+
 ## [2.2.2](https://github.com/inaka/worker_pool/tree/2.2.2) (2017-01-24)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.1...2.2.2)
 
 **Closed issues:**
 
+- Version Bump to 2.2.2 [\#91](https://github.com/inaka/worker_pool/issues/91)
 - last version is not on hex [\#89](https://github.com/inaka/worker_pool/issues/89)
 - update the state of each workers? [\#70](https://github.com/inaka/worker_pool/issues/70)
 
 **Merged pull requests:**
 
+- \[\#91\] Version Bump to 2.2.2 [\#92](https://github.com/inaka/worker_pool/pull/92) ([ferigis](https://github.com/ferigis))
 - Add pool\_sup\_shutdown option to customize shutdown. [\#90](https://github.com/inaka/worker_pool/pull/90) ([kzemek](https://github.com/kzemek))
 - Remove useless ets creation info message [\#88](https://github.com/inaka/worker_pool/pull/88) ([juise](https://github.com/juise))
 
