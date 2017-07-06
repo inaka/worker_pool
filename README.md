@@ -1,4 +1,4 @@
-# Worker Pool
+# Worker Pool [![Build Status](https://travis-ci.org/inaka/worker_pool.svg?branch=master)](https://travis-ci.org/inaka/worker_pool)
 
 <img src="http://img3.wikia.nocookie.net/__cb20140705120849/clubpenguin/images/thumb/f/ff/MINIONS.jpg/481px-MINIONS.jpg" align="right" style="float:right" height="400" />
 
