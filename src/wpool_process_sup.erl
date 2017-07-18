@@ -39,11 +39,9 @@ init({Name, Options}) ->
       gen_server ->
         {W, IA} =
           proplists:get_value(worker, Options, {wpool_worker, undefined}),
-        {wpool_process, W, IA};
-      gen_fsm ->
-        {W, IA} =
-          proplists:get_value(worker, Options, {wpool_fsm_worker, undefined}),
-        {wpool_fsm_process, W, IA}
+        {wpool_process, W, IA}
+      %% We'll eventually add more types (like gen_statem),
+      %% that's why this case remains
     end,
   WorkerSpecs =
     [ { wpool_pool:worker_name(Name, I)

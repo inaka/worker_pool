@@ -12,8 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Felipe Ripoll <ferigis@gmail.com>
-%%% @doc Common functions for wpool_process and wpool_fsm_process
-%%%      modules.
+%%% @doc Common functions for wpool_process and other modules.
 -module(wpool_utils).
 -author('ferigis@gmail.com').
 

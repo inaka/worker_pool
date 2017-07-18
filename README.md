@@ -2,7 +2,7 @@
 
 <img src="http://img3.wikia.nocookie.net/__cb20140705120849/clubpenguin/images/thumb/f/ff/MINIONS.jpg/481px-MINIONS.jpg" align="right" style="float:right" height="400" />
 
-A pool of gen servers and gen fsm.
+A pool of gen servers.
 
 ### Abstract
 
@@ -25,18 +25,17 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 * **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The default value for this setting is `infinity` (i.e. no warnings are emitted)
 * **overrun_handler**: The module and function to call when a task is *overrun*. The default value for this setting is `{error_logger, warning_report}`.
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
-* **worker_type**: The type of the worker. The available values are `gen_server` and `gen_fsm`. The default value is `gen_server`
-* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) or [`gen_fsm`](http://erldocs.com/current/stdlib/gen_fsm.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}` for `gen_server` type and `{wpool_fsm_worker, undefined}` for `gen_fsm`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_worker.html) and [`wpool_fsm_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_fsm_worker.html) are modules that implement a very simple RPC-like interfaces
+* **worker_type**: The type of the worker. The available values are `gen_server`. The default value is `gen_server`. Eventually we'll add `gen_statem` as well.
+* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
 * **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
 * **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
 * **pool_sup_intensity** and **pool_sup_period**: The intensity and period for the supervisor that manages the worker pool system (`wpool_pool`). The strategy of this supervisor must be `one_for_all` but the intensity and period may be changed from their defaults of `5` and `60`.
 
 #### Using the Workers
-For `gen_server` type, since the workers are `gen_server`s, messages can be `call`ed or `cast`ed to them. To do that you can use `wpool:call` and `wpool:cast` as you would use the equivalent functions on `gen_server`.
-For `gen_fsm` messages can be sent using `wpool:send_event` or `wpool:sync_send_event` as you would use the equivalent functions on `gen_fsm`.
+Since the workers are `gen_server`s, messages can be `call`ed or `cast`ed to them. To do that you can use `wpool:call` and `wpool:cast` as you would use the equivalent functions on `gen_server`.
 
 ##### Choosing a Strategy
-Beyond the regular parameters for `gen_server` and `gen_fsm`, wpool also provides an extra optional parameter: **Strategy**.
+Beyond the regular parameters for `gen_server`, wpool also provides an extra optional parameter: **Strategy**.
 The strategy used to pick up the worker to perform the task. If not provided, the result of `wpool:default_strategy/0` is used.  The available strategies are defined in the `wpool:strategy/0` type and also described below:
 
 ###### best_worker
