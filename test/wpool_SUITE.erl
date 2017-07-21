@@ -153,7 +153,7 @@ overrun(_Config) ->
 
   ok = no_messages(),
 
-  ok = wpool:stop_pool(wpool_SUITE_overrun_pool),
+  ok = wpool:stop_sup_pool(wpool_SUITE_overrun_pool),
 
   {comment, []}.
 
@@ -177,7 +177,7 @@ non_brutal_shutdown(_Config) ->
   {workers, [{WorkerId, _}]} = lists:keyfind(workers, 1, Stats),
   Worker = wpool_pool:worker_name(wpool_SUITE_non_brutal_shutdown, WorkerId),
   monitor(process, Worker),
-  ok = wpool:stop_pool(wpool_SUITE_non_brutal_shutdown),
+  ok = wpool:stop_sup_pool(wpool_SUITE_non_brutal_shutdown),
   receive {'DOWN', _, process, {Worker, _}, Reason} -> shutdown = Reason
   after 200 -> ct:fail(worker_not_stopped)
   end,

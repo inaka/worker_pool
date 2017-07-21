@@ -86,7 +86,8 @@
         , start_sup_pool/1
         , start_sup_pool/2
         ]).
--export([ stop_sup_pool/1
+-export([ stop_pool/1
+        , stop_sup_pool/1
         ]).
 -export([ call/2
         , cast/2
@@ -135,6 +136,14 @@ start_pool(Name) -> start_pool(Name, []).
 -spec start_pool(name(), [option()]) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) -> wpool_pool:start_link(Name, all_opts(Options)).
+
+%% @doc Stops the pool
+-spec stop_pool(name()) -> true.
+stop_pool(Name) ->
+  case whereis(Name) of
+    undefined -> true;
+    Pid -> exit(Pid, normal)
+  end.
 
 %% @equiv start_sup_pool(Name, [])
 -spec start_sup_pool(name()) -> {ok, pid()}.
