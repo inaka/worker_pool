@@ -17,10 +17,6 @@
 -module(wpool).
 -author('elbrujohalcon@inaka.net').
 
-
-
-
-
 -define(DEFAULTS, [ {overrun_warning, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
                   , {workers, 100}, {worker_opt, []}
