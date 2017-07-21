@@ -20,7 +20,7 @@ run_tasks(TaskGroups, Strategy, Options) ->
       error_logger:info_msg("Times: ~p", [Times]),
       lists:sum(Times) / length(Times)
   after
-    wpool:stop_pool(?MODULE)
+    wpool:stop_sup_pool(?MODULE)
   end.
 
 run_task(small, Strategy, Acc) ->

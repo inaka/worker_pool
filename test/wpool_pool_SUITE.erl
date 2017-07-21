@@ -70,7 +70,7 @@ init_per_testcase(TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(TestCase, Config) ->
-  catch wpool:stop_pool(TestCase),
+  catch wpool:stop_sup_pool(TestCase),
   Config.
 
 -spec wait_and_self(pos_integer()) -> pid().
