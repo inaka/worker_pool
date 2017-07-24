@@ -52,7 +52,7 @@ call(_Config) ->
     exit:?MODULE -> ok
   end,
   {error, invalid_request} = wpool:call(?MODULE, error),
-  ok = wpool:stop_pool(?MODULE),
+  ok = wpool:stop_sup_pool(?MODULE),
 
   {comment, []}.
 
@@ -63,7 +63,7 @@ cast(_Config) ->
   ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
   ok = wpool:cast(?MODULE, x),
   timer:sleep(1000),
-  ok = wpool:stop_pool(?MODULE),
+  ok = wpool:stop_sup_pool(?MODULE),
 
   {comment, []}.
 

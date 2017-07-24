@@ -17,6 +17,10 @@
 -module(wpool).
 -author('elbrujohalcon@inaka.net').
 
+
+
+
+
 -define(DEFAULTS, [ {overrun_warning, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
                   , {workers, 100}, {worker_opt, []}
@@ -83,6 +87,7 @@
         , start_sup_pool/2
         ]).
 -export([ stop_pool/1
+        , stop_sup_pool/1
         ]).
 -export([ call/2
         , cast/2
@@ -132,6 +137,14 @@ start_pool(Name) -> start_pool(Name, []).
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) -> wpool_pool:start_link(Name, all_opts(Options)).
 
+%% @doc Stops the pool
+-spec stop_pool(name()) -> true.
+stop_pool(Name) ->
+  case whereis(Name) of
+    undefined -> true;
+    Pid -> exit(Pid, normal)
+  end.
+
 %% @equiv start_sup_pool(Name, [])
 -spec start_sup_pool(name()) -> {ok, pid()}.
 start_sup_pool(Name) -> start_sup_pool(Name, []).
@@ -143,8 +156,8 @@ start_sup_pool(Name, Options) ->
   wpool_sup:start_pool(Name, all_opts(Options)).
 
 %% @doc Stops the pool
--spec stop_pool(name()) -> ok.
-stop_pool(Name) -> wpool_sup:stop_pool(Name).
+-spec stop_sup_pool(name()) -> ok.
+stop_sup_pool(Name) -> wpool_sup:stop_pool(Name).
 
 %% @doc Default strategy
 -spec default_strategy() -> strategy().

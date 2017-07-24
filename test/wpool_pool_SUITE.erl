@@ -26,7 +26,8 @@
         , init_per_testcase/2
         , end_per_testcase/2
         ]).
--export([ best_worker/1
+-export([ stop_worker/1
+        , best_worker/1
         , next_worker/1
         , random_worker/1
         , available_worker/1
@@ -70,7 +71,7 @@ init_per_testcase(TestCase, Config) ->
 
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(TestCase, Config) ->
-  catch wpool:stop_pool(TestCase),
+  catch wpool:stop_sup_pool(TestCase),
   Config.
 
 -spec wait_and_self(pos_integer()) -> pid().
@@ -78,6 +79,16 @@ wait_and_self(Time) ->
   timer:sleep(Time),
   {registered_name, Self} = process_info(self(), registered_name),
   Self.
+
+-spec stop_worker(config()) -> {comment, []}.
+stop_worker(_Config) ->
+  true = (undefined /= wpool_pool:find_wpool(stop_worker)),
+  true = wpool:stop_pool(stop_worker),
+  timer:sleep(1000),
+  undefined = wpool_pool:find_wpool(stop_worker),
+  true = wpool:stop_pool(stop_worker),
+  undefined = wpool_pool:find_wpool(stop_worker),
+  {comment, ""}.
 
 -spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->

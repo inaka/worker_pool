@@ -123,7 +123,7 @@ too_much_overrun(_Config) ->
   ok = no_messages(),
 
   ct:comment("Stop pool..."),
-  ok = wpool:stop_pool(wpool_SUITE_too_much_overrun),
+  ok = wpool:stop_sup_pool(wpool_SUITE_too_much_overrun),
 
   {comment, []}.
 
@@ -153,7 +153,7 @@ overrun(_Config) ->
 
   ok = no_messages(),
 
-  ok = wpool:stop_pool(wpool_SUITE_overrun_pool),
+  ok = wpool:stop_sup_pool(wpool_SUITE_overrun_pool),
 
   {comment, []}.
 
@@ -161,9 +161,9 @@ overrun(_Config) ->
 stop_pool(_Config) ->
   {ok, PoolPid} = wpool:start_sup_pool(wpool_SUITE_stop_pool, [{workers, 1}]),
   true = erlang:is_process_alive(PoolPid),
-  ok = wpool:stop_pool(wpool_SUITE_stop_pool),
+  ok = wpool:stop_sup_pool(wpool_SUITE_stop_pool),
   false = erlang:is_process_alive(PoolPid),
-  ok = wpool:stop_pool(wpool_SUITE_stop_pool),
+  ok = wpool:stop_sup_pool(wpool_SUITE_stop_pool),
 
   {comment, []}.
 
@@ -177,7 +177,7 @@ non_brutal_shutdown(_Config) ->
   {workers, [{WorkerId, _}]} = lists:keyfind(workers, 1, Stats),
   Worker = wpool_pool:worker_name(wpool_SUITE_non_brutal_shutdown, WorkerId),
   monitor(process, Worker),
-  ok = wpool:stop_pool(wpool_SUITE_non_brutal_shutdown),
+  ok = wpool:stop_sup_pool(wpool_SUITE_non_brutal_shutdown),
   receive {'DOWN', _, process, {Worker, _}, Reason} -> shutdown = Reason
   after 200 -> ct:fail(worker_not_stopped)
   end,
@@ -241,7 +241,7 @@ stats(_Config) ->
       true = is_number(Get(runtime, WorkerStats))
     end || I <- lists:seq(1, 10)],
 
-  wpool:stop_pool(wpool_SUITE_stats_pool),
+  wpool:stop_sup_pool(wpool_SUITE_stats_pool),
 
   timer:sleep(5000),
 
