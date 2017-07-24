@@ -1,5 +1,18 @@
 # Change Log
 
+## [3.0.0](https://github.com/inaka/worker_pool/tree/3.0.0) (2017-07-24)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/2.3.0...3.0.0)
+
+**Closed issues:**
+
+- Does it really work if simple\_one\_for\_one is used for the supervisor over the individual workers? [\#104](https://github.com/inaka/worker_pool/issues/104)
+- wpool:stop\(my\_pool\) returns ok. but nothing exits [\#103](https://github.com/inaka/worker_pool/issues/103)
+
+**Merged pull requests:**
+
+- \[\#113\] add stop\_sup function [\#115](https://github.com/inaka/worker_pool/pull/115) ([Euen](https://github.com/Euen))
+- Euen.113.sync names of start stop functions [\#114](https://github.com/inaka/worker_pool/pull/114) ([Euen](https://github.com/Euen))
+
 ## [2.3.0](https://github.com/inaka/worker_pool/tree/2.3.0) (2017-07-19)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.3...2.3.0)
 
@@ -12,6 +25,7 @@
 **Merged pull requests:**
 
 - Remove gen\_fsm support [\#112](https://github.com/inaka/worker_pool/pull/112) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Publish latest version to hex? [\#111](https://github.com/inaka/worker_pool/pull/111) ([puzza007](https://github.com/puzza007))
 - \[\#109\] Adding Travis [\#110](https://github.com/inaka/worker_pool/pull/110) ([ferigis](https://github.com/ferigis))
 - Remove warnings\_as\_errors compile opt. [\#106](https://github.com/inaka/worker_pool/pull/106) ([kzemek](https://github.com/kzemek))
 
