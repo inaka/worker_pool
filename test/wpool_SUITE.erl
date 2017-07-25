@@ -32,12 +32,13 @@
         , overrun_handler2/1
         , default_options/1
         , complete_coverage/1
+        , broadcast/1
         ]).
 
 -spec all() -> [atom()].
 all() ->
   [too_much_overrun, overrun, stop_pool, non_brutal_shutdown, stats,
-   default_strategy, default_options, complete_coverage].
+   default_strategy, default_options, complete_coverage, broadcast].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -297,6 +298,39 @@ complete_coverage(_Config) ->
 
   {comment, []}.
 
+-spec broadcast(config()) -> {comment, []}.
+broadcast(_Config) ->
+  Pool = broadcast,
+  WorkersCount = 19,
+  {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount}]),
+
+  ct:comment("Check mecked function is called ~p times.", [WorkersCount]),
+  meck:new(x, [non_strict]),
+  meck:expect(x, x, fun() -> ok end),
+  % Broadcast x:x() execution to workers.
+  wpool:broadcast(Pool, {x, x, []}),
+  % Give some time for the workers to perform the calls.
+  timer:sleep(1000),
+  WorkersCount = meck:num_calls(x, x, '_'),
+
+  ct:comment("Check they all are \"working\""),
+  % Make all the workers sleep for 1.5 seconds
+  wpool:broadcast(Pool, {timer, sleep, [1500]}),
+  % check they all are actually busy (executing timer:sleep/1 function).
+  try
+    wpool:call(Pool, {io, format, ["I am awake.~n"]}, next_available_worker),
+    ct:fail("There was at least 1 worker available")
+  catch
+    _:no_available_workers -> ok
+  end,
+
+  meck:unload(x),
+  {comment, []}.
+
+
+%% =============================================================================
+%% Helpers
+%% =============================================================================
 get_time_checker(PoolPid) ->
   [TCPid] =
     [ P
