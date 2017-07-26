@@ -32,6 +32,7 @@
         , time_checker_name/1
         ]).
 -export([ cast_to_available_worker/2
+        , broadcast/2
         ]).
 -export([ stats/0
         , stats/1
@@ -146,6 +147,13 @@ hash_worker(Sup, HashKey) ->
 -spec cast_to_available_worker(wpool:name(), term()) -> ok.
 cast_to_available_worker(Sup, Cast) ->
   wpool_queue_manager:cast_to_available_worker(queue_manager_name(Sup), Cast).
+
+%% @doc Casts a message to all the workers within the given pool.
+-spec broadcast(wpool:name(), term()) -> ok.
+broadcast(Sup, Cast) ->
+  lists:foreach( fun(Worker) -> ok = wpool_process:cast(Worker, Cast) end
+               , all_workers(Sup)
+               ).
 
 -spec all() -> [wpool:name()].
 all() ->
@@ -376,6 +384,14 @@ queue_length(Pid) when is_pid(Pid) ->
   case erlang:process_info(Pid, message_queue_len) of
     {message_queue_len, L} -> L;
     undefined -> infinity
+  end.
+
+-spec all_workers(wpool:name()) -> [atom()].
+all_workers(Wpool) ->
+  WPoolSize = wpool_size(Wpool),
+  case WPoolSize of
+    undefined -> exit(no_workers);
+    _ -> [wpool_pool:worker_name(Wpool, N) || N <- lists:seq(1, WPoolSize)]
   end.
 
 %% ===================================================================

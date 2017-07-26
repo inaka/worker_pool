@@ -90,6 +90,7 @@
         , call/3
         , cast/3
         , call/4
+        , broadcast/2
         ]).
 -export([ stats/0
         , stats/1
@@ -209,4 +210,12 @@ stats() -> wpool_pool:stats().
 -spec stats(name()) -> stats().
 stats(Sup) -> wpool_pool:stats(Sup).
 
+%% @doc Casts a message to all the workers within the given pool.
+-spec broadcast(wpool:name(), term()) -> ok.
+broadcast(Sup, Cast) ->
+  wpool_pool:broadcast(Sup, Cast).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PRIVATE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 all_opts(Options) -> Options ++ ?DEFAULTS.
