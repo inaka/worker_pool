@@ -19,6 +19,7 @@
 
 %% api
 -export([ start_link/2
+        , start_link/3
         ]).
 -export([ call_available_worker/3
         , cast_to_available_worker/2
@@ -45,23 +46,36 @@
                , clients           :: queue:queue({cast|{pid(), _}, term()})
                , workers           :: gb_sets:set(atom())
                , monitors          :: gb_trees:tree(atom(), monitored_from())
+               , queue_type        :: queue_type()
                }).
 -type state() :: #state{}.
 
 -type from() :: {pid(), reference()}.
 -type monitored_from() :: {reference(), from()}.
+-type options() :: [{option(), term()}].
+-type option() :: queue_type.
+-type args() :: [{arg(), term()}].
+-type arg() :: option() | pool.
 
 -type queue_mgr() :: atom().
--export_type([queue_mgr/0]).
+-type queue_type() :: fifo | lifo.
+-export_type([queue_mgr/0, queue_type/0]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-%% @private
+%% @equiv start_link(WPool, Name, []).
 -spec start_link(wpool:name(), queue_mgr()) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) ->
-  gen_server:start_link({local, Name}, ?MODULE, WPool, []).
+  start_link(WPool, Name, []).
+
+%% @private
+-spec start_link(wpool:name(), queue_mgr(), options()) ->
+    {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_link(WPool, Name, Options) ->
+    gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options],
+        []).
 
 %% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) ->
@@ -134,11 +148,14 @@ stats(PoolName) ->
 %%% gen_server callbacks
 %%%===================================================================
 %% @private
--spec init(wpool:name()) -> {ok, state()}.
-init(WPool) ->
+-spec init(args()) -> {ok, state()}.
+init(Args) ->
+  WPool = proplists:get_value(pool, Args),
+  QueueType = proplists:get_value(queue_type, Args),
   put(pending_tasks, 0),
   {ok, #state{wpool = WPool, clients = queue:new(),
-              workers = gb_sets:new(), monitors = gb_trees:empty()}}.
+              workers = gb_sets:new(), monitors = gb_trees:empty(),
+              queue_type = QueueType}}.
 
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 %% @private
@@ -151,7 +168,8 @@ handle_cast({worker_dead, Worker}, #state{workers = Workers} = State) ->
 handle_cast({worker_busy, Worker}, #state{workers = Workers} = State) ->
   {noreply, State#state{workers = gb_sets:delete_any(Worker, Workers)}};
 handle_cast({worker_ready, Worker}, State0) ->
-  #state{workers = Workers, clients = Clients, monitors = Mons} = State0,
+  #state{workers = Workers, clients = Clients, monitors = Mons,
+         queue_type = QueueType} = State0,
   State = case gb_trees:is_defined(Worker, Mons) of
     true ->
       {Ref, _Client} = gb_trees:get(Worker, Mons),
@@ -160,7 +178,7 @@ handle_cast({worker_ready, Worker}, State0) ->
     false ->
       State0
   end,
-  case queue:out(Clients) of
+  case queue_out(Clients, QueueType) of
     {empty, _Clients} ->
       {noreply, State#state{workers = gb_sets:add(Worker, Workers)}};
     {{value, {cast, Cast}}, NewClients} ->
@@ -268,3 +286,8 @@ expires(Timeout) ->
 monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
   Ref = monitor(process, Worker),
   State#state{monitors = gb_trees:enter(Worker, {Ref, Client}, Mons)}.
+
+queue_out(Clients, fifo) ->
+    queue:out(Clients);
+queue_out(Clients, lifo) ->
+    queue:out_r(Clients).

@@ -19,7 +19,8 @@
 
 -define(DEFAULTS, [ {overrun_warning, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
-                  , {workers, 100}, {worker_opt, []}
+                  , {workers, 100}, {worker_opt, []},
+                    {queue_type, fifo}
                   ]).
 
 %% Copied from gen.erl
@@ -44,6 +45,7 @@
                 | {worker_type, gen_server}
                 | {pool_sup_intensity, non_neg_integer()}
                 | {pool_sup_period, non_neg_integer()}
+                | {queue_type, wpool_queue_manager:queue_type()}
                 .
 -type custom_strategy() :: fun(([atom()])-> Atom::atom()).
 -type strategy() :: best_worker
