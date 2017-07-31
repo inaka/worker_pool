@@ -423,21 +423,18 @@ super_fast(_Config) ->
 queue_type_fifo(_Config) ->
   Pool = queue_type_fifo,
   Self = self(),
-  Tasks = lists:seq(1, 10),
+  TasksNumber = 10,
+  Tasks = lists:seq(1, TasksNumber),
 
   ct:log("Pretend worker is busy"),
   wpool:cast(Pool, {timer, sleep, [timer:seconds(2)]}),
 
-  ct:log("Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
-  lists:foreach(fun(N) ->
-    wpool:cast(Pool, {erlang, send, [Self, {task, N}]})
-  end, Tasks),
+  ct:log(
+    "Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
+  cast_tasks(Pool, TasksNumber, Self),
 
-  Result = lists:map(fun(_) ->
-    receive
-      {task, N} -> N
-    end
-  end, Tasks),
+  ct:log("Collect task results"),
+  Result = collect_tasks(TasksNumber),
 
   ct:log("Check if tasks were performd in FIFO order."),
   Result = Tasks,
@@ -448,21 +445,18 @@ queue_type_fifo(_Config) ->
 queue_type_lifo(_Config) ->
   Pool = queue_type_lifo,
   Self = self(),
-  Tasks = lists:seq(1, 10),
+  TasksNumber = 10,
+  Tasks = lists:seq(1, TasksNumber),
 
   ct:log("Pretend worker is busy"),
-  wpool:cast(Pool, {timer, sleep, [timer:seconds(2)]}),
+  wpool:cast(Pool, {timer, sleep, [timer:seconds(4)]}),
 
-  ct:log("Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
-  lists:foreach(fun(N) ->
-    wpool:cast(Pool, {erlang, send, [Self, {task, N}]})
-  end, Tasks),
+  ct:log(
+    "Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
+  cast_tasks(Pool, TasksNumber, Self),
 
-  Result = lists:map(fun(_) ->
-    receive
-      {task, N} -> N
-    end
-  end, Tasks),
+  ct:log("Collect task results"),
+  Result = collect_tasks(TasksNumber),
 
   ct:log("Check if tasks were performd in LIFO order."),
   Result = lists:reverse(Tasks),
@@ -527,6 +521,18 @@ ets_mess_up(_Config) ->
   ok = wpool:start(),
 
   {comment, []}.
+
+cast_tasks(Pool, TasksNumber, ReplyTo) ->
+  lists:foreach(fun(N) ->
+    wpool:cast(Pool, {erlang, send, [ReplyTo, {task, N}]})
+  end, lists:seq(1, TasksNumber)).
+
+collect_tasks(TasksNumber) ->
+  lists:map(fun(_) ->
+    receive
+      {task, N} -> N
+    end
+  end, lists:seq(1, TasksNumber)).
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
