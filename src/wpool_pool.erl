@@ -276,6 +276,7 @@ time_checker_name(Sup) ->
         {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
   Workers = proplists:get_value(workers, Options, 100),
+  QueueType = proplists:get_value(queue_type, Options),
   OverrunHandler =
     proplists:get_value(
       overrun_handler, Options, {error_logger, warning_report}),
@@ -300,7 +301,9 @@ init({Name, Options}) ->
     },
   QueueManagerSpec =
     { QueueManager
-    , {wpool_queue_manager, start_link, [Name, QueueManager]}
+    , {wpool_queue_manager, start_link, [Name, QueueManager,
+        [{queue_type, QueueType}]]
+      }
     , permanent
     , brutal_kill
     , worker

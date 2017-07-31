@@ -292,7 +292,7 @@ complete_coverage(_Config) ->
   {error, {invalid_pool, invalid}} = wpool_queue_manager:stats(invalid),
   QMPid = get_queue_manager(PoolPid),
   QMPid ! info,
-  {ok, QMState} = wpool_queue_manager:init(pool),
+  {ok, QMState} = wpool_queue_manager:init([{pool, pool}]),
   ok = wpool_queue_manager:terminate(reason, QMState),
   {ok, QMState} = wpool_queue_manager:code_change("oldvsn", QMState, extra),
 

@@ -35,6 +35,8 @@
         , custom_worker/1
         , next_available_worker/1
         , wpool_record/1
+        , queue_type_fifo/1
+        , queue_type_lifo/1
         ]).
 -export([ wait_and_self/1
         ]).
@@ -65,6 +67,18 @@ end_per_suite(Config) ->
   Config.
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(queue_type_lifo = TestCase, Config) ->
+  {ok, _} = wpool:start_pool(TestCase, [
+    {workers, 1}, {queue_type, lifo}]
+  ),
+  Config;
+
+init_per_testcase(queue_type_fifo = TestCase, Config) ->
+  {ok, _} = wpool:start_pool(TestCase, [
+    {workers, 1}, {queue_type, fifo}]
+  ),
+  Config;
+
 init_per_testcase(TestCase, Config) ->
   {ok, _} = wpool:start_pool(TestCase, [{workers, ?WORKERS}]),
   Config.
@@ -405,6 +419,50 @@ super_fast(_Config) ->
 
   {comment, []}.
 
+-spec queue_type_fifo(config()) -> {comment, []}.
+queue_type_fifo(_Config) ->
+  Pool = queue_type_fifo,
+  Self = self(),
+  TasksNumber = 10,
+  Tasks = lists:seq(1, TasksNumber),
+
+  ct:log("Pretend worker is busy"),
+  wpool:cast(Pool, {timer, sleep, [timer:seconds(2)]}),
+
+  ct:log(
+    "Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
+  cast_tasks(Pool, TasksNumber, Self),
+
+  ct:log("Collect task results"),
+  Result = collect_tasks(TasksNumber),
+
+  ct:log("Check if tasks were performd in FIFO order."),
+  Result = Tasks,
+
+  {comment, []}.
+
+-spec queue_type_lifo(config()) -> {comment, []}.
+queue_type_lifo(_Config) ->
+  Pool = queue_type_lifo,
+  Self = self(),
+  TasksNumber = 10,
+  Tasks = lists:seq(1, TasksNumber),
+
+  ct:log("Pretend worker is busy"),
+  wpool:cast(Pool, {timer, sleep, [timer:seconds(4)]}),
+
+  ct:log(
+    "Cast 10 enumerated tasks. Tasks should be queued because worker is busy."),
+  cast_tasks(Pool, TasksNumber, Self),
+
+  ct:log("Collect task results"),
+  Result = collect_tasks(TasksNumber),
+
+  ct:log("Check if tasks were performd in LIFO order."),
+  Result = lists:reverse(Tasks),
+
+  {comment, []}.
+
 -spec wpool_record(config()) -> {comment, []}.
 wpool_record(_Config) ->
   WPool = wpool_pool:find_wpool(wpool_record),
@@ -463,6 +521,18 @@ ets_mess_up(_Config) ->
   ok = wpool:start(),
 
   {comment, []}.
+
+cast_tasks(Pool, TasksNumber, ReplyTo) ->
+  lists:foreach(fun(N) ->
+    wpool:cast(Pool, {erlang, send, [ReplyTo, {task, N}]})
+  end, lists:seq(1, TasksNumber)).
+
+collect_tasks(TasksNumber) ->
+  lists:map(fun(_) ->
+    receive
+      {task, N} -> N
+    end
+  end, lists:seq(1, TasksNumber)).
 
 collect_results(0, Results) -> Results;
 collect_results(N, Results) ->
