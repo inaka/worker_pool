@@ -64,7 +64,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-%% @equiv start_link(WPool, Name, []).
+%% @equiv start_link(WPool, Name, [])
 -spec start_link(wpool:name(), queue_mgr()) ->
         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) ->
@@ -288,6 +288,6 @@ monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
   State#state{monitors = gb_trees:enter(Worker, {Ref, Client}, Mons)}.
 
 queue_out(Clients, fifo) ->
-    queue:out(Clients);
+  queue:out(Clients);
 queue_out(Clients, lifo) ->
-    queue:out_r(Clients).
+  queue:out_r(Clients).
