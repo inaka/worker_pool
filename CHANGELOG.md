@@ -1,15 +1,32 @@
 # Change Log
 
+## [3.1.0](https://github.com/inaka/worker_pool/tree/3.1.0) (2017-08-15)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/3.0.0...3.1.0)
+
+**Closed issues:**
+
+- \[Feature\] Question about possible feature [\#125](https://github.com/inaka/worker_pool/issues/125)
+- Project rebar.config file [\#124](https://github.com/inaka/worker_pool/issues/124)
+- Sync the names of start/stop functions better [\#113](https://github.com/inaka/worker_pool/issues/113)
+- Feature request: worker broadcast [\#105](https://github.com/inaka/worker_pool/issues/105)
+
+**Merged pull requests:**
+
+- add queue\_type parameter for starting pool to choose whether requests… [\#123](https://github.com/inaka/worker_pool/pull/123) ([jakud](https://github.com/jakud))
+- \[Fix \#105\] Add message broadcast feature [\#118](https://github.com/inaka/worker_pool/pull/118) ([harenson](https://github.com/harenson))
+
 ## [3.0.0](https://github.com/inaka/worker_pool/tree/3.0.0) (2017-07-24)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.3.0...3.0.0)
 
 **Closed issues:**
 
+- Bump version to 3.0.0 [\#116](https://github.com/inaka/worker_pool/issues/116)
 - Does it really work if simple\_one\_for\_one is used for the supervisor over the individual workers? [\#104](https://github.com/inaka/worker_pool/issues/104)
 - wpool:stop\(my\_pool\) returns ok. but nothing exits [\#103](https://github.com/inaka/worker_pool/issues/103)
 
 **Merged pull requests:**
 
+- \[Close \#116\] Bump version to 3.0.0 [\#117](https://github.com/inaka/worker_pool/pull/117) ([Euen](https://github.com/Euen))
 - \[\#113\] add stop\_sup function [\#115](https://github.com/inaka/worker_pool/pull/115) ([Euen](https://github.com/Euen))
 - Euen.113.sync names of start stop functions [\#114](https://github.com/inaka/worker_pool/pull/114) ([Euen](https://github.com/Euen))
 
