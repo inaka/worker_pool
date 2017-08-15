@@ -17,7 +17,7 @@
 { application
 , worker_pool
 , [ {description, "Erlang Worker Pool"}
-  , {vsn, "3.0.0"}
+  , {vsn, "3.1.0"}
   , {id, "worker_pool"}
   , {registered, []}
   , {modules, []}
@@ -30,5 +30,6 @@
             , {"Erldocs", "http://inaka.github.io/worker_pool/"}
             , {"Blog Post", "http://inaka.net/blog/2014/09/25/worker-pool/"}
             ]}
+  , {build_tools,["rebar3"]}
   ]
 }.
