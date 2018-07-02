@@ -13,7 +13,13 @@
 all() -> [dialyzer, elvis].
 
 -spec init_per_suite(config()) -> config().
-init_per_suite(Config) -> [{application, worker_pool} | Config].
+init_per_suite(Config) ->
+  [ {application,  worker_pool}
+  %% Until the next version of katana-test fixes the missing test deps in plt
+  %% issue, we can't use the default warnings that include 'unknown' here.
+  , {dialyzer_warnings, [error_handling, race_conditions, unmatched_returns, no_return]}
+  | Config
+  ].
 
 -spec end_per_suite(config()) -> config().
 end_per_suite(Config) -> Config.

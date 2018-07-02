@@ -202,7 +202,7 @@ stats(Wpool, Sup) ->
   PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
   [ {pool,                     Sup}
   , {supervisor,               erlang:whereis(Sup)}
-  , {options,                  Wpool#wpool.opts}
+  , {options,                  lists:ukeysort(1, proplists:unfold(Wpool#wpool.opts))}
   , {size,                     Wpool#wpool.size}
   , {next_worker,              Wpool#wpool.next}
   , {total_message_queue_len,  Total + PendingTasks}
