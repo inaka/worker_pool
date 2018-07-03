@@ -28,7 +28,8 @@
 start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @doc Starts a new pool
--spec start_pool(wpool:name(), [wpool:option()]) -> {ok, pid()}.
+-spec start_pool(wpool:name(), [wpool:option()]) ->
+        {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) -> supervisor:start_child(?MODULE, [Name, Options]).
 
 %% @doc Stops a pool
