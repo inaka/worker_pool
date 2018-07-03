@@ -145,7 +145,8 @@ stop_pool(Name) ->
   end.
 
 %% @equiv start_sup_pool(Name, [])
--spec start_sup_pool(name()) -> {ok, pid()}.
+-spec start_sup_pool(name()) ->
+        {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_sup_pool(Name) -> start_sup_pool(Name, []).
 
 %% @doc Starts a pool of N wpool_processes supervised by {@link wpool_sup}
