@@ -245,6 +245,8 @@ handle_call(worker_counts, _From, State) ->
 
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
+handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
+    handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
 handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
   case gb_trees:is_defined(Worker, Mons) of
     true ->
