@@ -77,8 +77,8 @@ handle_cast({M, F, A}, State) ->
     _ ->
       {noreply, State, hibernate}
   catch
-    _:Error ->
-      log_error(M, F, A, Error),
+    _:Error:Stacktrace ->
+      log_error(M, F, A, Error, Stacktrace),
       {noreply, State, hibernate}
   end;
 handle_cast(Cast, State) ->
@@ -94,8 +94,8 @@ handle_call({M, F, A}, _From, State) ->
     R ->
       {reply, {ok, R}, State, hibernate}
   catch
-    _:Error ->
-      log_error(M, F, A, Error),
+    _:Error:Stacktrace ->
+      log_error(M, F, A, Error, Stacktrace),
       {reply, {error, Error}, State, hibernate}
   end;
 handle_call(Call, _From, State) ->
@@ -105,7 +105,7 @@ handle_call(Call, _From, State) ->
 %%%===================================================================
 %%% not exported functions
 %%%===================================================================
-log_error(M, F, A, Error) ->
+log_error(M, F, A, Error, Stacktrace) ->
   error_logger:error_msg(
     "Error on ~p:~p~p >> ~p Backtrace ~p",
-    [M, F, A, Error, erlang:get_stacktrace()]).
+    [M, F, A, Error, Stacktrace]).
