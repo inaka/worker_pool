@@ -88,7 +88,7 @@ random_worker(Sup) ->
   case wpool_size(Sup) of
     undefined  -> exit(no_workers);
     WpoolSize ->
-      WorkerNumber = rnd(WpoolSize),
+      WorkerNumber = rand:uniform(WpoolSize),
       worker_name(Sup, WorkerNumber)
   end.
 
@@ -345,7 +345,7 @@ worker_with_no_task(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
   %% do not always start asking for process_info to the processes that are most
   %% likely to have bigger message queues
-  First = rnd(Wpool#wpool.size),
+  First = rand:uniform(Wpool#wpool.size),
   worker_with_no_task(0, Wpool#wpool{next = First}).
 worker_with_no_task(Size, #wpool{size = Size}) ->
   undefined;
@@ -370,7 +370,7 @@ min_message_queue(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
   %% do not always start asking for process_info to the processes that are most
   %% likely to have bigger message queues
-  First = rnd(Wpool#wpool.size),
+  First = rand:uniform(Wpool#wpool.size),
   min_message_queue(0, Wpool#wpool{next = First}, []).
 min_message_queue(Size, #wpool{size = Size}, Found) ->
   {_, Worker} = lists:min(Found),
@@ -458,24 +458,3 @@ build_wpool(Name) ->
 
 next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
-
-rnd(WpoolSize) ->
-  case application:get_env(worker_pool, random_fun) of
-    undefined ->
-      set_random_fun(),
-      rnd(WpoolSize);
-    {ok, RndFun} ->
-      RndFun(WpoolSize)
-  end.
-
-set_random_fun() ->
-  RndFun =
-    case code:ensure_loaded(rand) of
-      {module, rand} -> fun rand:uniform/1;
-      {error, _} ->
-        fun(Size) ->
-          _ = erlang:apply(random, seed, [os:timestamp()]),
-          erlang:apply(random, uniform, [Size])
-        end
-    end,
-  application:set_env(worker_pool, random_fun, RndFun).
