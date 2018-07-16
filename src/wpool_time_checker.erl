@@ -84,26 +84,46 @@ handle_call({add_handler, Handler}, _, State = #state{handlers = Handlers}) ->
 %%%===================================================================
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info({check, Pid, TaskId, Runtime}, State) ->
+handle_info({check, Pid, TaskId, Runtime, WarningsLeft}, State) ->
   case erlang:process_info(Pid, dictionary) of
     {dictionary, Values} ->
       run_task(
         TaskId, proplists:get_value(wpool_task, Values), Pid,
-        State#state.wpool, State#state.handlers, Runtime);
+        State#state.wpool, State#state.handlers, Runtime, WarningsLeft);
     _ -> ok
   end,
   {noreply, State};
 handle_info(_Info, State) -> {noreply, State}.
 
-run_task(TaskId, {TaskId, _, Task}, Pid, Pool, Handlers, Runtime) ->
-  Args = [ {alert, overrun}, {pool, Pool}, {worker, Pid}, {task, Task}
-         , {runtime, Runtime}],
-  _ = [catch Mod:Fun(Args) || {Mod, Fun} <- Handlers],
-  case 2 * Runtime of
+run_task(TaskId, {TaskId, _, Task}, Pid, Pool, Handlers, Runtime, 1) ->
+  send_reports(Handlers, max_overrun_limit, Pool, Pid, Task, Runtime),
+  exit(Pid, kill),
+  ok;
+run_task(TaskId, {TaskId, _, Task}, Pid, Pool, Handlers, Runtime, WarningsLeft) ->
+  send_reports(Handlers, overrun, Pool, Pid, Task, Runtime),
+  case new_overrun_time(Runtime, WarningsLeft) of
     NewOverrunTime when NewOverrunTime =< 4294967295 ->
       erlang:send_after(
-        Runtime, self(), {check, Pid, TaskId, NewOverrunTime}),
+        Runtime, self(), {check, Pid, TaskId, NewOverrunTime, decrease_warnings(WarningsLeft)}),
       ok;
     _ -> ok
   end;
-run_task(_TaskId, _Value, _Pid, _Pool, _Handlers, _Runtime) -> ok.
+run_task(_TaskId, _Value, _Pid, _Pool, _Handlers, _Runtime, _WarningsLeft) -> ok.
+
+-spec new_overrun_time(pos_integer(), pos_integer() | infinity) -> pos_integer().
+new_overrun_time(Runtime, infinity) ->
+    Runtime;
+new_overrun_time(Runtime, _) ->
+    Runtime * 2.
+
+-spec decrease_warnings(pos_integer() | infinity) -> non_neg_integer() | infinity.
+decrease_warnings(infinity) -> infinity;
+decrease_warnings(N) -> N -1.
+
+-spec send_reports([{atom(), atom()}], atom(), atom(), pid(), term(), infinity | pos_integer()) ->
+    ok.
+send_reports(Handlers, Alert, Pool, Pid, Task, Runtime) ->
+  Args = [ {alert, Alert}, {pool, Pool}, {worker, Pid}, {task, Task}
+         , {runtime, Runtime}],
+  _ = [catch Mod:Fun(Args) || {Mod, Fun} <- Handlers],
+  ok.

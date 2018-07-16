@@ -147,7 +147,8 @@ handle_cast({cast, Cast}, State) ->
     wpool_utils:task_init(
       {cast, Cast},
       proplists:get_value(time_checker, State#state.options, undefined),
-      proplists:get_value(overrun_warning, State#state.options, infinity)),
+      proplists:get_value(overrun_warning, State#state.options, infinity),
+      proplists:get_value(max_overrun_warnings, State#state.options, infinity)),
   ok = wpool_utils:notify_queue_manager(worker_busy
                                         , State#state.name
                                         , State#state.options),
@@ -181,7 +182,8 @@ handle_call(Call, From, State) ->
     wpool_utils:task_init(
       {call, Call},
       proplists:get_value(time_checker, State#state.options, undefined),
-      proplists:get_value(overrun_warning, State#state.options, infinity)),
+      proplists:get_value(overrun_warning, State#state.options, infinity),
+      proplists:get_value(max_overrun_warnings, State#state.options, infinity)),
   ok = wpool_utils:notify_queue_manager(worker_busy
                                         , State#state.name
                                         , State#state.options),

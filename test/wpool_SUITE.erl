@@ -26,6 +26,7 @@
         , stop_pool/1
         , non_brutal_shutdown/1
         , overrun/1
+        , kill_on_overrun/1
         , too_much_overrun/1
         , default_strategy/1
         , overrun_handler1/1
@@ -38,7 +39,8 @@
 -spec all() -> [atom()].
 all() ->
   [too_much_overrun, overrun, stop_pool, non_brutal_shutdown, stats,
-   default_strategy, default_options, complete_coverage, broadcast].
+   default_strategy, default_options, complete_coverage, broadcast,
+   kill_on_overrun].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -82,7 +84,7 @@ too_much_overrun(_Config) ->
   {TaskId, _, _} = proplists:get_value(wpool_task, Dict),
 
   ct:comment("Simulate overrun warning..."),
-  TCPid ! {check, Worker, TaskId, 9999999999}, % huge runtime… no more overruns
+  TCPid ! {check, Worker, TaskId, 9999999999, infinity}, % huge runtime… no more overruns
 
   ct:comment("Get overrun message..."),
   _ = receive
@@ -152,6 +154,47 @@ overrun(_Config) ->
         ct:fail(no_overrun)
       end,
 
+  ok = no_messages(),
+
+  ok = wpool:stop_sup_pool(wpool_SUITE_overrun_pool),
+
+  {comment, []}.
+
+-spec kill_on_overrun(config()) -> {comment, []}.
+kill_on_overrun(_Config) ->
+  true = register(overrun_handler, self()),
+  {ok, _Pid} =
+    wpool:start_sup_pool(
+      wpool_SUITE_kill_on_overrun_pool,
+      [ {workers, 1}
+      , {overrun_warning, 500}
+      , {max_overrun_warnings, 2} %% The worker must be killed after 2 overrun
+                                  %% warnings, which is after 1 secs with this
+                                  %% configuration
+      , {overrun_handler, {?MODULE, overrun_handler1}}
+      ]),
+  ok = wpool:cast(wpool_SUITE_kill_on_overrun_pool, {timer, sleep, [2000]}),
+  _ = receive
+        {overrun1, Message} ->
+          overrun = proplists:get_value(alert, Message),
+          wpool_SUITE_kill_on_overrun_pool = proplists:get_value(pool, Message),
+          WPid = proplists:get_value(worker, Message),
+          true = is_pid(WPid),
+          true = erlang:is_process_alive(WPid)
+      after 2000 ->
+        ct:fail(no_overrun)
+      end,
+
+  _ = receive
+        {overrun1, Message2} ->
+          max_overrun_limit = proplists:get_value(alert, Message2),
+          wpool_SUITE_kill_on_overrun_pool = proplists:get_value(pool, Message2),
+          WPid2 = proplists:get_value(worker, Message2),
+          true = is_pid(WPid2),
+          false = erlang:is_process_alive(WPid2)
+      after 2000 ->
+        ct:fail(no_overrun)
+      end,
   ok = no_messages(),
 
   ok = wpool:stop_sup_pool(wpool_SUITE_overrun_pool),
