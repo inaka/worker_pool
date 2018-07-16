@@ -25,6 +25,7 @@
         , handle_cast/2
         , handle_info/2
         , handle_continue/2
+        , format_status/2
         ]).
 
 -dialyzer([no_behaviours]).
@@ -49,9 +50,11 @@ handle_info(Info, _State) -> Info.
 handle_cast(Cast, _State) -> Cast.
 
 -type from() :: {pid(), reference()}.
--spec handle_call(state | Call, from(), State) -> {reply, State, State} | Call.
-handle_call(state, _From, State) -> {reply, State, State};
+-spec handle_call(Call, from(), term()) -> Call.
 handle_call(Call, _From, _State) -> Call.
 
 -spec handle_continue(Continue, term()) -> Continue.
 handle_continue(Continue, _State) -> Continue.
+
+-spec format_status(normal | terminate, [[{_, _}] | State, ...]) -> {formatted_state, State}.
+format_status(_, [_PDict, State]) -> {formatted_state, State}.

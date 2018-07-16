@@ -46,6 +46,7 @@
         , handle_cast/2
         , handle_info/2
         , handle_continue/2
+        , format_status/2
         ]).
 
 %%%===================================================================
@@ -139,6 +140,20 @@ handle_continue(Continue, State) ->
       {noreply, State#state{state = NewState}, NextStep};
     {stop, Reason, NewState} ->
       {stop, Reason, State#state{state = NewState}}
+  end.
+
+%% @private
+-spec format_status(normal | terminate, [[{_, _}] | state(), ...]) -> term().
+format_status(Opt, [PDict, State]) ->
+  case erlang:function_exported(State#state.mod, format_status, 2) of
+    false ->
+      case Opt of % This is copied from gen_server:format_status/4
+        terminate -> State#state.state;
+        normal -> [{data, [{"State", State#state.state}]}]
+      end;
+    true ->
+      wpool_utils:do_try(
+        fun() -> (State#state.mod):format_status(Opt, [PDict, State#state.state]) end)
   end.
 
 %%%===================================================================
