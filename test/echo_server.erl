@@ -24,6 +24,7 @@
         , handle_call/3
         , handle_cast/2
         , handle_info/2
+        , handle_continue/2
         ]).
 
 -dialyzer([no_behaviours]).
@@ -51,3 +52,6 @@ handle_cast(Cast, _State) -> Cast.
 -spec handle_call(state | Call, from(), State) -> {reply, State, State} | Call.
 handle_call(state, _From, State) -> {reply, State, State};
 handle_call(Call, _From, _State) -> Call.
+
+-spec handle_continue(Continue, term()) -> Continue.
+handle_continue(Continue, _State) -> Continue.

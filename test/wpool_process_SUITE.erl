@@ -29,6 +29,7 @@
         , info/1
         , cast/1
         , call/1
+        , continue/1
         , stop/1
         ]).
 -export([ pool_restart_crash/1
@@ -109,6 +110,59 @@ cast(_Config) ->
   timer:sleep(100),
   timeout = wpool_process:call(?MODULE, state, 5000),
   wpool_process:cast(Pid, {stop, normal, state}),
+  timer:sleep(1000),
+  false = erlang:is_process_alive(Pid),
+
+  {comment, []}.
+
+-spec continue(config()) -> {comment, []}.
+continue(_Config) ->
+  C = fun(ContinueState) -> {noreply, ContinueState} end,
+  %% init/1 returns {continue, continue_state}
+  {ok, Pid} =
+    wpool_process:start_link(
+      ?MODULE, echo_server, {ok, state, {continue, C(continue_state)}}, []),
+  continue_state = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_call/3 returns {continue, ...}
+  ok = wpool_process:call(Pid, {reply, ok, state, {continue, C(continue_state_2)}}, 5000),
+  continue_state_2 = wpool_process:call(?MODULE, state, 5000),
+  try wpool_process:call(Pid, {noreply, state, {continue, C(continue_state_3)}}, 100) of
+    Result -> ct:fail("Unexpected Result: ~p", [Result])
+  catch
+    _:{timeout, _} ->
+      continue_state_3 = wpool_process:call(?MODULE, state, 5000)
+  end,
+
+  %% handle_cast/2 returns {continue, ...}
+  wpool_process:cast(Pid, {noreply, state, {continue, C(continue_state_4)}}),
+  continue_state_4 = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_continue/2 returns {continue, ...}
+  SecondContinueResponse = C(continue_state_5),
+  FirstContinueResponse = {noreply, another_state, {continue, SecondContinueResponse}},
+  CastResponse = {noreply, state, {continue, FirstContinueResponse}},
+  wpool_process:cast(Pid, CastResponse),
+  continue_state_5 = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_info/2 returns {continue, ...}
+  Pid ! {noreply, state, {continue, C(continue_state_6)}},
+  continue_state_6 = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_continue/2 returns {continue, ...}
+  SecondContinueResponse = C(continue_state_5),
+  FirstContinueResponse = {noreply, another_state, {continue, SecondContinueResponse}},
+  CastResponse = {noreply, state, {continue, FirstContinueResponse}},
+  wpool_process:cast(Pid, CastResponse),
+  continue_state_5 = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_continue/2 returns timeout = 0
+  wpool_process:cast(Pid, {noreply, state, {continue, {noreply, continue_state_7, 0}}}),
+  timer:sleep(100),
+  timeout = wpool_process:call(?MODULE, state, 5000),
+
+  %% handle_continue/2 returns {stop, normal, state}
+  wpool_process:cast(Pid, {noreply, state, {continue, {stop, normal, state}}}),
   timer:sleep(1000),
   false = erlang:is_process_alive(Pid),
 
