@@ -30,6 +30,7 @@
         , cast/1
         , call/1
         , continue/1
+        , format_status/1
         , no_format_status/1
         , stop/1
         ]).
@@ -169,6 +170,17 @@ continue(_Config) ->
 
   {comment, []}.
 
+-spec format_status(config()) -> {comment, []}.
+format_status(_Config) ->
+  %% echo_server implements format_status/2
+  {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+  %% therefore it returns {formatted_state, State} as its status and we just pass it through
+  {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
+  [state] = [S || SItemList = [_|_] <- SItems, {formatted_state, S} <- SItemList],
+  %% this code is actually what we use to retrieve the state in other tests
+  state = get_state(Pid),
+  {comment, []}.
+
 -spec no_format_status(config()) -> {comment, []}.
 no_format_status(_Config) ->
   %% crashy_server doesn't implement format_status/2
@@ -306,6 +318,12 @@ complete_coverage(_Config) ->
 
   {comment, []}.
 
+
+%% @doc We can use this function in tests since echo_server implements format_status/2
+%%      by returning the state as a tuple {formatted_state, S}.
+%%      We can safely grab it from the result of sys:get_status/1
+%% @see gen_server:format_status/2
+%% @see sys:get_status/2
 get_state(Atom) when is_atom(Atom) ->
   get_state(whereis(Atom));
 get_state(Pid) ->
