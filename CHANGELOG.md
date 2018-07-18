@@ -5,7 +5,7 @@
 
 **Merged pull requests:**
 
-- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
+- Bump Version to 4.0.0 [\#143](https://github.com/inaka/worker_pool/pull/143) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - test erlang 21 [\#138](https://github.com/inaka/worker_pool/pull/138) ([getong](https://github.com/getong))
 - Adjust to OTP21 [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
