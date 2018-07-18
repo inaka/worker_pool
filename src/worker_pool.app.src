@@ -24,7 +24,7 @@
   , {applications, [kernel, stdlib]}
   , {mod, {wpool, []}}
   , {env, []}
-  , {maintainers, ["Inaka", "TigerText"]}
+  , {maintainers, ["Inaka"]}
   , {licenses, ["Apache2"]}
   , {links, [ {"Github", "https://github.com/inaka/worker_pool"}
             , {"Erldocs", "http://inaka.github.io/worker_pool/"}
