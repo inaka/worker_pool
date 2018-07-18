@@ -1,5 +1,14 @@
 # Change Log
 
+## [4.0.0](https://github.com/inaka/worker_pool/tree/4.0.0) (2018-07-18)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.1...4.0.0)
+
+**Merged pull requests:**
+
+- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
+- test erlang 21 [\#138](https://github.com/inaka/worker_pool/pull/138) ([getong](https://github.com/getong))
+- Adjust to OTP21 [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [3.1.1](https://github.com/inaka/worker_pool/tree/3.1.1) (2018-07-04)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.0...3.1.1)
 
@@ -15,6 +24,7 @@
 
 **Merged pull requests:**
 
+- Update dependencies and bump version to 3.1.1 [\#142](https://github.com/inaka/worker_pool/pull/142) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Propagate `killed` reason to clients [\#141](https://github.com/inaka/worker_pool/pull/141) ([carlosvarelap](https://github.com/carlosvarelap))
 - fixed function spec [\#139](https://github.com/inaka/worker_pool/pull/139) ([bartekgorny](https://github.com/bartekgorny))
 - Update README.md [\#131](https://github.com/inaka/worker_pool/pull/131) ([igaray](https://github.com/igaray))
