@@ -29,6 +29,7 @@
 -type state() :: #state{}.
 
 -type from() :: {pid(), reference()}.
+-type next_step() :: timeout() | hibernate | {continue, term()}.
 
 %% api
 -export([ start_link/4
@@ -44,6 +45,8 @@
         , handle_call/3
         , handle_cast/2
         , handle_info/2
+        , handle_continue/2
+        , format_status/2
         ]).
 
 %%%===================================================================
@@ -74,7 +77,8 @@ cast_call(Process, From, Call) ->
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, state()}.
+-spec init({atom(), atom(), term(), [wpool:option()]}) ->
+        {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
 init({Name, Mod, InitArgs, Options}) ->
   case Mod:init(InitArgs) of
     {ok, ModState} ->
@@ -84,13 +88,13 @@ init({Name, Mod, InitArgs, Options}) ->
                  , state = ModState
                  , options = Options
                  }};
-    {ok, ModState, Timeout} ->
+    {ok, ModState, NextStep} ->
       ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
                  , options = Options
-                 }, Timeout};
+                 }, NextStep};
     ignore -> {stop, can_not_ignore};
     Error -> Error
   end.
@@ -112,31 +116,60 @@ code_change(OldVsn, State, Extra) ->
 
 %% @private
 -spec handle_info(any(), state()) ->
-        {noreply, state()} | {stop, term(), state()}.
+        {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_info(Info, State) ->
   case wpool_utils:do_try(
         fun() -> (State#state.mod):handle_info(Info, State#state.state) end) of
     {noreply, NewState} ->
       {noreply, State#state{state = NewState}};
-    {noreply, NewState, Timeout} ->
-      {noreply, State#state{state = NewState}, Timeout};
+    {noreply, NewState, NextStep} ->
+      {noreply, State#state{state = NewState}, NextStep};
     {stop, Reason, NewState} ->
       {stop, Reason, State#state{state = NewState}}
+  end.
+
+%% @private
+-spec handle_continue(any(), state()) ->
+        {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
+handle_continue(Continue, State) ->
+  case wpool_utils:do_try(
+        fun() -> (State#state.mod):handle_continue(Continue, State#state.state) end) of
+    {noreply, NewState} ->
+      {noreply, State#state{state = NewState}};
+    {noreply, NewState, NextStep} ->
+      {noreply, State#state{state = NewState}, NextStep};
+    {stop, Reason, NewState} ->
+      {stop, Reason, State#state{state = NewState}}
+  end.
+
+%% @private
+-spec format_status(normal | terminate, [[{_, _}] | state(), ...]) -> term().
+format_status(Opt, [PDict, State]) ->
+  case erlang:function_exported(State#state.mod, format_status, 2) of
+    false ->
+      case Opt of % This is copied from gen_server:format_status/4
+        terminate -> State#state.state;
+        normal -> [{data, [{"State", State#state.state}]}]
+      end;
+    true ->
+      wpool_utils:do_try(
+        fun() -> (State#state.mod):format_status(Opt, [PDict, State#state.state]) end)
   end.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 %% @private
--spec handle_cast(term(), state()) -> {noreply, state()}.
+-spec handle_cast(term(), state()) ->
+        {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_cast({call, From, Call}, State) ->
   case handle_call(Call, From, State) of
     {reply, Response, NewState} ->
       gen_server:reply(From, Response),
       {noreply, NewState};
-    {reply, Response, NewState, Timeout} ->
+    {reply, Response, NewState, NextStep} ->
       gen_server:reply(From, Response),
-      {noreply, NewState, Timeout};
+      {noreply, NewState, NextStep};
     {stop, Reason, Response, NewState} ->
       gen_server:reply(From, Response),
       {stop, Reason, NewState};
@@ -156,8 +189,8 @@ handle_cast({cast, Cast}, State) ->
         fun() -> (State#state.mod):handle_cast(Cast, State#state.state) end) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
-      {noreply, NewState, Timeout} ->
-        {noreply, State#state{state = NewState}, Timeout};
+      {noreply, NewState, NextStep} ->
+        {noreply, State#state{state = NewState}, NextStep};
       {stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}}
     end,
@@ -171,9 +204,9 @@ handle_cast({cast, Cast}, State) ->
 %% @private
 -spec handle_call(term(), from(), state()) ->
         {reply, term(), state()}
-      | {reply, term(), state(), timeout() | hibernate}
+      | {reply, term(), state(), next_step()}
       | {noreply, state()}
-      | {noreply, state(), timeout() | hibernate}
+      | {noreply, state(), next_step()}
       | {stop, term(), term(), state()}
       | {stop, term(), state()}.
 handle_call(Call, From, State) ->
@@ -191,12 +224,12 @@ handle_call(Call, From, State) ->
         end) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
-      {noreply, NewState, Timeout} ->
-        {noreply, State#state{state = NewState}, Timeout};
+      {noreply, NewState, NextStep} ->
+        {noreply, State#state{state = NewState}, NextStep};
       {reply, Response, NewState} ->
         {reply, Response, State#state{state = NewState}};
-      {reply, Response, NewState, Timeout} ->
-        {reply, Response, State#state{state = NewState}, Timeout};
+      {reply, Response, NewState, NextStep} ->
+        {reply, Response, State#state{state = NewState}, NextStep};
       {stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}};
       {stop, Reason, Response, NewState} ->
