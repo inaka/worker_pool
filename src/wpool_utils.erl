@@ -17,7 +17,7 @@
 -author('ferigis@gmail.com').
 
 %% API
--export([ task_init/3
+-export([ task_init/4
         , task_end/1
         , notify_queue_manager/3
         , do_try/1]).
@@ -28,18 +28,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc Marks Task as started in this worker
--spec task_init(term(), atom(), infinity | pos_integer()) ->
+-spec task_init(term(), atom(), infinity | pos_integer(), infinity | pos_integer()) ->
   undefined | reference().
-task_init(Task, _TimeChecker, infinity) ->
+task_init(Task, _TimeChecker, infinity, _MaxWarnings) ->
   Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
   erlang:put(wpool_task, {undefined, Time, Task}),
   undefined;
-task_init(Task, TimeChecker, OverrunTime) ->
+task_init(Task, TimeChecker, OverrunTime, MaxWarnings) ->
   TaskId = erlang:make_ref(),
   Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
   erlang:put(wpool_task, {TaskId, Time, Task}),
   erlang:send_after(
-    OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime}).
+    OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime, MaxWarnings}).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.

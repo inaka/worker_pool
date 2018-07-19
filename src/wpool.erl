@@ -18,6 +18,7 @@
 -author('elbrujohalcon@inaka.net').
 
 -define(DEFAULTS, [ {overrun_warning, infinity}
+                  , {max_overrun_warnings, infinity}
                   , {overrun_handler, {error_logger, warning_report}}
                   , {workers, 100}, {worker_opt, []},
                     {queue_type, fifo}
@@ -37,6 +38,7 @@
                                , pos_integer()
                                }.
 -type option() :: {overrun_warning, infinity|pos_integer()}
+                | {max_overrun_warnings, infinity|pos_integer()}
                 | {overrun_handler, {Module::atom(), Fun::atom()}}
                 | {workers, pos_integer()}
                 | {worker_opt, gen_options()}
