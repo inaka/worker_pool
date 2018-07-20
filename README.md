@@ -22,8 +22,23 @@ All user functions are exposed through the [wpool module](http://inaka.github.io
 #### Starting a Pool
 To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
 
-* **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The default value for this setting is `infinity` (i.e. no warnings are emitted)
-* **overrun_handler**: The module and function to call when a task is *overrun*. The default value for this setting is `{error_logger, warning_report}`.
+* **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The task is monitored until it is finished, thus more than one warning might be emitted for a single task. The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead: after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000` warnings would be emmited after 1000, 2000, 4000, 8000 ...) The default value for this setting is `infinity` (i.e. no warnings are emitted)
+* **max_overrun_warnings**: The maximum number of overrun warnings emitted before killing a delayed task: that is, killing the worker running the task. If this parameter is set to a value other than `infinity` the rounds of warnings becomes equally timed (i.e. with `overrun_warning = 1000` and `max_overrun_warnings = 5` the task would be killed after 5 seconds of execution) The default value for this setting is `infinity` (i.e. delayed tasks are not killed)
+
+
+   **NOTE:** As the worker is being killed it might cause worker's messages to be missing if you are using a worker stategy other than `available_worker` (see worker strategies below)
+
+
+* **overrun_handler**: The module and function to call when a task is *overrun*. The default value for this setting is `{error_logger, warning_report}`. Repor values are:
+
+
+   * *{alert, AlertType}*: Where `AlertType` is `overrun` on regular warnings, or `max_overrun_limit` when the worker is about to be killed.
+   * *{pool, Pool}*: The poolname
+   * *{worker, Pid}*: Pid of the worker
+   * *{task, Task}*: A description of the task
+   * *{runtime, Runtime}*: The runtime of the current round
+
+
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
 * **worker_type**: The type of the worker. The available values are `gen_server`. The default value is `gen_server`. Eventually we'll add `gen_statem` as well.
 * **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
