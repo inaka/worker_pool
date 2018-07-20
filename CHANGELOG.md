@@ -1,5 +1,26 @@
 # Change Log
 
+## [3.1.1](https://github.com/inaka/worker_pool/tree/3.1.1) (2018-07-04)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.0...3.1.1)
+
+**Closed issues:**
+
+- Propagate `killed` reason to clients [\#140](https://github.com/inaka/worker_pool/issues/140)
+- gen\_server with send\_after can't work [\#136](https://github.com/inaka/worker_pool/issues/136)
+- worker\_pool + apns4erl throw undef error [\#134](https://github.com/inaka/worker_pool/issues/134)
+- when the worker return {stop,normal,State}  and recv supervisor report  [\#133](https://github.com/inaka/worker_pool/issues/133)
+- wpool:stop\_sup\_pool\(\) can't fire gen\_server terminate [\#132](https://github.com/inaka/worker_pool/issues/132)
+- Bump version to 3.1.0 [\#127](https://github.com/inaka/worker_pool/issues/127)
+- wpool:broadcast issue [\#126](https://github.com/inaka/worker_pool/issues/126)
+
+**Merged pull requests:**
+
+- Propagate `killed` reason to clients [\#141](https://github.com/inaka/worker_pool/pull/141) ([carlosvarelap](https://github.com/carlosvarelap))
+- fixed function spec [\#139](https://github.com/inaka/worker_pool/pull/139) ([bartekgorny](https://github.com/bartekgorny))
+- Update README.md [\#131](https://github.com/inaka/worker_pool/pull/131) ([igaray](https://github.com/igaray))
+- add erlang 20 for test [\#130](https://github.com/inaka/worker_pool/pull/130) ([getong](https://github.com/getong))
+- Remove repeated "worker" option from wpool:stats/1 output [\#119](https://github.com/inaka/worker_pool/pull/119) ([harenson](https://github.com/harenson))
+
 ## [3.1.0](https://github.com/inaka/worker_pool/tree/3.1.0) (2017-08-15)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.0.0...3.1.0)
 
@@ -12,6 +33,7 @@
 
 **Merged pull requests:**
 
+- \[\#127\] Bump version to 3.1.0 [\#128](https://github.com/inaka/worker_pool/pull/128) ([Euen](https://github.com/Euen))
 - add queue\_type parameter for starting pool to choose whether requests… [\#123](https://github.com/inaka/worker_pool/pull/123) ([jakud](https://github.com/jakud))
 - \[Fix \#105\] Add message broadcast feature [\#118](https://github.com/inaka/worker_pool/pull/118) ([harenson](https://github.com/harenson))
 
