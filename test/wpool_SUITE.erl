@@ -332,7 +332,6 @@ complete_coverage(_Config) ->
   ok = gen_server:cast(TCPid, cast),
 
   ct:comment("Queue Manager"),
-  {error, {invalid_pool, invalid}} = wpool_queue_manager:stats(invalid),
   QMPid = get_queue_manager(PoolPid),
   QMPid ! info,
   {ok, QMState} = wpool_queue_manager:init([{pool, pool}]),
