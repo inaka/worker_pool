@@ -39,6 +39,7 @@ end_per_suite(Config) ->
 
 -spec ok() -> ?MODULE.
 ok() -> ?MODULE.
+
 -spec error() -> no_return().
 error() -> exit(?MODULE).
 
@@ -62,7 +63,12 @@ cast(_Config) ->
   ok = wpool_worker:cast(?MODULE, ?MODULE, ok, []),
   ok = wpool_worker:cast(?MODULE, ?MODULE, error, []),
   ok = wpool:cast(?MODULE, x),
-  timer:sleep(1000),
+  ok = wpool_worker:cast(?MODULE, erlang, send, [self(), {a, message}]),
+  receive
+    {a, message} -> ok
+  after 1000 ->
+    ct:fail("Timeout while waiting for cast response")
+  end,
   ok = wpool:stop_sup_pool(?MODULE),
 
   {comment, []}.
