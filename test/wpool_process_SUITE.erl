@@ -81,11 +81,9 @@ init(_Config) ->
 init_timeout(_Config) ->
   {ok, Pid} =
     wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, []),
-  timer:sleep(1),
   timeout = get_state(?MODULE),
   Pid ! {stop, normal, state},
-  timer:sleep(1000),
-  false = erlang:is_process_alive(Pid),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 
@@ -95,11 +93,9 @@ info(_Config) ->
   Pid ! {noreply, newstate},
   newstate = get_state(?MODULE),
   Pid ! {noreply, newerstate, 1},
-  timer:sleep(1),
-  timeout = get_state(?MODULE),
+  timeout = ktn_task:wait_for(fun() -> get_state(?MODULE) end, timeout),
   Pid ! {stop, normal, state},
-  timer:sleep(1000),
-  false = erlang:is_process_alive(Pid),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 
@@ -109,11 +105,9 @@ cast(_Config) ->
   wpool_process:cast(Pid, {noreply, newstate}),
   newstate = get_state(?MODULE),
   wpool_process:cast(Pid, {noreply, newerstate, 0}),
-  timer:sleep(100),
-  timeout = get_state(?MODULE),
+  timeout = ktn_task:wait_for(fun() -> get_state(?MODULE) end, timeout),
   wpool_process:cast(Pid, {stop, normal, state}),
-  timer:sleep(1000),
-  false = erlang:is_process_alive(Pid),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 
@@ -160,13 +154,11 @@ continue(_Config) ->
 
   %% handle_continue/2 returns timeout = 0
   wpool_process:cast(Pid, {noreply, state, {continue, {noreply, continue_state_7, 0}}}),
-  timer:sleep(100),
-  timeout = get_state(Pid),
+  timeout = ktn_task:wait_for(fun() -> get_state(?MODULE) end, timeout),
 
   %% handle_continue/2 returns {stop, normal, state}
   wpool_process:cast(Pid, {noreply, state, {continue, {stop, normal, state}}}),
-  timer:sleep(1000),
-  false = erlang:is_process_alive(Pid),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 
@@ -197,11 +189,9 @@ call(_Config) ->
   ok1 = wpool_process:call(Pid, {reply, ok1, newstate}, 5000),
   newstate = get_state(?MODULE),
   ok2 = wpool_process:call(Pid, {reply, ok2, newerstate, 1}, 5000),
-  timer:sleep(1),
-  timeout = get_state(?MODULE),
+  timeout = ktn_task:wait_for(fun() -> get_state(?MODULE) end, timeout),
   ok3 = wpool_process:call(Pid, {stop, normal, ok3, state}, 5000),
-  timer:sleep(1000),
-  false = erlang:is_process_alive(Pid),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 
@@ -220,10 +210,9 @@ pool_restart_crash(_Config) ->
   ct:log("Check that the pool wouldn't crash"),
   wpool:cast(Pool, crash, best_worker),
 
-  timer:sleep(500),
-
-  ct:log("Check that the pool is working"),
-  true = erlang:is_process_alive(Pid),
+  ct:log("Check that the pool didn't die"),
+  {error, {timeout, {badmatch, true}}} =
+    ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
   hello = wpool:call(Pool, hello),
 
   {comment, []}.
@@ -245,10 +234,9 @@ pool_norestart_crash(_Config) ->
 
   ct:log("Crash a worker"),
   wpool:cast(Pool, crash),
-  timer:sleep(500),
 
-  ct:log("Check that the pool is working"),
-  false = erlang:is_process_alive(Pid),
+  ct:log("Check that the pool is not working"),
+  false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
   {comment, []}.
 

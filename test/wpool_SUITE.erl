@@ -79,9 +79,13 @@ too_much_overrun(_Config) ->
 
   ct:comment("Start a long running task..."),
   ok = wpool:cast(wpool_SUITE_too_much_overrun, {timer, sleep, [5000]}),
-  timer:sleep(100),
-  {dictionary, Dict} = erlang:process_info(Worker, dictionary),
-  {TaskId, _, _} = proplists:get_value(wpool_task, Dict),
+  TaskId =
+    ktn_task:wait_for_success(
+      fun() ->
+        {dictionary, Dict} = erlang:process_info(Worker, dictionary),
+        {TId, _, _} = proplists:get_value(wpool_task, Dict),
+        TId
+      end),
 
   ct:comment("Simulate overrun warning..."),
   TCPid ! {check, Worker, TaskId, 9999999999, infinity}, % huge runtime… no more overruns
@@ -262,37 +266,40 @@ stats(_Config) ->
 
   % Start a long task on every worker
   Sleep = {timer, sleep, [2000]},
-  [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker) ||
-              _ <- lists:seq(1, 10)],
+  [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker) || _ <- lists:seq(1, 10)],
 
-  timer:sleep(100),
-
-  % Checks ...
-  WorkingStats = wpool:stats(wpool_SUITE_stats_pool),
-  wpool_SUITE_stats_pool = Get(pool, WorkingStats),
-  PoolPid = Get(supervisor, WorkingStats),
-  Options = Get(options, WorkingStats),
-  10 = Get(size, WorkingStats),
-  1 = Get(next_worker, WorkingStats),
-  WorkingWorkers = Get(workers, WorkingStats),
-  10 = length(WorkingWorkers),
-  [ begin
-      WorkerStats = Get(I, WorkingWorkers),
-      0 = Get(message_queue_len, WorkerStats),
-      {timer, sleep, 1} = Get(current_function, WorkerStats),
-      {timer, sleep, 1, _} = Get(current_location, WorkerStats),
-      {cast, Sleep} = Get(task, WorkerStats),
-      true = is_number(Get(runtime, WorkerStats))
-    end || I <- lists:seq(1, 10)],
+  ok =
+    ktn_task:wait_for_success(
+      fun() ->
+        WorkingStats = wpool:stats(wpool_SUITE_stats_pool),
+        wpool_SUITE_stats_pool = Get(pool, WorkingStats),
+        PoolPid = Get(supervisor, WorkingStats),
+        Options = Get(options, WorkingStats),
+        10 = Get(size, WorkingStats),
+        1 = Get(next_worker, WorkingStats),
+        WorkingWorkers = Get(workers, WorkingStats),
+        10 = length(WorkingWorkers),
+        [ begin
+            WorkerStats = Get(I, WorkingWorkers),
+            0 = Get(message_queue_len, WorkerStats),
+            {timer, sleep, 1} = Get(current_function, WorkerStats),
+            {timer, sleep, 1, _} = Get(current_location, WorkerStats),
+            {cast, Sleep} = Get(task, WorkerStats),
+            true = is_number(Get(runtime, WorkerStats))
+          end || I <- lists:seq(1, 10)],
+        ok
+      end),
 
   wpool:stop_sup_pool(wpool_SUITE_stats_pool),
 
-  timer:sleep(5000),
-
   no_workers =
-    try wpool:stats(wpool_SUITE_stats_pool)
-    catch _:E -> E
-    end,
+    ktn_task:wait_for(
+      fun() ->
+        try wpool:stats(wpool_SUITE_stats_pool)
+        catch
+          _:E -> E
+        end
+      end, no_workers, 100, 50),
 
   {comment, []}.
 
@@ -352,8 +359,7 @@ broadcast(_Config) ->
   % Broadcast x:x() execution to workers.
   wpool:broadcast(Pool, {x, x, []}),
   % Give some time for the workers to perform the calls.
-  timer:sleep(1000),
-  WorkersCount = meck:num_calls(x, x, '_'),
+  WorkersCount = ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
 
   ct:comment("Check they all are \"working\""),
   % Make all the workers sleep for 1.5 seconds
