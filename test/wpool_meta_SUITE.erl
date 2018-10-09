@@ -17,7 +17,9 @@ init_per_suite(Config) ->
   [ {application,  worker_pool}
   %% Until the next version of katana-test fixes the missing test deps in plt
   %% issue, we can't use the default warnings that include 'unknown' here.
-  , {dialyzer_warnings, [error_handling, race_conditions, unmatched_returns, no_return]}
+  , { dialyzer_warnings
+    , [error_handling, race_conditions, unmatched_returns, no_return]
+    }
   | Config
   ].
 
