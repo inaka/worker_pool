@@ -121,9 +121,12 @@ continue(_Config) ->
   continue_state = get_state(Pid),
 
   %% handle_call/3 returns {continue, ...}
-  ok = wpool_process:call(Pid, {reply, ok, state, {continue, C(continue_state_2)}}, 5000),
+  ok =
+    wpool_process:call(
+      Pid, {reply, ok, state, {continue, C(continue_state_2)}}, 5000),
   continue_state_2 = get_state(Pid),
-  try wpool_process:call(Pid, {noreply, state, {continue, C(continue_state_3)}}, 100) of
+  try wpool_process:call(
+        Pid, {noreply, state, {continue, C(continue_state_3)}}, 100) of
     Result -> ct:fail("Unexpected Result: ~p", [Result])
   catch
     _:{timeout, _} ->
@@ -136,7 +139,8 @@ continue(_Config) ->
 
   %% handle_continue/2 returns {continue, ...}
   SecondContinueResponse = C(continue_state_5),
-  FirstContinueResponse = {noreply, another_state, {continue, SecondContinueResponse}},
+  FirstContinueResponse =
+    {noreply, another_state, {continue, SecondContinueResponse}},
   CastResponse = {noreply, state, {continue, FirstContinueResponse}},
   wpool_process:cast(Pid, CastResponse),
   continue_state_5 = get_state(Pid),
@@ -147,13 +151,15 @@ continue(_Config) ->
 
   %% handle_continue/2 returns {continue, ...}
   SecondContinueResponse = C(continue_state_5),
-  FirstContinueResponse = {noreply, another_state, {continue, SecondContinueResponse}},
+  FirstContinueResponse =
+    {noreply, another_state, {continue, SecondContinueResponse}},
   CastResponse = {noreply, state, {continue, FirstContinueResponse}},
   wpool_process:cast(Pid, CastResponse),
   continue_state_5 = get_state(Pid),
 
   %% handle_continue/2 returns timeout = 0
-  wpool_process:cast(Pid, {noreply, state, {continue, {noreply, continue_state_7, 0}}}),
+  wpool_process:cast(
+    Pid, {noreply, state, {continue, {noreply, continue_state_7, 0}}}),
   timeout = ktn_task:wait_for(fun() -> get_state(?MODULE) end, timeout),
 
   %% handle_continue/2 returns {stop, normal, state}
@@ -166,9 +172,10 @@ continue(_Config) ->
 format_status(_Config) ->
   %% echo_server implements format_status/2
   {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
-  %% therefore it returns {formatted_state, State} as its status and we just pass it through
+  %% therefore it returns {formatted_state, State} as its status
   {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-  [state] = [S || SItemList = [_|_] <- SItems, {formatted_state, S} <- SItemList],
+  [state] =
+    [S || SItemList = [_|_] <- SItems, {formatted_state, S} <- SItemList],
   %% this code is actually what we use to retrieve the state in other tests
   state = get_state(Pid),
   {comment, []}.
@@ -177,10 +184,14 @@ format_status(_Config) ->
 no_format_status(_Config) ->
   %% crashy_server doesn't implement format_status/2
   {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, state, []),
-  %% therefore it uses the default format for the stauts (but with the status of the gen_server,
-  %% not wpool_process)
+  %% therefore it uses the default format for the stauts (but with the status of
+  %% the gen_server, not wpool_process)
   {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-  [state] = [S || SItemList = [_|_] <- SItems, {data, Data} <- SItemList, {"State", S} <- Data],
+  [state] =
+    [S || SItemList = [_|_] <- SItems
+        , {data, Data} <- SItemList
+        , {"State", S} <- Data
+        ],
   {comment, []}.
 
 -spec call(config()) -> {comment, []}.
@@ -307,8 +318,8 @@ complete_coverage(_Config) ->
   {comment, []}.
 
 
-%% @doc We can use this function in tests since echo_server implements format_status/2
-%%      by returning the state as a tuple {formatted_state, S}.
+%% @doc We can use this function in tests since echo_server implements
+%%      format_status/2 by returning the state as a tuple {formatted_state, S}.
 %%      We can safely grab it from the result of sys:get_status/1
 %% @see gen_server:format_status/2
 %% @see sys:get_status/2
@@ -316,5 +327,6 @@ get_state(Atom) when is_atom(Atom) ->
   get_state(whereis(Atom));
 get_state(Pid) ->
   {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-  [State] = [S || SItemList = [_|_] <- SItems, {formatted_state, S} <- SItemList],
+  [State] =
+    [S || SItemList = [_|_] <- SItems, {formatted_state, S} <- SItemList],
   State.
