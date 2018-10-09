@@ -88,7 +88,8 @@ too_much_overrun(_Config) ->
       end),
 
   ct:comment("Simulate overrun warning..."),
-  TCPid ! {check, Worker, TaskId, 9999999999, infinity}, % huge runtime… no more overruns
+  % huge runtime => no more overruns
+  TCPid ! {check, Worker, TaskId, 9999999999, infinity},
 
   ct:comment("Get overrun message..."),
   _ = receive
@@ -192,7 +193,8 @@ kill_on_overrun(_Config) ->
   _ = receive
         {overrun1, Message2} ->
           max_overrun_limit = proplists:get_value(alert, Message2),
-          wpool_SUITE_kill_on_overrun_pool = proplists:get_value(pool, Message2),
+          wpool_SUITE_kill_on_overrun_pool =
+            proplists:get_value(pool, Message2),
           WPid2 = proplists:get_value(worker, Message2),
           true = is_pid(WPid2),
           false = erlang:is_process_alive(WPid2)
@@ -266,7 +268,8 @@ stats(_Config) ->
 
   % Start a long task on every worker
   Sleep = {timer, sleep, [2000]},
-  [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker) || _ <- lists:seq(1, 10)],
+  [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker)
+  || _ <- lists:seq(1, 10)],
 
   ok =
     ktn_task:wait_for_success(
@@ -359,7 +362,8 @@ broadcast(_Config) ->
   % Broadcast x:x() execution to workers.
   wpool:broadcast(Pool, {x, x, []}),
   % Give some time for the workers to perform the calls.
-  WorkersCount = ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
+  WorkersCount =
+    ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
 
   ct:comment("Check they all are \"working\""),
   % Make all the workers sleep for 1.5 seconds

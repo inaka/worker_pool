@@ -89,7 +89,9 @@ end_per_testcase(TestCase, Config) ->
 stop_worker(_Config) ->
   true = (undefined /= wpool_pool:find_wpool(stop_worker)),
   true = wpool:stop_pool(stop_worker),
-  undefined = ktn_task:wait_for(fun() -> wpool_pool:find_wpool(stop_worker) end, undefined),
+  undefined =
+    ktn_task:wait_for(
+      fun() -> wpool_pool:find_wpool(stop_worker) end, undefined),
   true = wpool:stop_pool(stop_worker),
   undefined = wpool_pool:find_wpool(stop_worker),
   {comment, ""}.
@@ -147,7 +149,9 @@ available_worker(_Config) ->
   % Check we have no pending tasks
   0 =
     ktn_task:wait_for(
-      fun() -> proplists:get_value(total_message_queue_len, wpool:stats(Pool)) end, 0),
+      fun() ->
+        proplists:get_value(total_message_queue_len, wpool:stats(Pool))
+      end, 0),
 
   ct:log(
     "We run tons of calls, and none is blocked,
@@ -171,7 +175,8 @@ best_worker(_Config) ->
   end,
 
   %% Fill up their message queues...
-  [ wpool:cast(Pool, {timer, sleep, [60000]}, next_worker) || _ <- lists:seq(1, ?WORKERS)],
+  [ wpool:cast(Pool, {timer, sleep, [60000]}, next_worker)
+   || _ <- lists:seq(1, ?WORKERS)],
   [0] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
 
   [ wpool:cast(Pool, {timer, sleep, [60000]}, best_worker)
@@ -314,7 +319,8 @@ hash_worker(_Config) ->
     || I <- lists:seq(1, 20 * ?WORKERS)],
 
   false =
-    ktn_task:wait_for( fun() -> lists:member(0, worker_msg_queue_lengths(Pool)) end, false),
+    ktn_task:wait_for(
+      fun() -> lists:member(0, worker_msg_queue_lengths(Pool)) end, false),
 
   {comment, []}.
 
@@ -366,7 +372,9 @@ manager_crash(_Config) ->
 
   false =
     ktn_task:wait_for(
-      fun() -> lists:member(whereis(QueueManager), [OldPid, undefined]) end, false),
+      fun() ->
+        lists:member(whereis(QueueManager), [OldPid, undefined])
+      end, false),
 
   ct:log("Check that the pool is working again"),
   {ok, ok} = send_io_format(Pool),

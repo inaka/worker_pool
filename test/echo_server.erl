@@ -56,5 +56,6 @@ handle_call(Call, _From, _State) -> Call.
 -spec handle_continue(Continue, term()) -> Continue.
 handle_continue(Continue, _State) -> Continue.
 
--spec format_status(normal | terminate, [[{_, _}] | State, ...]) -> {formatted_state, State}.
+-spec format_status(normal | terminate, [[{_, _}] | State, ...]) ->
+    {formatted_state, State}.
 format_status(_, [_PDict, State]) -> {formatted_state, State}.
