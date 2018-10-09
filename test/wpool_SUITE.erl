@@ -34,13 +34,14 @@
         , default_options/1
         , complete_coverage/1
         , broadcast/1
+        , worker_callbacks/1
         ]).
 
 -spec all() -> [atom()].
 all() ->
   [too_much_overrun, overrun, stop_pool, non_brutal_shutdown, stats,
    default_strategy, default_options, complete_coverage, broadcast,
-   kill_on_overrun].
+   kill_on_overrun, worker_callbacks].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -369,6 +370,23 @@ broadcast(_Config) ->
 
   meck:unload(x),
   {comment, []}.
+
+-spec worker_callbacks(config) -> ok.
+worker_callbacks(_Config) ->
+  Pool = callbacks_test,
+  WorkersCount = 13,
+  meck:new(callbacks, [non_strict]),
+  meck:expect(callbacks, on_init_start, fun(_APoolName) -> ok end),
+  meck:expect(callbacks, on_new_worker, fun(_APoolName) -> ok end),
+  {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {callbacks, #{on_init_start =>
+                                                     fun callbacks:on_init_start/1,
+                                                    on_new_worker =>
+                                                     fun callbacks:on_new_worker/1}}]),
+  WorkersCount = meck:num_calls(callbacks, on_init_start, ['_']),
+  WorkersCount = meck:num_calls(callbacks, on_new_worker, ['_']),
+
+  ok.
 
 
 %% =============================================================================

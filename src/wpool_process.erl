@@ -76,9 +76,12 @@ cast_call(Process, From, Call) ->
 %% @private
 -spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, state()}.
 init({Name, Mod, InitArgs, Options}) ->
+  wpool_worker_callbacks:call(on_init_start, Options, [Name]),
+
   case Mod:init(InitArgs) of
     {ok, ModState} ->
       ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
+      wpool_worker_callbacks:call(on_new_worker, Options, [Name]),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
@@ -210,3 +213,5 @@ handle_call(Call, From, State) ->
                                     , State#state.name
                                     , State#state.options),
   Reply.
+
+
