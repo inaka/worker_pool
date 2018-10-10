@@ -1,7 +1,6 @@
 .erlang.mk
 worker_pool.d
 _build/
-rebar.lock
 .rebar/
 all.coverdata
 .classpath
