@@ -2,7 +2,7 @@
 
 -export([call/3]).
 
--type event() :: on_init_start | on_new_worker.
+-type event() :: on_init_start | on_new_worker | on_worker_dead.
 
 -spec call(event(), [wpool:option()], [any()]) -> any().
 call(Event, Options, Args) ->

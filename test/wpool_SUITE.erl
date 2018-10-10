@@ -376,15 +376,24 @@ worker_callbacks(_Config) ->
   Pool = callbacks_test,
   WorkersCount = 13,
   meck:new(callbacks, [non_strict]),
-  meck:expect(callbacks, on_init_start, fun(_APoolName) -> ok end),
-  meck:expect(callbacks, on_new_worker, fun(_APoolName) -> ok end),
+  meck:expect(callbacks, on_init_start, fun(_AWorkerName) -> ok end),
+  meck:expect(callbacks, on_new_worker, fun(_AWorkerName) -> ok end),
+  meck:expect(callbacks, on_worker_dead, fun(AWorkerName, Reason) -> ok end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {worker, {crashy_server, []}},
                                        {callbacks, #{on_init_start =>
                                                      fun callbacks:on_init_start/1,
                                                     on_new_worker =>
-                                                     fun callbacks:on_new_worker/1}}]),
+                                                     fun callbacks:on_new_worker/1,
+                                                    on_worker_dead =>
+                                                     fun callbacks:on_worker_dead/2}}]),
   WorkersCount = meck:num_calls(callbacks, on_init_start, ['_']),
   WorkersCount = meck:num_calls(callbacks, on_new_worker, ['_']),
+  Worker = wpool_pool:random_worker(Pool),
+  Worker ! crash,
+  timer:sleep(1000),
+  1 = meck:num_calls(callbacks, on_worker_dead, ['_', '_']),
+  meck:unload(callbacks),
 
   ok.
 
