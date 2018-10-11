@@ -7,8 +7,11 @@ before_install:
   - ./ci before_install "${PWD:?}"/rebar3
 install:
   - ./ci install "${PWD:?}"/rebar3
+  - pip install --user codecov
 script:
   - ./ci script "${PWD:?}"/rebar3
 cache:
   directories:
     - .plt
+after_success:
+  - codecov

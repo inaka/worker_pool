@@ -27,8 +27,7 @@
         , worker_dead/2
         , worker_ready/2
         , worker_busy/2
-        ]).
--export([ stats/1
+        , pending_task_count/1
         ]).
 
 %% gen_server callbacks
@@ -39,8 +38,6 @@
         , handle_cast/2
         , handle_info/2
         ]).
-
--include("wpool.hrl").
 
 -record(state, { wpool             :: wpool:name()
                , clients           :: queue:queue({cast|{pid(), _}, term()})
@@ -126,23 +123,11 @@ worker_busy(QueueManager, Worker) ->
 worker_dead(QueueManager, Worker) ->
   gen_server:cast(QueueManager, {worker_dead, Worker}).
 
-%% @doc Returns statistics for this queue.
--spec stats(wpool:name()) ->
-        proplists:proplist() | {error, {invalid_pool, wpool:name()}}.
-stats(PoolName) ->
-  case ets:lookup(wpool_pool, PoolName) of
-    [] -> {error, {invalid_pool, PoolName}};
-    [#wpool{qmanager = QueueManager, size = PoolSize, born = Born}] ->
-        {AvailableWorkers, PendingTasks} =
-          gen_server:call(QueueManager, worker_counts),
-        BusyWorkers = PoolSize - AvailableWorkers,
-        [ {pool_age_in_secs,  age_in_seconds(Born)}
-        , {pool_size,         PoolSize}
-        , {pending_tasks,     PendingTasks}
-        , {available_workers, AvailableWorkers}
-        , {busy_workers,      BusyWorkers}
-        ]
-  end.
+%% @doc Retrieves the number of pending tasks (used for stats)
+%% @see wpool_pool:stats/1
+-spec pending_task_count(queue_mgr()) -> non_neg_integer().
+pending_task_count(QueueManager) ->
+  gen_server:call(QueueManager, pending_task_count).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -211,7 +196,7 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
   end.
 
 -type call_request() ::
-        {available_worker, infinity|pos_integer()} | worker_counts.
+        {available_worker, infinity|pos_integer()} | pending_task_count.
 %% @private
 -spec handle_call(call_request(), from(), state()) ->
         {reply, {ok, atom()}, state()} | {noreply, state()}.
@@ -238,10 +223,8 @@ handle_call(
           {noreply, State}
       end
   end;
-handle_call(worker_counts, _From, State) ->
-  #state{workers = AvailableWorkers} = State,
-  Available = gb_sets:size(AvailableWorkers),
-  {reply, {Available, get(pending_tasks)}, State}.
+handle_call(pending_task_count, _From, State) ->
+  {reply, get(pending_tasks), State}.
 
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
@@ -276,8 +259,6 @@ inc(Key) -> put(Key, get(Key) + 1).
 dec(Key) -> put(Key, get(Key) - 1).
 
 now_in_microseconds() -> timer:now_diff(os:timestamp(), {0, 0, 0}).
-
-age_in_seconds(Born) -> timer:now_diff(os:timestamp(), Born) div 1000000.
 
 expires(Timeout) ->
   case Timeout of
