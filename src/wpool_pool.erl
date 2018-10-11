@@ -283,6 +283,7 @@ init({Name, Options}) ->
   TimeChecker = time_checker_name(Name),
   QueueManager = queue_manager_name(Name),
   ProcessSup = process_sup_name(Name),
+  EventManagerName = event_manager_name(Name),
   _Wpool =
     store_wpool(
       #wpool{ name = Name
@@ -310,9 +311,20 @@ init({Name, Options}) ->
     , [wpool_queue_manager]
     },
 
+  EventManagerSpec =
+    { EventManagerName
+    , {gen_event, start_link, [{local, EventManagerName}]}
+    , permanent
+    , brutal_kill
+    , worker
+    , [gen_event]
+    },
+
   SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
   WorkerOpts =
-    [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options],
+    [{queue_manager, QueueManager}, {time_checker, TimeChecker},
+     {event_manager, EventManagerName}
+     | Options],
   ProcessSupSpec =
     { ProcessSup
     , {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]}
@@ -325,7 +337,7 @@ init({Name, Options}) ->
   SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
   SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
   SupStrategy = {one_for_all, SupIntensity, SupPeriod},
-  {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, ProcessSupSpec]}}.
+  {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, EventManagerSpec, ProcessSupSpec]}}.
 
 %% @private
 -spec worker_name(wpool:name(), pos_integer()) -> atom().
@@ -340,6 +352,8 @@ process_sup_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-process-sup").
 queue_manager_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
+event_manager_name(Sup) ->
+  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-event-handler").
 
 worker_with_no_task(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
