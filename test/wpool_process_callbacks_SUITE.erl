@@ -9,12 +9,15 @@
         ]).
 -export([ complete_callback_passed_when_starting_pool/1
         , partial_callback_passed_when_starting_pool/1
+        , callback_can_be_added_and_removed_after_pool_is_started/1
         ]).
 
 -spec all() -> [atom()].
 all() ->
   [ complete_callback_passed_when_starting_pool
-  , partial_callback_passed_when_starting_pool].
+  , partial_callback_passed_when_starting_pool
+  , callback_can_be_added_and_removed_after_pool_is_started
+  ].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -69,3 +72,39 @@ partial_callback_passed_when_starting_pool(_Config) ->
 
   ok.
 
+-spec callback_can_be_added_and_removed_after_pool_is_started(config) -> ok.
+callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
+  Pool = partial_callbacks_test,
+  WorkersCount = 3,
+  meck:new(callbacks, [non_strict]),
+  meck:expect(callbacks, on_worker_dead, fun(_AWorkerName, _Reason) -> ok end),
+  meck:new(callbacks2, [non_strict]),
+  meck:expect(callbacks2, on_worker_dead, fun(_AWorkerName, _Reason) -> ok end),
+  {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {worker, {crashy_server, []}}]),
+  %% Now we are adding 2 callback modules
+  wpool_pool:add_callback_module(Pool, callbacks),
+  wpool_pool:add_callback_module(Pool, callbacks2),
+  Worker = wpool_pool:random_worker(Pool),
+  Worker ! crash,
+  timer:sleep(100),
+
+  %% they both are called
+  1 = meck:num_calls(callbacks, on_worker_dead, ['_', '_']),
+  1 = meck:num_calls(callbacks2, on_worker_dead, ['_', '_']),
+
+  %% then the first module is removed
+  wpool_pool:remove_callback_module(Pool, callbacks),
+  Worker2 = wpool_pool:random_worker(Pool),
+  Worker2 ! crash,
+  timer:sleep(500),
+
+  %% and only the scond one is called
+  1 = meck:num_calls(callbacks, on_worker_dead, ['_', '_']),
+  2 = meck:num_calls(callbacks2, on_worker_dead, ['_', '_']),
+
+  wpool:stop_pool(Pool),
+  meck:unload(callbacks),
+  meck:unload(callbacks2),
+
+  ok.

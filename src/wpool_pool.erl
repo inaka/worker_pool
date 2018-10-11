@@ -44,6 +44,8 @@
 -export([ next/2
         , wpool_get/2
         ]).
+-export([ add_callback_module/2
+        , remove_callback_module/2]).
 
 %% Supervisor callbacks
 -export([ init/1
@@ -247,6 +249,16 @@ wpool_size(Name) ->
 %% a custom strategy function.
 -spec next(pos_integer(), wpool()) -> wpool().
 next(Next, WPool) -> WPool#wpool{next = Next}.
+
+-spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
+add_callback_module(Pool, Module) ->
+  EventManager = event_manager_name(Pool),
+  ok = gen_event:call(EventManager, wpool_process_callbacks, {add_callback, Module}).
+
+-spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
+remove_callback_module(Pool, Module) ->
+  EventManager = event_manager_name(Pool),
+  ok = gen_event:call(EventManager, wpool_process_callbacks, {remove_callback, Module}).
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
