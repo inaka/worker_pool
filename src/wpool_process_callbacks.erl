@@ -64,7 +64,12 @@ maybe_initial_callbacks(Options) ->
 
 call(Module, Event, Args) ->
   try
-    erlang:apply(Module, Event, Args)
+    case erlang:function_exported(Module, Event, length(Args)) of
+      true ->
+        erlang:apply(Module, Event, Args);
+      _ ->
+        ok
+    end
   catch
     E:R ->
       error_logger:warning_msg("Could not call callback module, error:~p, reason:~p", [E, R])
