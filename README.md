@@ -46,9 +46,9 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 * **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
 * **pool_sup_intensity** and **pool_sup_period**: The intensity and period for the supervisor that manages the worker pool system (`wpool_pool`). The strategy of this supervisor must be `one_for_all` but the intensity and period may be changed from their defaults of `5` and `60`.
 * **queue_type**: Order in which requests will be stored and handled by workers. This option can take values `lifo` or `fifo`. Defaults to `fifo`.
-* **callbacks**: List of callback modules implementing `wpool_process_callbacks` to be called on certain worker events.
 * **enable_callbacks**: A boolean value determining if `event_manager` should be started for callback modules.
-  If `callbacks` were specified, there is no need to set this option.
+* **callbacks**: Initial list of callback modules implementing `wpool_process_callbacks` to be called on certain worker events.
+  This options will only work if the `enable_callbacks` is set to **true**. Callbacks can be added and removed later by `wpool_pool:add_callback_module/2` and `wpool_pool:remove_callback_module/2`.
 
 #### Using the Workers
 Since the workers are `gen_server`s, messages can be `call`ed or `cast`ed to them. To do that you can use `wpool:call` and `wpool:cast` as you would use the equivalent functions on `gen_server`.

@@ -41,6 +41,7 @@ complete_callback_passed_when_starting_pool(_Config) ->
   meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
   meck:expect(callbacks, handle_worker_death, fun(_AWorkerName, _Reason) -> ok end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {enable_callbacks, true},
                                        {worker, {crashy_server, []}},
                                        {callbacks, [callbacks]}]),
 
@@ -64,6 +65,7 @@ partial_callback_passed_when_starting_pool(_Config) ->
   meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
   meck:expect(callbacks, handle_worker_death, fun(_AWorkerName, _Reason) -> ok end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {enable_callbacks, true},
                                        {callbacks, [callbacks]}]),
   WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_worker_creation,
                                                   ['_']), WorkersCount),
@@ -120,6 +122,7 @@ crashing_callback_does_not_affect_others(_Config) ->
                                                       {not_going_to_work} = AWorkerName end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
                                        {worker, {crashy_server, []}},
+                                       {enable_callbacks, true},
                                        {callbacks, [callbacks, callbacks2]}]),
 
   WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_worker_creation,

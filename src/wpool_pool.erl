@@ -514,14 +514,10 @@ set_random_fun() ->
     end,
   application:set_env(worker_pool, random_fun, RndFun).
 
-maybe_event_manager(Options, Spec) ->
-  InitialCallbacks = proplists:get_value(callbacks, Options, undefined),
+maybe_event_manager(Options, Item) ->
   EnableEventManager = proplists:get_value(enable_callbacks, Options, false),
-  case {EnableEventManager, InitialCallbacks} of
-    {true, _} ->
-      [Spec];
-    {_, AList} when is_list(AList) ->
-      [Spec];
-    _ ->
-      []
+  case EnableEventManager of
+    true ->
+      [Item];
+    _ -> []
   end.
