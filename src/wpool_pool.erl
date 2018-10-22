@@ -334,7 +334,7 @@ init({Name, Options}) ->
     , permanent
     , brutal_kill
     , worker
-    , [gen_event]
+    , dynamic
     },
 
   SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
@@ -370,7 +370,7 @@ process_sup_name(Sup) ->
 queue_manager_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
 event_manager_name(Sup) ->
-  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-event-handler").
+  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-event-manager").
 
 worker_with_no_task(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients

@@ -14,7 +14,13 @@
 -export([notify/3]).
 -type state() :: module().
 
--type event() :: on_init_start | on_new_worker | on_worker_dead.
+-type event() :: handle_init_start | handle_worker_creation | handle_worker_death.
+
+-callback handle_init_start(wpool:name()) -> any().
+-callback handle_worker_creation(wpool:name()) -> any().
+-callback handle_worker_death(wpool:name(), term()) -> any().
+
+-optional_callbacks([handle_init_start/1, handle_worker_creation/1, handle_worker_death/2]).
 
 -spec init(module()) -> {ok, state()}.
 init(Module) ->

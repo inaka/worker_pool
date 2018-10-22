@@ -77,12 +77,12 @@ cast_call(Process, From, Call) ->
 %% @private
 -spec init({atom(), atom(), term(), [wpool:option()]}) -> {ok, state()}.
 init({Name, Mod, InitArgs, Options}) ->
-  wpool_process_callbacks:notify(on_init_start, Options, [Name]),
+  wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
 
   case Mod:init(InitArgs) of
     {ok, ModState} ->
       ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
-      wpool_process_callbacks:notify(on_new_worker, Options, [Name]),
+      wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
@@ -90,7 +90,7 @@ init({Name, Mod, InitArgs, Options}) ->
                  }};
     {ok, ModState, Timeout} ->
       ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
-      wpool_process_callbacks:notify(on_new_worker, Options, [Name]),
+      wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
       {ok, #state{ name = Name
                  , mod = Mod
                  , state = ModState
@@ -105,7 +105,7 @@ init({Name, Mod, InitArgs, Options}) ->
 terminate(Reason, State) ->
   #state{mod=Mod, state=ModState, name=Name, options=Options} = State,
   ok = wpool_utils:notify_queue_manager(worker_dead, Name, Options),
-  wpool_process_callbacks:notify(on_worker_dead, Options, [Name, Reason]),
+  wpool_process_callbacks:notify(handle_worker_death, Options, [Name, Reason]),
   Mod:terminate(Reason, ModState).
 
 %% @private
