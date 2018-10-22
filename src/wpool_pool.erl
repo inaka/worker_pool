@@ -350,7 +350,8 @@ init({Name, Options}) ->
     , [wpool_process_sup]
     },
 
-  Children = [TimeCheckerSpec, QueueManagerSpec] ++ maybe_event_manager(Options, EventManagerSpec) ++
+  Children = [TimeCheckerSpec, QueueManagerSpec] ++
+             maybe_event_manager(Options, EventManagerSpec) ++
              [ProcessSupSpec],
 
   SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
