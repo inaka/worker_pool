@@ -339,9 +339,8 @@ init({Name, Options}) ->
 
   SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
   WorkerOpts =
-    [{queue_manager, QueueManager}, {time_checker, TimeChecker},
-     {event_manager, EventManagerName}
-     | Options],
+    [{queue_manager, QueueManager}, {time_checker, TimeChecker}
+     | Options] ++ maybe_event_manager(Options, {event_manager, EventManagerName}),
   ProcessSupSpec =
     { ProcessSup
     , {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]}
@@ -351,10 +350,13 @@ init({Name, Options}) ->
     , [wpool_process_sup]
     },
 
+  Children = [TimeCheckerSpec, QueueManagerSpec] ++ maybe_event_manager(Options, EventManagerSpec) ++
+             [ProcessSupSpec],
+
   SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
   SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
   SupStrategy = {one_for_all, SupIntensity, SupPeriod},
-  {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, EventManagerSpec, ProcessSupSpec]}}.
+  {ok, {SupStrategy, Children}}.
 
 %% @private
 -spec worker_name(wpool:name(), pos_integer()) -> atom().
@@ -510,3 +512,15 @@ set_random_fun() ->
         end
     end,
   application:set_env(worker_pool, random_fun, RndFun).
+
+maybe_event_manager(Options, Spec) ->
+  InitialCallbacks = proplists:get_value(callbacks, Options, undefined),
+  EnableEventManager = proplists:get_value(enable_callbacks, Options, false),
+  case {EnableEventManager, InitialCallbacks} of
+    {true, _} ->
+      [Spec];
+    {_, AList} when is_list(AList) ->
+      [Spec];
+    _ ->
+      []
+  end.

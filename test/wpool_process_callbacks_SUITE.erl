@@ -9,7 +9,7 @@
         ]).
 -export([ complete_callback_passed_when_starting_pool/1
         , partial_callback_passed_when_starting_pool/1
-        , callback_can_be_added_and_removed_after_pool_is_started/1
+        , callback_can_be_added_and_removed_after_pool_is_started_and_callbacks_enabled/1
         , crashing_callback_does_not_affect_others/1
         ]).
 
@@ -17,7 +17,7 @@
 all() ->
   [ complete_callback_passed_when_starting_pool
   , partial_callback_passed_when_starting_pool
-  , callback_can_be_added_and_removed_after_pool_is_started
+  , callback_can_be_added_and_removed_after_pool_is_started_and_callbacks_enabled
   , crashing_callback_does_not_affect_others
   ].
 
@@ -70,8 +70,8 @@ partial_callback_passed_when_starting_pool(_Config) ->
 
   ok.
 
--spec callback_can_be_added_and_removed_after_pool_is_started(config()) -> ok.
-callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
+-spec callback_can_be_added_and_removed_after_pool_is_started_and_callbacks_enabled(config()) -> ok.
+callback_can_be_added_and_removed_after_pool_is_started_and_callbacks_enabled(_Config) ->
   Pool = after_start_callbacks_test,
   WorkersCount = 3,
   meck:new(callbacks, [non_strict]),
@@ -79,7 +79,8 @@ callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
   meck:new(callbacks2, [non_strict]),
   meck:expect(callbacks2, handle_worker_death, fun(_AWorkerName, _Reason) -> ok end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
-                                       {worker, {crashy_server, []}}]),
+                                       {worker, {crashy_server, []}},
+                                       {enable_callbacks, true}]),
   %% Now we are adding 2 callback modules
   wpool_pool:add_callback_module(Pool, callbacks),
   wpool_pool:add_callback_module(Pool, callbacks2),
