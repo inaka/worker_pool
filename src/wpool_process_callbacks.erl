@@ -12,36 +12,34 @@
         , terminate/2]).
 
 -export([notify/3]).
--type state() :: ordset:ordset(module()).
+-type state() :: module().
 
 -type event() :: on_init_start | on_new_worker | on_worker_dead.
 
--spec init([wpool:option()]) -> {ok, state()}.
-init(WPoolOpts) ->
-{ok, maybe_initial_callbacks(WPoolOpts)}.
+-spec init(module()) -> {ok, state()}.
+init(Module) ->
+  {ok, Module}.
 
 -spec handle_event({event(), [any()]}, state()) -> {ok, state()}.
-handle_event({Event, Args}, Callbacks) ->
-  [call(Callback, Event, Args) || Callback <- Callbacks],
-  {ok, Callbacks};
+handle_event({Event, Args}, Module) ->
+  call(Module, Event, Args),
+  {ok, Module};
 handle_event(_, State) ->
   {ok, State}.
 
--spec handle_call(Call, state()) -> {ok, ok, state()} when
-    Call :: {add_callback, module()} | {remove_callback, module()}.
-handle_call({add_callback, Module}, Callbacks) ->
-  {ok, ok, ordsets:add_element(Module, Callbacks)};
-handle_call({remove_callback, Module}, Callbacks) ->
-  {ok, ok, ordsets:del_element(Module, Callbacks)};
+-spec handle_call(any(), state()) -> {ok, ok, state()}.
 handle_call(_, State) ->
   {ok, ok, State}.
 
+-spec handle_info(any(), state()) -> {ok, state()}.
 handle_info(_, State) ->
   {ok, State}.
 
+-spec code_change(any(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
+-spec terminate(any(), state()) -> ok.
 terminate(_Reason, _State) ->
   ok.
 
@@ -52,14 +50,6 @@ notify(Event, Options, Args) ->
       gen_event:notify(EventMgr, {Event, Args});
     _ ->
       ok
-  end.
-
-maybe_initial_callbacks(Options) ->
-  case lists:keyfind(callbacks, 1, Options) of
-    {callbacks, Modules} ->
-      ordsets:from_list(Modules);
-    _ ->
-      []
   end.
 
 call(Module, Event, Args) ->

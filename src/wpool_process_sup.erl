@@ -62,6 +62,7 @@ maybe_add_event_handler(Options) ->
     undefined ->
       ok;
     EventMgr ->
-      gen_event:add_handler(EventMgr, wpool_process_callbacks, Options)
+      [gen_event:add_handler(EventMgr, {wpool_process_callbacks, Module}, Module)
+       || Module <- proplists:get_value(callbacks, Options, [])]
   end.
 
