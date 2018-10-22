@@ -40,18 +40,15 @@ complete_callback_passed_when_starting_pool(_Config) ->
   meck:expect(callbacks, handle_init_start, fun(_AWorkerName) -> ok end),
   meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
   meck:expect(callbacks, handle_worker_death, fun(_AWorkerName, _Reason) -> ok end),
-  %meck:new(only_new_worker_callback, [non_strict]),
-  %meck:expect(only_new_worker_callback, handle_worker_creation, fun(_AWorkerName) -> ok end),
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
                                        {worker, {crashy_server, []}},
                                        {callbacks, [callbacks]}]),
-  timer:sleep(100),
-  WorkersCount = meck:num_calls(callbacks, handle_init_start, ['_']),
-  WorkersCount = meck:num_calls(callbacks, handle_worker_creation, ['_']),
+
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_init_start, ['_']), WorkersCount),
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
   Worker = wpool_pool:random_worker(Pool),
   Worker ! crash,
-  timer:sleep(100),
-  1 = meck:num_calls(callbacks, handle_worker_death, ['_', '_']),
+  1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
   wpool:stop_pool(Pool),
   meck:unload(callbacks),
 
@@ -67,8 +64,7 @@ partial_callback_passed_when_starting_pool(_Config) ->
   {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
                                        {worker, {crashy_server, []}},
                                        {callbacks, [callbacks]}]),
-  timer:sleep(100),
-  WorkersCount = meck:num_calls(callbacks, handle_worker_creation, ['_']),
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
   wpool:stop_pool(Pool),
   meck:unload(callbacks),
 
@@ -89,21 +85,19 @@ callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
   wpool_pool:add_callback_module(Pool, callbacks2),
   Worker = wpool_pool:random_worker(Pool),
   Worker ! crash,
-  timer:sleep(100),
 
   %% they both are called
-  1 = meck:num_calls(callbacks, handle_worker_death, ['_', '_']),
-  1 = meck:num_calls(callbacks2, handle_worker_death, ['_', '_']),
+  1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
+  1 = ktn_task:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 1),
 
   %% then the first module is removed
   wpool_pool:remove_callback_module(Pool, callbacks),
   Worker2 = wpool_pool:random_worker(Pool),
   Worker2 ! crash,
-  timer:sleep(500),
 
   %% and only the scond one is called
-  1 = meck:num_calls(callbacks, handle_worker_death, ['_', '_']),
-  2 = meck:num_calls(callbacks2, handle_worker_death, ['_', '_']),
+  1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
+  2 = ktn_task:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 2),
 
   wpool:stop_pool(Pool),
   meck:unload(callbacks),
@@ -124,9 +118,8 @@ crashing_callback_does_not_affect_others(_Config) ->
                                        {worker, {crashy_server, []}},
                                        {callbacks, [callbacks, callbacks2]}]),
 
-  timer:sleep(100),
-  WorkersCount = meck:num_calls(callbacks, handle_worker_creation, ['_']),
-  WorkersCount = meck:num_calls(callbacks2, handle_worker_creation, ['_']),
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks2, handle_worker_creation, ['_']), WorkersCount),
 
   wpool:stop_pool(Pool),
   meck:unload(callbacks),
@@ -134,3 +127,7 @@ crashing_callback_does_not_affect_others(_Config) ->
 
   ok.
 
+function_calls(Module, Function, MeckMatchSpec) ->
+  fun() ->
+      meck:num_calls(Module, Function, MeckMatchSpec)
+  end.
