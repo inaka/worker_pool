@@ -51,9 +51,15 @@
 -export([ init/1
         ]).
 
--include("wpool.hrl").
+-record(wpool, { name                  :: wpool:name()
+               , size                  :: pos_integer()
+               , next                  :: pos_integer()
+               , opts                  :: [wpool:option()]
+               , qmanager              :: wpool_queue_manager:queue_mgr()
+               , born = os:timestamp() :: erlang:timestamp()
+               }).
 
--type wpool() :: #wpool{}.
+-opaque wpool() :: #wpool{}.
 -export_type([wpool/0]).
 
 %% ===================================================================
@@ -200,8 +206,7 @@ stats(Wpool, Sup) ->
             {T + MQL, [{N, WS} | L]}
         end
       end, {0, []}, lists:seq(1, Wpool#wpool.size)),
-  ManagerStats = wpool_queue_manager:stats(Wpool#wpool.name),
-  PendingTasks = proplists:get_value(pending_tasks, ManagerStats),
+  PendingTasks = wpool_queue_manager:pending_task_count(Wpool#wpool.qmanager),
   [ {pool,                     Sup}
   , {supervisor,               erlang:whereis(Sup)}
   , {options,                  lists:ukeysort(1, proplists:unfold(Wpool#wpool.opts))}
