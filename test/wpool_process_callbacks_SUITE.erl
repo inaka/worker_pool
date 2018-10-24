@@ -11,6 +11,7 @@
         , partial_callback_passed_when_starting_pool/1
         , callback_can_be_added_and_removed_after_pool_is_started/1
         , crashing_callback_does_not_affect_others/1
+        , non_existsing_module_does_not_affect_others/1
         ]).
 
 -spec all() -> [atom()].
@@ -19,6 +20,7 @@ all() ->
   , partial_callback_passed_when_starting_pool
   , callback_can_be_added_and_removed_after_pool_is_started
   , crashing_callback_does_not_affect_others
+  , non_existsing_module_does_not_affect_others
   ].
 
 -spec init_per_suite(config()) -> config().
@@ -145,6 +147,29 @@ crashing_callback_does_not_affect_others(_Config) ->
 
   ok.
 
+
+-spec non_existsing_module_does_not_affect_others(config()) -> ok.
+non_existsing_module_does_not_affect_others(_Config) ->
+  Pool = non_existing_callbacks_test,
+  WorkersCount = 4,
+  meck:new(callbacks, [non_strict]),
+  meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
+  {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount},
+                                       {worker, {crashy_server, []}},
+                                       {enable_callbacks, true},
+                                       {callbacks, [callbacks, non_existing_m]}
+                                      ]),
+
+  {error, nofile} = wpool_pool:add_callback_module(Pool, non_existing_m2),
+
+  WorkersCount = ktn_task:wait_for(function_calls(callbacks,
+                                                  handle_worker_creation,
+                                                  ['_']), WorkersCount),
+
+  wpool:stop_pool(Pool),
+  meck:unload(callbacks),
+
+  ok.
 function_calls(Module, Function, MeckMatchSpec) ->
   fun() ->
       meck:num_calls(Module, Function, MeckMatchSpec)

@@ -258,12 +258,12 @@ next(Next, WPool) -> WPool#wpool{next = Next}.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(Pool, Module) ->
   EventManager = event_manager_name(Pool),
-  gen_event:add_handler(EventManager, {wpool_process_callbacks, Module}, Module).
+  wpool_process_callbacks:add_callback_module(EventManager, Module).
 
 -spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 remove_callback_module(Pool, Module) ->
   EventManager = event_manager_name(Pool),
-  gen_event:delete_handler(EventManager, {wpool_process_callbacks, Module}, Module).
+  wpool_process_callbacks:remove_callback_module(EventManager, Module).
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.

@@ -62,7 +62,16 @@ maybe_add_event_handler(Options) ->
     undefined ->
       ok;
     EventMgr ->
-      [gen_event:add_handler(EventMgr, {wpool_process_callbacks, Module}, Module)
-       || Module <- proplists:get_value(callbacks, Options, [])]
+      lists:foreach(fun(M) -> add_initial_callback(EventMgr, M) end,
+                    proplists:get_value(callbacks, Options, []))
+  end.
+
+add_initial_callback(EventManager, Module) ->
+  case wpool_process_callbacks:add_callback_module(EventManager, Module) of
+    ok ->
+      ok;
+    Other ->
+      error_logger:warning_msg("The callback module:~p could not be loaded, reason:~p",
+                               [Module, Other])
   end.
 
