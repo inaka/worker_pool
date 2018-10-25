@@ -12,6 +12,7 @@
         , callback_can_be_added_and_removed_after_pool_is_started/1
         , crashing_callback_does_not_affect_others/1
         , non_existsing_module_does_not_affect_others/1
+        , complete_coverage/1
         ]).
 
 -spec all() -> [atom()].
@@ -174,3 +175,13 @@ function_calls(Module, Function, MeckMatchSpec) ->
   fun() ->
       meck:num_calls(Module, Function, MeckMatchSpec)
   end.
+
+
+-spec complete_coverage(config()) -> ok.
+complete_coverage(_Config) ->
+    {ok, EventManager} = gen_event:start_link(),
+    gen_event:add_handler(
+        EventManager, {wpool_process_callbacks, ?MODULE}, ?MODULE),
+    {error, {unexpected_call, call}} =
+        gen_event:call(EventManager, {wpool_process_callbacks, ?MODULE}, call),
+    ok.

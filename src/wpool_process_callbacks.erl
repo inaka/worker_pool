@@ -7,9 +7,6 @@
 -export([ init/1
         , handle_event/2
         , handle_call/2
-        , handle_info/2
-        , code_change/3
-        , terminate/2
         ]).
 
 -export([ notify/3
@@ -33,25 +30,11 @@ init(Module) ->
 -spec handle_event({event(), [any()]}, state()) -> {ok, state()}.
 handle_event({Event, Args}, Module) ->
   call(Module, Event, Args),
-  {ok, Module};
-handle_event(_, State) ->
-  {ok, State}.
+  {ok, Module}.
 
--spec handle_call(any(), state()) -> {ok, ok, state()}.
-handle_call(_, State) ->
-  {ok, ok, State}.
-
--spec handle_info(any(), state()) -> {ok, state()}.
-handle_info(_, State) ->
-  {ok, State}.
-
--spec code_change(any(), state(), any()) -> {ok, state()}.
-code_change(_OldVsn, State, _Extra) ->
-  {ok, State}.
-
--spec terminate(any(), state()) -> ok.
-terminate(_Reason, _State) ->
-  ok.
+-spec handle_call(Msg, state()) -> {ok, {error, {unexpected_call, Msg}}, state()}.
+handle_call(Msg, State) ->
+  {ok, {error, {unexpected_call, Msg}}, State}.
 
 -spec notify(event(), [wpool:option()], [any()]) -> ok.
 notify(Event, Options, Args) ->
