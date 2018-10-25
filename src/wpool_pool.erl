@@ -45,7 +45,8 @@
         , wpool_get/2
         ]).
 -export([ add_callback_module/2
-        , remove_callback_module/2]).
+        , remove_callback_module/2
+        ]).
 
 %% Supervisor callbacks
 -export([ init/1
