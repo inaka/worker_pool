@@ -1,5 +1,38 @@
 # Change Log
 
+## [3.2.0](https://github.com/inaka/worker_pool/tree/3.2.0) (2018-10-25)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.0...3.2.0)
+
+**Closed issues:**
+
+- Delayed worker restarts [\#158](https://github.com/inaka/worker_pool/issues/158)
+- Integration with code coverage service [\#154](https://github.com/inaka/worker_pool/issues/154)
+- Kill workers on 3.x.x branch [\#150](https://github.com/inaka/worker_pool/issues/150)
+- get\_pending\_tasks Function [\#135](https://github.com/inaka/worker_pool/issues/135)
+
+**Merged pull requests:**
+
+- \[\#154\] adding integration with Travis+Codecov [\#157](https://github.com/inaka/worker_pool/pull/157) ([ferigis](https://github.com/ferigis))
+- Add rebar.lock [\#156](https://github.com/inaka/worker_pool/pull/156) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Backports to 3.1 [\#155](https://github.com/inaka/worker_pool/pull/155) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Add support for callback functions around worker process events [\#153](https://github.com/inaka/worker_pool/pull/153) ([michalwski](https://github.com/michalwski))
+- Kill an overran worker [\#152](https://github.com/inaka/worker_pool/pull/152) ([carlosvarelap](https://github.com/carlosvarelap))
+- Fix links in app.src [\#149](https://github.com/inaka/worker_pool/pull/149) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Turn \#wpool into an ODS [\#148](https://github.com/inaka/worker_pool/pull/148) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Remove Tigertext from the list of maintainers in app.src [\#147](https://github.com/inaka/worker_pool/pull/147) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Move from timer:sleep to ktn\_task:wait\_for in tests [\#146](https://github.com/inaka/worker_pool/pull/146) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Kill a overran worker [\#144](https://github.com/inaka/worker_pool/pull/144) ([carlosvarelap](https://github.com/carlosvarelap))
+
+## [4.0.0](https://github.com/inaka/worker_pool/tree/4.0.0) (2018-07-18)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.1...4.0.0)
+
+**Merged pull requests:**
+
+- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
+- Bump Version to 4.0.0 [\#143](https://github.com/inaka/worker_pool/pull/143) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- test erlang 21 [\#138](https://github.com/inaka/worker_pool/pull/138) ([getong](https://github.com/getong))
+- Adjust to OTP21 [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [3.1.1](https://github.com/inaka/worker_pool/tree/3.1.1) (2018-07-04)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.0...3.1.1)
 
@@ -15,6 +48,7 @@
 
 **Merged pull requests:**
 
+- Update dependencies and bump version to 3.1.1 [\#142](https://github.com/inaka/worker_pool/pull/142) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Propagate `killed` reason to clients [\#141](https://github.com/inaka/worker_pool/pull/141) ([carlosvarelap](https://github.com/carlosvarelap))
 - fixed function spec [\#139](https://github.com/inaka/worker_pool/pull/139) ([bartekgorny](https://github.com/bartekgorny))
 - Update README.md [\#131](https://github.com/inaka/worker_pool/pull/131) ([igaray](https://github.com/igaray))
