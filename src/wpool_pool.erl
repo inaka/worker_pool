@@ -44,6 +44,9 @@
 -export([ next/2
         , wpool_get/2
         ]).
+-export([ add_callback_module/2
+        , remove_callback_module/2
+        ]).
 
 %% Supervisor callbacks
 -export([ init/1
@@ -253,6 +256,16 @@ wpool_size(Name) ->
 -spec next(pos_integer(), wpool()) -> wpool().
 next(Next, WPool) -> WPool#wpool{next = Next}.
 
+-spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
+add_callback_module(Pool, Module) ->
+  EventManager = event_manager_name(Pool),
+  wpool_process_callbacks:add_callback_module(EventManager, Module).
+
+-spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
+remove_callback_module(Pool, Module) ->
+  EventManager = event_manager_name(Pool),
+  wpool_process_callbacks:remove_callback_module(EventManager, Module).
+
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
 -spec wpool_get(atom(), wpool()) -> any(); ([atom()], wpool()) -> any().
@@ -288,6 +301,7 @@ init({Name, Options}) ->
   TimeChecker = time_checker_name(Name),
   QueueManager = queue_manager_name(Name),
   ProcessSup = process_sup_name(Name),
+  EventManagerName = event_manager_name(Name),
   _Wpool =
     store_wpool(
       #wpool{ name = Name
@@ -315,9 +329,19 @@ init({Name, Options}) ->
     , [wpool_queue_manager]
     },
 
+  EventManagerSpec =
+    { EventManagerName
+    , {gen_event, start_link, [{local, EventManagerName}]}
+    , permanent
+    , brutal_kill
+    , worker
+    , dynamic
+    },
+
   SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
   WorkerOpts =
-    [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options],
+    [{queue_manager, QueueManager}, {time_checker, TimeChecker}
+     | Options] ++ maybe_event_manager(Options, {event_manager, EventManagerName}),
   ProcessSupSpec =
     { ProcessSup
     , {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]}
@@ -327,10 +351,14 @@ init({Name, Options}) ->
     , [wpool_process_sup]
     },
 
+  Children = [TimeCheckerSpec, QueueManagerSpec] ++
+             maybe_event_manager(Options, EventManagerSpec) ++
+             [ProcessSupSpec],
+
   SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
   SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
   SupStrategy = {one_for_all, SupIntensity, SupPeriod},
-  {ok, {SupStrategy, [TimeCheckerSpec, QueueManagerSpec, ProcessSupSpec]}}.
+  {ok, {SupStrategy, Children}}.
 
 %% @private
 -spec worker_name(wpool:name(), pos_integer()) -> atom().
@@ -345,6 +373,8 @@ process_sup_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-process-sup").
 queue_manager_name(Sup) ->
   list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-queue-manager").
+event_manager_name(Sup) ->
+  list_to_atom(?MODULE_STRING ++ [$-|atom_to_list(Sup)] ++ "-event-manager").
 
 worker_with_no_task(Wpool) ->
   %% Moving the beginning of the list to a random point to ensure that clients
@@ -463,3 +493,11 @@ build_wpool(Name) ->
 
 next_wpool(Wpool) ->
   Wpool#wpool{next = (Wpool#wpool.next rem Wpool#wpool.size) + 1}.
+
+maybe_event_manager(Options, Item) ->
+  EnableEventManager = proplists:get_value(enable_callbacks, Options, false),
+  case EnableEventManager of
+    true ->
+      [Item];
+    _ -> []
+  end.
