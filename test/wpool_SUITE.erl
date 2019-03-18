@@ -382,20 +382,31 @@ broadcast(_Config) ->
 
 -spec worker_killed_stats(config()) -> {comment, []}.
 worker_killed_stats(_Config) ->
-  {ok, PoolPid} = wpool:start_sup_pool(wpool_SUITE_worker_killed_stats, [{workers, 3}]),
-
+  %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
+  {ok, PoolPid} = wpool:start_sup_pool(
+    wpool_SUITE_worker_killed_stats, [{workers, 3}, {worker, {sleepy_server, 100}}]),
   true = erlang:is_process_alive(PoolPid),
 
-  ct:comment("wpool:stats/1 should work normally"),
-  With3Workers = wpool:stats(wpool_SUITE_worker_killed_stats),
+  Workers = fun() -> lists:keyfind(workers, 1, wpool:stats(wpool_SUITE_worker_killed_stats)) end,
 
-  {workers, [_, _, _]} = lists:keyfind(workers, 1, With3Workers),
+  ct:comment("wpool:stats/1 should work normally"),
+  {workers, [_, _, _]} = Workers(),
 
   ct:comment("wpool:stats/1 should work even if a process just dies and it's not yet back alive"),
   exit(whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)), kill),
-  With2Workers = wpool:stats(wpool_SUITE_worker_killed_stats),
+  {workers, [_, _]} = Workers(),
 
-  {workers, [_, _]} = lists:keyfind(workers, 1, With2Workers),
+  ct:comment("We try again to enforce the scenario where whereis/1 returns undefined"),
+  undefined = whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)),
+  {workers, [_, _]} = Workers(),
+
+  ct:comment("Once the process is alive again, we should see it at the stats"),
+  true =
+    ktn_task:wait_for(
+      fun() ->
+        is_pid(whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)))
+      end, true, 10, 15),
+  {workers, [_, _, _]} = Workers(),
 
   {comment, []}.
 
