@@ -187,20 +187,15 @@ stats(Wpool, Sup) ->
   {Total, WorkerStats} =
     lists:foldl(
       fun(N, {T, L}) ->
-        case erlang:whereis(worker_name(Sup, N)) of
+        case worker_info(Sup, N,  [ message_queue_len
+                                  , memory
+                                  , current_function
+                                  , current_location
+                                  , dictionary
+                                  ]) of
           undefined ->
             {T, L};
-          Worker ->
-            [{message_queue_len, MQL} = MQLT,
-             Memory, Function, Location, {dictionary, Dictionary}] =
-              erlang:process_info(
-                Worker,
-                [ message_queue_len
-                , memory
-                , current_function
-                , current_location
-                , dictionary
-                ]),
+          [{message_queue_len, MQL} = MQLT, Memory, Function, Location, {dictionary, Dictionary}] ->
             WS = [MQLT, Memory] ++
               function_location(Function, Location) ++
               task(proplists:get_value(wpool_task, Dictionary)),
@@ -216,6 +211,15 @@ stats(Wpool, Sup) ->
   , {total_message_queue_len,  Total + PendingTasks}
   , {workers,                  WorkerStats}
   ].
+
+worker_info(Sup, N, Info) ->
+  case erlang:whereis(worker_name(Sup, N)) of
+    undefined ->
+      undefined;
+    Worker ->
+      erlang:process_info(Worker, Info)
+  end.
+
 
 function_location({current_function, {gen_server, loop, _}}, _) ->
                   [];
