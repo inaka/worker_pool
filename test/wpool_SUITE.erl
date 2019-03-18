@@ -34,13 +34,14 @@
         , default_options/1
         , complete_coverage/1
         , broadcast/1
+        , worker_killed_stats/1
         ]).
 
 -spec all() -> [atom()].
 all() ->
   [too_much_overrun, overrun, stop_pool, non_brutal_shutdown, stats,
    default_strategy, default_options, complete_coverage, broadcast,
-   kill_on_overrun].
+   kill_on_overrun, worker_killed_stats].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -377,6 +378,29 @@ broadcast(_Config) ->
   end,
 
   meck:unload(x),
+  {comment, []}.
+
+-spec worker_killed_stats(config()) -> {comment, []}.
+worker_killed_stats(_Config) ->
+  %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
+  {ok, PoolPid} = wpool:start_sup_pool(
+    wpool_SUITE_worker_killed_stats, [{workers, 3}, {worker, {sleepy_server, 500}}]),
+  true = erlang:is_process_alive(PoolPid),
+
+  Workers = fun() -> lists:keyfind(workers, 1, wpool:stats(wpool_SUITE_worker_killed_stats)) end,
+  WorkerName = wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1),
+
+  ct:comment("wpool:stats/1 should work normally"),
+  {workers, [_, _, _]} = Workers(),
+
+  ct:comment("wpool:stats/1 should work even if a process just dies and it's not yet back alive"),
+  exit(whereis(WorkerName), kill),
+  {workers, [_, _]} = Workers(),
+
+  ct:comment("Once the process is alive again, we should see it at the stats"),
+  true = ktn_task:wait_for(fun() -> is_pid(whereis(WorkerName)) end, true, 10, 75),
+  {workers, [_, _, _]} = Workers(),
+
   {comment, []}.
 
 %% =============================================================================
