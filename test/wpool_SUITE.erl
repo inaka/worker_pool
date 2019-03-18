@@ -388,24 +388,17 @@ worker_killed_stats(_Config) ->
   true = erlang:is_process_alive(PoolPid),
 
   Workers = fun() -> lists:keyfind(workers, 1, wpool:stats(wpool_SUITE_worker_killed_stats)) end,
+  WorkerName = wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1),
 
   ct:comment("wpool:stats/1 should work normally"),
   {workers, [_, _, _]} = Workers(),
 
   ct:comment("wpool:stats/1 should work even if a process just dies and it's not yet back alive"),
-  exit(whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)), kill),
-  {workers, [_, _]} = Workers(),
-
-  ct:comment("We try again to enforce the scenario where whereis/1 returns undefined"),
-  undefined = whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)),
+  exit(whereis(WorkerName), kill),
   {workers, [_, _]} = Workers(),
 
   ct:comment("Once the process is alive again, we should see it at the stats"),
-  true =
-    ktn_task:wait_for(
-      fun() ->
-        is_pid(whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)))
-      end, true, 10, 75),
+  true = ktn_task:wait_for(fun() -> is_pid(whereis(WorkerName)) end, true, 10, 75),
   {workers, [_, _, _]} = Workers(),
 
   {comment, []}.

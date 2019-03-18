@@ -30,7 +30,9 @@
 %%%===================================================================
 -spec init(pos_integer()) -> {ok, state}.
 init(TimeToSleep) ->
+  ct:pal("Waiting ~pms to return...", [TimeToSleep]),
   _ = timer:sleep(TimeToSleep),
+  ct:pal("Done waiting ~pms", [TimeToSleep]),
   {ok, state}.
 
 -spec handle_cast(pos_integer(), State) -> {noreply, State}.
