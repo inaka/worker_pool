@@ -220,7 +220,6 @@ worker_info(Sup, N, Info) ->
       erlang:process_info(Worker, Info)
   end.
 
-
 function_location({current_function, {gen_server, loop, _}}, _) ->
                   [];
 function_location({current_function, {erlang, hibernate, _}}, _) ->
