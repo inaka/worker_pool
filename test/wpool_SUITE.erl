@@ -384,7 +384,7 @@ broadcast(_Config) ->
 worker_killed_stats(_Config) ->
   %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
   {ok, PoolPid} = wpool:start_sup_pool(
-    wpool_SUITE_worker_killed_stats, [{workers, 3}, {worker, {sleepy_server, 100}}]),
+    wpool_SUITE_worker_killed_stats, [{workers, 3}, {worker, {sleepy_server, 500}}]),
   true = erlang:is_process_alive(PoolPid),
 
   Workers = fun() -> lists:keyfind(workers, 1, wpool:stats(wpool_SUITE_worker_killed_stats)) end,
@@ -405,7 +405,7 @@ worker_killed_stats(_Config) ->
     ktn_task:wait_for(
       fun() ->
         is_pid(whereis(wpool_pool:worker_name(wpool_SUITE_worker_killed_stats, 1)))
-      end, true, 10, 15),
+      end, true, 10, 75),
   {workers, [_, _, _]} = Workers(),
 
   {comment, []}.
