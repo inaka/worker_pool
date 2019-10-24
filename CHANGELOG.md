@@ -1,13 +1,54 @@
 # Change Log
 
+## [4.0.1](https://github.com/inaka/worker_pool/tree/4.0.1) (2019-10-24)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/3.2.0...4.0.1)
+
+**Fixed bugs:**
+
+- wpool:stats\(\) might crash after a worker is killed [\#167](https://github.com/inaka/worker_pool/pull/167) ([carlosvarelap](https://github.com/carlosvarelap))
+
+**Closed issues:**
+
+- Forward-port new changes in rel-3.1 to master [\#161](https://github.com/inaka/worker_pool/issues/161)
+- 3.2.0 Release [\#159](https://github.com/inaka/worker_pool/issues/159)
+
+**Merged pull requests:**
+
+- \[Fixes \#161\] Forward-port new changes in rel-3.1 to master [\#162](https://github.com/inaka/worker_pool/pull/162) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
+## [3.2.0](https://github.com/inaka/worker_pool/tree/3.2.0) (2018-10-25)
+[Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.0...3.2.0)
+
+**Closed issues:**
+
+- Delayed worker restarts [\#158](https://github.com/inaka/worker_pool/issues/158)
+- Integration with code coverage service [\#154](https://github.com/inaka/worker_pool/issues/154)
+- Kill workers on 3.x.x branch [\#150](https://github.com/inaka/worker_pool/issues/150)
+- get\_pending\_tasks Function [\#135](https://github.com/inaka/worker_pool/issues/135)
+
+**Merged pull requests:**
+
+- \[Fix \#159\] Bump Version to 3.2.0 [\#160](https://github.com/inaka/worker_pool/pull/160) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- \[\#154\] adding integration with Travis+Codecov [\#157](https://github.com/inaka/worker_pool/pull/157) ([ferigis](https://github.com/ferigis))
+- Add rebar.lock [\#156](https://github.com/inaka/worker_pool/pull/156) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Backports to 3.1 [\#155](https://github.com/inaka/worker_pool/pull/155) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Add support for callback functions around worker process events [\#153](https://github.com/inaka/worker_pool/pull/153) ([michalwski](https://github.com/michalwski))
+- Kill an overran worker [\#152](https://github.com/inaka/worker_pool/pull/152) ([carlosvarelap](https://github.com/carlosvarelap))
+- Fix links in app.src [\#149](https://github.com/inaka/worker_pool/pull/149) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Turn \#wpool into an ODS [\#148](https://github.com/inaka/worker_pool/pull/148) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Remove Tigertext from the list of maintainers in app.src [\#147](https://github.com/inaka/worker_pool/pull/147) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Move from timer:sleep to ktn\_task:wait\_for in tests [\#146](https://github.com/inaka/worker_pool/pull/146) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Kill a overran worker [\#144](https://github.com/inaka/worker_pool/pull/144) ([carlosvarelap](https://github.com/carlosvarelap))
+
 ## [4.0.0](https://github.com/inaka/worker_pool/tree/4.0.0) (2018-07-18)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.1...4.0.0)
 
 **Merged pull requests:**
 
+- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
 - Bump Version to 4.0.0 [\#143](https://github.com/inaka/worker_pool/pull/143) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - test erlang 21 [\#138](https://github.com/inaka/worker_pool/pull/138) ([getong](https://github.com/getong))
-- Adjust to OTP21 [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Start supporting OTP21, drop support for previous OTP versions in the main release line \(4.x.x\) [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [3.1.1](https://github.com/inaka/worker_pool/tree/3.1.1) (2018-07-04)
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.0...3.1.1)
@@ -232,7 +273,7 @@
 - Release on Hex? [\#38](https://github.com/inaka/worker_pool/pull/38) ([waisbrot](https://github.com/waisbrot))
 - wpool\_queue\_manager crash cripples worker pool [\#36](https://github.com/inaka/worker_pool/pull/36) ([marcsugiyama](https://github.com/marcsugiyama))
 - worker pools do not restart after hitting the restart intensity limit [\#35](https://github.com/inaka/worker_pool/pull/35) ([marcsugiyama](https://github.com/marcsugiyama))
-- Allow setting `gen\_server` options in workers [\#34](https://github.com/inaka/worker_pool/pull/34) ([X4lldux](https://github.com/X4lldux))
+- Allow setting `gen\_server` options in workers [\#34](https://github.com/inaka/worker_pool/pull/34) ([x4lldux](https://github.com/x4lldux))
 - Add suport for distributing work based on a hashed term [\#33](https://github.com/inaka/worker_pool/pull/33) ([JoshRagem](https://github.com/JoshRagem))
 - Rebased from TT and improved dialyzation [\#31](https://github.com/inaka/worker_pool/pull/31) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Completely remove lager [\#30](https://github.com/inaka/worker_pool/pull/30) ([elbrujohalcon](https://github.com/elbrujohalcon))

@@ -17,14 +17,13 @@
 { application
 , worker_pool
 , [ {description, "Erlang Worker Pool"}
-  , {vsn, "4.0.0"}
+  , {vsn, "4.0.1"}
   , {id, "worker_pool"}
   , {registered, []}
   , {modules, []}
   , {applications, [kernel, stdlib]}
   , {mod, {wpool, []}}
   , {env, []}
-  , {maintainers, ["Inaka"]}
   , {licenses, ["Apache2"]}
   , {links, [ {"Github", "https://github.com/inaka/worker_pool"}
             , {"Blog Post", "https://web.archive.org/web/20170602054156/http://inaka.net/blog/2014/09/25/worker-pool/"}
