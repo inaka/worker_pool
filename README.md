@@ -17,7 +17,7 @@ The documentation can be generated from code using [edoc](http://www.erlang.org/
 All user functions are exposed through the [wpool module](https://hexdocs.pm/worker_pool/wpool.html).
 
 #### Starting the Application
-**Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/17.1/kernel/application.html) module. For convinience, `wpool:start/0` and `wpool:stop/0` are also provided.
+**Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/17.1/kernel/application.html) module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
 
 #### Starting a Pool
 To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
