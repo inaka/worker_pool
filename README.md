@@ -10,14 +10,14 @@ The goal of **worker pool** is pretty straightforward: To provide a transparent 
 
 ### Documentation
 
-The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``rebar3 edoc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](http://inaka.github.io/worker_pool/)
+The documentation can be generated from code using [edoc](http://www.erlang.org/doc/apps/edoc/chapter.html) with ``rebar3 edoc`` or using [erldocs](https://github.com/erldocs/erldocs) with ``make erldocs``. It is also available online [here](https://hexdocs.pm/worker_pool/)
 
 ### Usage
 
-All user functions are exposed through the [wpool module](http://inaka.github.io/worker_pool/worker_pool/wpool.html).
+All user functions are exposed through the [wpool module](https://hexdocs.pm/worker_pool/wpool.html).
 
 #### Starting the Application
-**Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/17.1/kernel/application.html) module. For convinience, `wpool:start/0` and `wpool:stop/0` are also provided.
+**Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/current/kernel/application.html) module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
 
 #### Starting a Pool
 To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
@@ -41,7 +41,7 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
 * **worker_type**: The type of the worker. The available values are `gen_server`. The default value is `gen_server`. Eventually we'll add `gen_statem` as well.
-* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](http://inaka.github.io/worker_pool/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
+* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](https://hexdocs.pm/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
 * **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
 * **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
 * **pool_sup_intensity** and **pool_sup_period**: The intensity and period for the supervisor that manages the worker pool system (`wpool_pool`). The strategy of this supervisor must be `one_for_all` but the intensity and period may be changed from their defaults of `5` and `60`.
