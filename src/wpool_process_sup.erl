@@ -44,6 +44,7 @@ init({Name, Options}) ->
       %% We'll eventually add more types (like gen_statem),
       %% that's why this case remains
     end,
+  WorkerShutdown = proplists:get_value(worker_shutdown, Options, 5000),
   WorkerSpecs =
     [ { wpool_pool:worker_name(Name, I)
       , { WorkerType
@@ -51,7 +52,7 @@ init({Name, Options}) ->
         , [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]
         }
       , permanent
-      , 5000
+      , WorkerShutdown
       , worker
       , [Worker]
       } || I <- lists:seq(1, Workers)],
