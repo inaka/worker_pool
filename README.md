@@ -46,7 +46,7 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 * **worker_shutdown**: The `shutdown` option to be used in the child specs of the workers. Defaults to `5000`.
 * **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
 * **pool_sup_intensity** and **pool_sup_period**: The intensity and period for the supervisor that manages the worker pool system (`wpool_pool`). The strategy of this supervisor must be `one_for_all` but the intensity and period may be changed from their defaults of `5` and `60`.
-* **pool_sup_shutdown**: The `shutdown` option to be used for the supervisor that manages the worker pool system (`wpool_pool`). Defaults to `brutal_kill`.
+* **pool_sup_shutdown**: The `shutdown` option to be used for the supervisor over the individual workers (`wpool_process_sup`). That is, the value set in the child spec for this supervisor, which is specified in its parent supervisor (`wpool_pool`).
 * **queue_type**: Order in which requests will be stored and handled by workers. This option can take values `lifo` or `fifo`. Defaults to `fifo`.
 * **enable_callbacks**: A boolean value determining if `event_manager` should be started for callback modules.
   Defaults to `false`.
