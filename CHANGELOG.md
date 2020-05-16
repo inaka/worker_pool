@@ -1,6 +1,20 @@
-# Change Log
+# Changelog
+
+## [4.0.2](https://github.com/inaka/worker_pool/tree/4.0.2) (2020-05-16)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.1...4.0.2)
+
+**Closed issues:**
+
+- Release 4.1.0 [\#168](https://github.com/inaka/worker_pool/issues/168)
+
+**Merged pull requests:**
+
+- Add option 'worker\_shutdown' [\#171](https://github.com/inaka/worker_pool/pull/171) ([sirihansen](https://github.com/sirihansen))
+- \[\#165\] Fix broken links [\#170](https://github.com/inaka/worker_pool/pull/170) ([juanbono](https://github.com/juanbono))
 
 ## [4.0.1](https://github.com/inaka/worker_pool/tree/4.0.1) (2019-10-24)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.2.0...4.0.1)
 
 **Fixed bugs:**
@@ -14,9 +28,18 @@
 
 **Merged pull requests:**
 
+- Update deps and bump version to 4.0.1 [\#169](https://github.com/inaka/worker_pool/pull/169) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - \[Fixes \#161\] Forward-port new changes in rel-3.1 to master [\#162](https://github.com/inaka/worker_pool/pull/162) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- \[\#154\] adding integration with Travis+Codecov [\#157](https://github.com/inaka/worker_pool/pull/157) ([ferigis](https://github.com/ferigis))
+- Add rebar.lock [\#156](https://github.com/inaka/worker_pool/pull/156) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Fix links in app.src [\#149](https://github.com/inaka/worker_pool/pull/149) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Turn \#wpool into an ODS [\#148](https://github.com/inaka/worker_pool/pull/148) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Remove Tigertext from the list of maintainers in app.src [\#147](https://github.com/inaka/worker_pool/pull/147) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Move from timer:sleep to ktn\_task:wait\_for in tests [\#146](https://github.com/inaka/worker_pool/pull/146) ([elbrujohalcon](https://github.com/elbrujohalcon))
+- Kill a overran worker [\#144](https://github.com/inaka/worker_pool/pull/144) ([carlosvarelap](https://github.com/carlosvarelap))
 
 ## [3.2.0](https://github.com/inaka/worker_pool/tree/3.2.0) (2018-10-25)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.0...3.2.0)
 
 **Closed issues:**
@@ -29,28 +52,23 @@
 **Merged pull requests:**
 
 - \[Fix \#159\] Bump Version to 3.2.0 [\#160](https://github.com/inaka/worker_pool/pull/160) ([elbrujohalcon](https://github.com/elbrujohalcon))
-- \[\#154\] adding integration with Travis+Codecov [\#157](https://github.com/inaka/worker_pool/pull/157) ([ferigis](https://github.com/ferigis))
-- Add rebar.lock [\#156](https://github.com/inaka/worker_pool/pull/156) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Backports to 3.1 [\#155](https://github.com/inaka/worker_pool/pull/155) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Add support for callback functions around worker process events [\#153](https://github.com/inaka/worker_pool/pull/153) ([michalwski](https://github.com/michalwski))
 - Kill an overran worker [\#152](https://github.com/inaka/worker_pool/pull/152) ([carlosvarelap](https://github.com/carlosvarelap))
-- Fix links in app.src [\#149](https://github.com/inaka/worker_pool/pull/149) ([elbrujohalcon](https://github.com/elbrujohalcon))
-- Turn \#wpool into an ODS [\#148](https://github.com/inaka/worker_pool/pull/148) ([elbrujohalcon](https://github.com/elbrujohalcon))
-- Remove Tigertext from the list of maintainers in app.src [\#147](https://github.com/inaka/worker_pool/pull/147) ([elbrujohalcon](https://github.com/elbrujohalcon))
-- Move from timer:sleep to ktn\_task:wait\_for in tests [\#146](https://github.com/inaka/worker_pool/pull/146) ([elbrujohalcon](https://github.com/elbrujohalcon))
-- Kill a overran worker [\#144](https://github.com/inaka/worker_pool/pull/144) ([carlosvarelap](https://github.com/carlosvarelap))
+- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
 
 ## [4.0.0](https://github.com/inaka/worker_pool/tree/4.0.0) (2018-07-18)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.1...4.0.0)
 
 **Merged pull requests:**
 
-- Improve function spec in wpool\_sup [\#145](https://github.com/inaka/worker_pool/pull/145) ([michalwski](https://github.com/michalwski))
 - Bump Version to 4.0.0 [\#143](https://github.com/inaka/worker_pool/pull/143) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - test erlang 21 [\#138](https://github.com/inaka/worker_pool/pull/138) ([getong](https://github.com/getong))
 - Start supporting OTP21, drop support for previous OTP versions in the main release line \(4.x.x\) [\#137](https://github.com/inaka/worker_pool/pull/137) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [3.1.1](https://github.com/inaka/worker_pool/tree/3.1.1) (2018-07-04)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.1.0...3.1.1)
 
 **Closed issues:**
@@ -73,6 +91,7 @@
 - Remove repeated "worker" option from wpool:stats/1 output [\#119](https://github.com/inaka/worker_pool/pull/119) ([harenson](https://github.com/harenson))
 
 ## [3.1.0](https://github.com/inaka/worker_pool/tree/3.1.0) (2017-08-15)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/3.0.0...3.1.0)
 
 **Closed issues:**
@@ -89,6 +108,7 @@
 - \[Fix \#105\] Add message broadcast feature [\#118](https://github.com/inaka/worker_pool/pull/118) ([harenson](https://github.com/harenson))
 
 ## [3.0.0](https://github.com/inaka/worker_pool/tree/3.0.0) (2017-07-24)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.3.0...3.0.0)
 
 **Closed issues:**
@@ -104,6 +124,7 @@
 - Euen.113.sync names of start stop functions [\#114](https://github.com/inaka/worker_pool/pull/114) ([Euen](https://github.com/Euen))
 
 ## [2.3.0](https://github.com/inaka/worker_pool/tree/2.3.0) (2017-07-19)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.3...2.3.0)
 
 **Closed issues:**
@@ -120,6 +141,7 @@
 - Remove warnings\_as\_errors compile opt. [\#106](https://github.com/inaka/worker_pool/pull/106) ([kzemek](https://github.com/kzemek))
 
 ## [2.2.3](https://github.com/inaka/worker_pool/tree/2.2.3) (2017-04-03)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.2...2.2.3)
 
 **Fixed bugs:**
@@ -141,6 +163,7 @@
 - Prevent wpool\_pool from crashing on dead workers with best\_worker strategy. [\#95](https://github.com/inaka/worker_pool/pull/95) ([ElectronicRU](https://github.com/ElectronicRU))
 
 ## [2.2.2](https://github.com/inaka/worker_pool/tree/2.2.2) (2017-01-24)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.1...2.2.2)
 
 **Closed issues:**
@@ -156,6 +179,7 @@
 - Remove useless ets creation info message [\#88](https://github.com/inaka/worker_pool/pull/88) ([juise](https://github.com/juise))
 
 ## [2.2.1](https://github.com/inaka/worker_pool/tree/2.2.1) (2016-09-20)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.2.0...2.2.1)
 
 **Merged pull requests:**
@@ -164,6 +188,7 @@
 - Added support for multiple overrun handlers and fixed the tests [\#86](https://github.com/inaka/worker_pool/pull/86) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
 
 ## [2.2.0](https://github.com/inaka/worker_pool/tree/2.2.0) (2016-08-18)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.1.0...2.2.0)
 
 **Closed issues:**
@@ -181,6 +206,7 @@
 - fsm coverage \[\#79\] [\#82](https://github.com/inaka/worker_pool/pull/82) ([ferigis](https://github.com/ferigis))
 
 ## [2.1.0](https://github.com/inaka/worker_pool/tree/2.1.0) (2016-08-03)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.0.1...2.1.0)
 
 **Fixed bugs:**
@@ -198,6 +224,7 @@
 - Complete Test Coverage [\#10](https://github.com/inaka/worker_pool/pull/10) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [2.0.1](https://github.com/inaka/worker_pool/tree/2.0.1) (2016-06-27)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/2.0.0...2.0.1)
 
 **Closed issues:**
@@ -213,6 +240,7 @@
 - Add config options pool\_sup\_intensity and pool\_sup\_period [\#65](https://github.com/inaka/worker_pool/pull/65) ([waisbrot](https://github.com/waisbrot))
 
 ## [2.0.0](https://github.com/inaka/worker_pool/tree/2.0.0) (2016-05-26)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.1.0...2.0.0)
 
 **Closed issues:**
@@ -226,6 +254,7 @@
 - \[Close \#60\] Euen.60.rebar3 [\#61](https://github.com/inaka/worker_pool/pull/61) ([Euen](https://github.com/Euen))
 
 ## [1.1.0](https://github.com/inaka/worker_pool/tree/1.1.0) (2016-04-28)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.4...1.1.0)
 
 **Fixed bugs:**
@@ -259,6 +288,7 @@
 - Properly change the random implementation for R18 [\#27](https://github.com/inaka/worker_pool/pull/27) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [1.0.4](https://github.com/inaka/worker_pool/tree/1.0.4) (2015-12-05)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.3...1.0.4)
 
 **Closed issues:**
@@ -280,6 +310,7 @@
 - Version Bump to 1.0.4 [\#41](https://github.com/inaka/worker_pool/pull/41) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [1.0.3](https://github.com/inaka/worker_pool/tree/1.0.3) (2015-08-26)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.2...1.0.3)
 
 **Closed issues:**
@@ -293,6 +324,7 @@
 - added support for R18 and the deprecation of 'now' [\#26](https://github.com/inaka/worker_pool/pull/26) ([HernanRivasAcosta](https://github.com/HernanRivasAcosta))
 
 ## [1.0.2](https://github.com/inaka/worker_pool/tree/1.0.2) (2015-03-16)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0.1...1.0.2)
 
 **Merged pull requests:**
@@ -301,6 +333,7 @@
 - Remove lager runtime dependency [\#21](https://github.com/inaka/worker_pool/pull/21) ([schlagert](https://github.com/schlagert))
 
 ## [1.0.1](https://github.com/inaka/worker_pool/tree/1.0.1) (2015-02-18)
+
 [Full Changelog](https://github.com/inaka/worker_pool/compare/1.0...1.0.1)
 
 **Closed issues:**
@@ -319,6 +352,9 @@
 - Enable default\_strategy customization [\#11](https://github.com/inaka/worker_pool/pull/11) ([elbrujohalcon](https://github.com/elbrujohalcon))
 
 ## [1.0](https://github.com/inaka/worker_pool/tree/1.0) (2014-09-25)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/1add87a9d8eb59e483a13b0c4d7d125dc377648d...1.0)
+
 **Merged pull requests:**
 
 - Indentation!! [\#9](https://github.com/inaka/worker_pool/pull/9) ([elbrujohalcon](https://github.com/elbrujohalcon))
@@ -332,4 +368,4 @@
 
 
 
-\* *This Change Log was automatically generated by [github_changelog_generator](https://github.com/skywinder/Github-Changelog-Generator)*
+\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)*
