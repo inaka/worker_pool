@@ -10,6 +10,7 @@
 
 **Merged pull requests:**
 
+- remove cover plugins, it will cause compile error in otp 23 [\#175](https://github.com/inaka/worker_pool/pull/175) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Relax scope of what we catch in do\_try [\#174](https://github.com/inaka/worker_pool/pull/174) ([arcusfelis](https://github.com/arcusfelis))
 
 ## [4.0.2](https://github.com/inaka/worker_pool/tree/4.0.2) (2020-05-16)
