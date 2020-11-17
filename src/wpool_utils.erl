@@ -55,5 +55,16 @@ notify_queue_manager(Function, Name, Options) ->
     QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
   end.
 
+%% We don't want to catch errors, that we are not intended to catch.
 -spec do_try(fun()) -> any().
-do_try(Fun) -> try Fun() catch _:Error -> Error end.
+do_try(Fun) ->
+  try Fun()
+  catch
+    _:{noreply, _NewState} = Error -> Error;
+    _:{noreply, _NewState, _Timeout} = Error -> Error;
+    _:{reply, _Response, _NewState} = Error -> Error;
+    _:{reply, _Response, _NewState, _Timeout} = Error -> Error;
+    _:{stop, _Reason, _NewState} = Error -> Error;
+    _:{stop, _Reason, _Response, _NewState} = Error -> Error
+    %% Allow any other error to pass, crashing the worker
+  end.
