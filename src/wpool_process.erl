@@ -157,8 +157,7 @@ format_status(Opt, [PDict, State]) ->
         normal -> [{data, [{"State", State#state.state}]}]
       end;
     true ->
-      wpool_utils:do_try(
-        fun() -> (State#state.mod):format_status(Opt, [PDict, State#state.state]) end)
+      (State#state.mod):format_status(Opt, [PDict, State#state.state])
   end.
 
 %%%===================================================================
