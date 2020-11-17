@@ -123,13 +123,19 @@ code_change(OldVsn, State, Extra) ->
 -spec handle_info(any(), state()) ->
         {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_info(Info, State) ->
-  case wpool_utils:do_try(
-        fun() -> (State#state.mod):handle_info(Info, State#state.state) end) of
+  try (State#state.mod):handle_info(Info, State#state.state) of
     {noreply, NewState} ->
       {noreply, State#state{state = NewState}};
     {noreply, NewState, NextStep} ->
       {noreply, State#state{state = NewState}, NextStep};
     {stop, Reason, NewState} ->
+      {stop, Reason, State#state{state = NewState}}
+  catch
+    _:{noreply, NewState} ->
+      {noreply, State#state{state = NewState}};
+    _:{noreply, NewState, NextStep} ->
+      {noreply, State#state{state = NewState}, NextStep};
+    _:{stop, Reason, NewState} ->
       {stop, Reason, State#state{state = NewState}}
   end.
 
@@ -137,13 +143,19 @@ handle_info(Info, State) ->
 -spec handle_continue(any(), state()) ->
         {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_continue(Continue, State) ->
-  case wpool_utils:do_try(
-        fun() -> (State#state.mod):handle_continue(Continue, State#state.state) end) of
+  try (State#state.mod):handle_continue(Continue, State#state.state) of
     {noreply, NewState} ->
       {noreply, State#state{state = NewState}};
     {noreply, NewState, NextStep} ->
       {noreply, State#state{state = NewState}, NextStep};
     {stop, Reason, NewState} ->
+      {stop, Reason, State#state{state = NewState}}
+  catch
+    _:{noreply, NewState} ->
+      {noreply, State#state{state = NewState}};
+    _:{noreply, NewState, NextStep} ->
+      {noreply, State#state{state = NewState}, NextStep};
+    _:{stop, Reason, NewState} ->
       {stop, Reason, State#state{state = NewState}}
   end.
 
@@ -157,8 +169,7 @@ format_status(Opt, [PDict, State]) ->
         normal -> [{data, [{"State", State#state.state}]}]
       end;
     true ->
-      wpool_utils:do_try(
-        fun() -> (State#state.mod):format_status(Opt, [PDict, State#state.state]) end)
+      (State#state.mod):format_status(Opt, [PDict, State#state.state])
   end.
 
 %%%===================================================================
@@ -191,13 +202,19 @@ handle_cast({cast, Cast}, State) ->
                                         , State#state.name
                                         , State#state.options),
   Reply =
-    case wpool_utils:do_try(
-        fun() -> (State#state.mod):handle_cast(Cast, State#state.state) end) of
+    try (State#state.mod):handle_cast(Cast, State#state.state) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
       {noreply, NewState, NextStep} ->
         {noreply, State#state{state = NewState}, NextStep};
       {stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}}
+    catch
+      _:{noreply, NewState} ->
+        {noreply, State#state{state = NewState}};
+      _:{noreply, NewState, NextStep} ->
+        {noreply, State#state{state = NewState}, NextStep};
+      _:{stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}}
     end,
   wpool_utils:task_end(Task),
@@ -226,9 +243,7 @@ handle_call(Call, From, State) ->
                                         , State#state.name
                                         , State#state.options),
   Reply =
-    case wpool_utils:do_try(
-        fun() -> (State#state.mod):handle_call(Call, From, State#state.state)
-        end) of
+    try (State#state.mod):handle_call(Call, From, State#state.state) of
       {noreply, NewState} ->
         {noreply, State#state{state = NewState}};
       {noreply, NewState, NextStep} ->
@@ -240,6 +255,19 @@ handle_call(Call, From, State) ->
       {stop, Reason, NewState} ->
         {stop, Reason, State#state{state = NewState}};
       {stop, Reason, Response, NewState} ->
+        {stop, Reason, Response, State#state{state = NewState}}
+    catch
+      _:{noreply, NewState} ->
+        {noreply, State#state{state = NewState}};
+      _:{noreply, NewState, NextStep} ->
+        {noreply, State#state{state = NewState}, NextStep};
+      _:{reply, Response, NewState} ->
+        {reply, Response, State#state{state = NewState}};
+      _:{reply, Response, NewState, NextStep} ->
+        {reply, Response, State#state{state = NewState}, NextStep};
+      _:{stop, Reason, NewState} ->
+        {stop, Reason, State#state{state = NewState}};
+      _:{stop, Reason, Response, NewState} ->
         {stop, Reason, Response, State#state{state = NewState}}
     end,
   wpool_utils:task_end(Task),

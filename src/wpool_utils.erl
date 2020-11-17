@@ -19,8 +19,7 @@
 %% API
 -export([ task_init/4
         , task_end/1
-        , notify_queue_manager/3
-        , do_try/1]).
+        , notify_queue_manager/3]).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -54,6 +53,3 @@ notify_queue_manager(Function, Name, Options) ->
     undefined -> ok;
     QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
   end.
-
--spec do_try(fun()) -> any().
-do_try(Fun) -> try Fun() catch _:Error -> Error end.
