@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.0.3](https://github.com/inaka/worker_pool/tree/4.0.3) (2020-11-17)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.2...4.0.3)
+
+**Closed issues:**
+
+- Links in readme are broken [\#165](https://github.com/inaka/worker_pool/issues/165)
+
+**Merged pull requests:**
+
+- Relax scope of what we catch in do\_try [\#174](https://github.com/inaka/worker_pool/pull/174) ([arcusfelis](https://github.com/arcusfelis))
+
 ## [4.0.2](https://github.com/inaka/worker_pool/tree/4.0.2) (2020-05-16)
 
 [Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.1...4.0.2)
@@ -10,6 +22,7 @@
 
 **Merged pull requests:**
 
+- Bump version to 4.0.2 [\#173](https://github.com/inaka/worker_pool/pull/173) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Add option 'worker\_shutdown' [\#171](https://github.com/inaka/worker_pool/pull/171) ([sirihansen](https://github.com/sirihansen))
 - \[\#165\] Fix broken links [\#170](https://github.com/inaka/worker_pool/pull/170) ([juanbono](https://github.com/juanbono))
 
