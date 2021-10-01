@@ -19,12 +19,12 @@
 
 -behaviour(gen_server).
 
--record(state, {name    :: atom(),
-                mod     :: atom(),
-                state   :: term(),
-                options :: [ {time_checker|queue_manager, atom()}
-                           | wpool:option()
-                           ]
+-record(state, { name    :: atom()
+               , mod     :: atom()
+               , state   :: term()
+               , options :: [ {time_checker|queue_manager, atom()}
+                            | wpool:option()
+                            ]
                }).
 -type state() :: #state{}.
 

@@ -69,10 +69,10 @@ start_link(WPool, Name) ->
 
 %% @private
 -spec start_link(wpool:name(), queue_mgr(), options()) ->
-    {ok, pid()} | {error, {already_started, pid()} | term()}.
+        {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Options) ->
-    gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options],
-        []).
+  gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options],
+                        []).
 
 %% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) ->
@@ -156,13 +156,13 @@ handle_cast({worker_ready, Worker}, State0) ->
   #state{workers = Workers, clients = Clients, monitors = Mons,
          queue_type = QueueType} = State0,
   State = case gb_trees:is_defined(Worker, Mons) of
-    true ->
-      {Ref, _Client} = gb_trees:get(Worker, Mons),
-      demonitor(Ref, [flush]),
-      State0#state{monitors = gb_trees:delete(Worker, Mons)};
-    false ->
-      State0
-  end,
+            true ->
+              {Ref, _Client} = gb_trees:get(Worker, Mons),
+              demonitor(Ref, [flush]),
+              State0#state{monitors = gb_trees:delete(Worker, Mons)};
+            false ->
+              State0
+          end,
   case queue_out(Clients, QueueType) of
     {empty, _Clients} ->
       {noreply, State#state{workers = gb_sets:add(Worker, Workers)}};
@@ -174,7 +174,7 @@ handle_cast({worker_ready, Worker}, State0) ->
       dec_pending_tasks(),
       NewState = State#state{clients = NewClients},
       case is_process_alive(ClientPid) andalso
-           Expires > now_in_microseconds() of
+        Expires > now_in_microseconds() of
         true ->
           MonitorState = monitor_worker(Worker, Client, NewState),
           ok = wpool_process:cast_call(Worker, Client, Call),
@@ -211,9 +211,9 @@ handle_call(
       };
     false ->
       {Worker, NewWorkers} = gb_sets:take_smallest(Workers),
-      %NOTE: It could've been a while since this call was made, so we check
+                                                %NOTE: It could've been a while since this call was made, so we check
       case erlang:is_process_alive(ClientPid) andalso
-           Expires > now_in_microseconds() of
+        Expires > now_in_microseconds() of
         true  ->
           NewState = monitor_worker(Worker, Client,
                                     State#state{workers = NewWorkers}),
@@ -229,7 +229,7 @@ handle_call(pending_task_count, _From, State) ->
 %% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
-    handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
+  handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
 handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
   case gb_trees:is_defined(Worker, Mons) of
     true ->
