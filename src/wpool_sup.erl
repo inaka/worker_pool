@@ -13,6 +13,7 @@
 % under the License.
 %%% @hidden
 -module(wpool_sup).
+
 -author('elbrujohalcon@inaka.net').
 
 -behaviour(supervisor).
@@ -24,43 +25,34 @@
 %% PUBLIC API
 %%-------------------------------------------------------------------
 %% @doc Starts the supervisor
--spec start_link() ->
-        {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+-spec start_link() -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_link() ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @doc Starts a new pool
 -spec start_pool(wpool:name(), [wpool:option()]) ->
-        {ok, pid()} | {error, {already_started, pid()} | term()}.
-start_pool(Name, Options) -> supervisor:start_child(?MODULE, [Name, Options]).
+                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+start_pool(Name, Options) ->
+    supervisor:start_child(?MODULE, [Name, Options]).
 
 %% @doc Stops a pool
 -spec stop_pool(wpool:name()) -> ok.
 stop_pool(Name) ->
-  case erlang:whereis(Name) of
-    undefined ->
-      error_logger:warning_msg("Couldn't stop ~p. It was not running", [Name]),
-      ok;
-    Pid ->
-      ok = supervisor:terminate_child(?MODULE, Pid)
-  end.
+    case erlang:whereis(Name) of
+        undefined ->
+            error_logger:warning_msg("Couldn't stop ~p. It was not running", [Name]),
+            ok;
+        Pid ->
+            ok = supervisor:terminate_child(?MODULE, Pid)
+    end.
 
 %%----------------------------------------------------------------------
 %% Supervisor behaviour callbacks
 %%----------------------------------------------------------------------
 %% @hidden
--spec init([]) ->
-  {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
+-spec init([]) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
 init([]) ->
-  ok = wpool_pool:create_table(),
-  { ok
-  , { {simple_one_for_one, 5, 60}
-    , [ { wpool_pool
-        , {wpool_pool, start_link, []}
-        , permanent
-        , 2000
-        , supervisor
-        , dynamic
-        }
-      ]
-    }
-  }.
+    ok = wpool_pool:create_table(),
+    {ok,
+     {{simple_one_for_one, 5, 60},
+      [{wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}]}}.
