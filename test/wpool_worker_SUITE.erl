@@ -90,10 +90,6 @@ complete_coverage(_Config) ->
 
     true = is_process_alive(AWorker),
 
-    {ok, {state}} = wpool_worker:code_change("oldvsn", {state}, extra),
-
-    ok = wpool_worker:terminate(reason, {state}),
-
     {comment, []}.
 
 start_pool() ->

@@ -20,8 +20,7 @@
 %% api
 -export([call/4, cast/4]).
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2,
-         handle_info/2]).
+-export([init/1, handle_call/3, handle_cast/2]).
 
 %%%===================================================================
 %%% API
@@ -42,7 +41,7 @@ cast(S, M, F, A) ->
     wpool:cast(S, {M, F, A}).
 
 %%%===================================================================
-%%% init, terminate, code_change, info callbacks
+%%% simple callbacks
 %%%===================================================================
 
 -record(state, {}).
@@ -53,21 +52,6 @@ cast(S, M, F, A) ->
 -spec init(undefined) -> {ok, state()}.
 init(undefined) ->
     {ok, #state{}}.
-
-%% @private
--spec terminate(atom(), state()) -> ok.
-terminate(_Reason, _State) ->
-    ok.
-
-%% @private
--spec code_change(string(), state(), any()) -> {ok, state()}.
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
-
-%% @private
--spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(_Info, State) ->
-    {noreply, State}.
 
 %%%===================================================================
 %%% real (i.e. interesting) callbacks

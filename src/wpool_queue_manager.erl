@@ -21,8 +21,7 @@
 -export([call_available_worker/3, cast_to_available_worker/2, new_worker/2, worker_dead/2,
          worker_ready/2, worker_busy/2, pending_task_count/1]).
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2,
-         handle_info/2]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -record(state,
         {wpool :: wpool:name(),
@@ -224,16 +223,6 @@ handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
     end;
 handle_info(_Info, State) ->
     {noreply, State}.
-
-%% @private
--spec terminate(atom(), state()) -> ok.
-terminate(_Reason, _State) ->
-    ok.
-
-%% @private
--spec code_change(string(), state(), any()) -> {ok, state()}.
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
 
 %%%===================================================================
 %%% private

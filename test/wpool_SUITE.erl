@@ -361,9 +361,7 @@ default_options(_Config) ->
 -spec complete_coverage(config()) -> {comment, []}.
 complete_coverage(_Config) ->
     ct:comment("Time checker"),
-    {ok, State} = wpool_time_checker:init({pool, [{x, y}]}),
-    ok = wpool_time_checker:terminate(reason, State),
-    {ok, State} = wpool_time_checker:code_change("oldvsn", State, extra),
+    {ok, _} = wpool_time_checker:init({pool, [{x, y}]}),
 
     {ok, PoolPid} = wpool:start_pool(coverage, []),
     TCPid = get_time_checker(PoolPid),
@@ -373,9 +371,7 @@ complete_coverage(_Config) ->
     ct:comment("Queue Manager"),
     QMPid = get_queue_manager(PoolPid),
     QMPid ! info,
-    {ok, QMState} = wpool_queue_manager:init([{pool, pool}]),
-    ok = wpool_queue_manager:terminate(reason, QMState),
-    {ok, QMState} = wpool_queue_manager:code_change("oldvsn", QMState, extra),
+    {ok, _} = wpool_queue_manager:init([{pool, pool}]),
 
     {comment, []}.
 

@@ -25,8 +25,7 @@
 %% api
 -export([start_link/3, add_handler/2]).
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2,
-         handle_info/2]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 %%%===================================================================
 %%% API
@@ -45,22 +44,12 @@ add_handler(Name, Handler) ->
     gen_server:call(Name, {add_handler, Handler}).
 
 %%%===================================================================
-%%% init, terminate, code_change, info callbacks
+%%% simple callbacks
 %%%===================================================================
 %% @private
 -spec init({wpool:name(), [{atom(), atom()}]}) -> {ok, state()}.
 init({WPool, Handlers}) ->
     {ok, #state{wpool = WPool, handlers = Handlers}}.
-
-%% @private
--spec terminate(atom(), state()) -> ok.
-terminate(_Reason, _State) ->
-    ok.
-
-%% @private
--spec code_change(string(), state(), any()) -> {ok, state()}.
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
 
 %% @private
 -spec handle_cast(term(), state()) -> {noreply, state()}.
