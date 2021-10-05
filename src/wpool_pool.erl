@@ -112,7 +112,7 @@ next_available_worker(Sup) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
--spec call_available_worker(wpool:name(), any(), timeout()) -> any().
+-spec call_available_worker(wpool:name(), any(), timeout()) -> atom().
 call_available_worker(Sup, Call, Timeout) ->
     case wpool_queue_manager:call_available_worker(queue_manager_name(Sup), Call, Timeout) of
         noproc ->

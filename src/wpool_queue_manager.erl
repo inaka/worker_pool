@@ -59,7 +59,7 @@ start_link(WPool, Name, Options) ->
     gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options], []).
 
 %% @doc returns the first available worker in the pool
--spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | atom().
+-spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
     Expires = expires(Timeout),
     try gen_server:call(QueueManager, {available_worker, Call, Expires}, Timeout) of
