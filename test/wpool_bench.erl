@@ -1,7 +1,5 @@
 -module(wpool_bench).
 
--behaviour(ct_suite).
-
 -export([run_tasks/3]).
 
 %% @doc Returns the average time involved in processing the small tasks
