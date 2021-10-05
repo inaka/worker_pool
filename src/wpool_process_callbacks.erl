@@ -2,7 +2,8 @@
 
 -behaviour(gen_event).
 
-%% gen_event callbacks
+%% The callbacks are called in an extremely dynamic from call/3.
+-hank([unused_callbacks]).
 
 -export([init/1, handle_event/2, handle_call/2]).
 -export([notify/3, add_callback_module/2, remove_callback_module/2]).

@@ -16,7 +16,7 @@
 %%%      Use functions provided by this module to manage your pools of workers
 -module(wpool).
 
--author('elbrujohalcon@inaka.net').
+-behaviour(application).
 
 -define(DEFAULTS,
         [{overrun_warning, infinity},

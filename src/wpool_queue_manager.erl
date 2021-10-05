@@ -14,8 +14,6 @@
 %%% @hidden
 -module(wpool_queue_manager).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(gen_server).
 
 %% api

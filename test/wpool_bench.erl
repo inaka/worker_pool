@@ -1,6 +1,6 @@
 -module(wpool_bench).
 
--author('elbrujohalcon@inaka.net').
+-behaviour(ct_suite).
 
 -export([run_tasks/3]).
 

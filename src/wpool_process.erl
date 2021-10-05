@@ -16,8 +16,6 @@
 %%%      control certain aspects of the execution
 -module(wpool_process).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(gen_server).
 
 -record(state,

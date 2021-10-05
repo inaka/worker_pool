@@ -16,8 +16,6 @@
 %%%      remember it's a supervisor.
 -module(wpool_pool).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(supervisor).
 
 %% API

@@ -14,8 +14,6 @@
 %% @doc a gen_server built to test wpool_process
 -module(echo_server).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(gen_server).
 
 %% gen_server callbacks

@@ -15,6 +15,8 @@
 %% @hidden
 -module(wpool_process_SUITE).
 
+-behaviour(ct_suite).
+
 -type config() :: [{atom(), term()}].
 
 -export([all/0]).

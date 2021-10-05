@@ -15,6 +15,8 @@
 %% @hidden
 -module(wpool_pool_SUITE).
 
+-behaviour(ct_suite).
+
 -type config() :: [{atom(), term()}].
 
 -define(WORKERS, 6).

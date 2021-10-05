@@ -15,6 +15,8 @@
 %% @hidden
 -module(wpool_SUITE).
 
+-behaviour(ct_suite).
+
 -elvis([{elvis_style, atom_naming_convention, disable}]).
 
 -type config() :: [{atom(), term()}].

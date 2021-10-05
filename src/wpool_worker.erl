@@ -15,8 +15,6 @@
 %%% @doc Default instance for {@link wpool_process}
 -module(wpool_worker).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(gen_server).
 
 %% api

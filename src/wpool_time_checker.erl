@@ -14,8 +14,6 @@
 %%% @hidden
 -module(wpool_time_checker).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(gen_server).
 
 -type handler() :: {atom(), atom()}.

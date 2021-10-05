@@ -14,8 +14,6 @@
 %%% @hidden
 -module(wpool_sup).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(supervisor).
 
 -export([start_link/0, init/1]).

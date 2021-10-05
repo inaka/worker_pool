@@ -14,8 +14,6 @@
 %%% @hidden
 -module(wpool_process_sup).
 
--author('elbrujohalcon@inaka.net').
-
 -behaviour(supervisor).
 
 %% API
