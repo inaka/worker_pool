@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.0.0](https://github.com/inaka/worker_pool/tree/5.0.0) (2021-10-07)
+
+[Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.3...5.0.0)
+
+**Merged pull requests:**
+
+- Modernize [\#177](https://github.com/inaka/worker_pool/pull/177) ([elbrujohalcon](https://github.com/elbrujohalcon))
+
 ## [4.0.3](https://github.com/inaka/worker_pool/tree/4.0.3) (2020-11-17)
 
 [Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.2...4.0.3)
