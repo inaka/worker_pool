@@ -14,13 +14,11 @@
 %%% @author Felipe Ripoll <ferigis@gmail.com>
 %%% @doc Common functions for wpool_process and other modules.
 -module(wpool_utils).
+
 -author('ferigis@gmail.com').
 
 %% API
--export([ task_init/4
-        , task_end/1
-        , notify_queue_manager/3]).
-
+-export([task_init/4, task_end/1, notify_queue_manager/3]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Api
@@ -28,28 +26,36 @@
 
 %% @doc Marks Task as started in this worker
 -spec task_init(term(), atom(), infinity | pos_integer(), infinity | pos_integer()) ->
-  undefined | reference().
+                   undefined | reference().
 task_init(Task, _TimeChecker, infinity, _MaxWarnings) ->
-  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-  erlang:put(wpool_task, {undefined, Time, Task}),
-  undefined;
+    Time =
+        calendar:datetime_to_gregorian_seconds(
+            calendar:universal_time()),
+    erlang:put(wpool_task, {undefined, Time, Task}),
+    undefined;
 task_init(Task, TimeChecker, OverrunTime, MaxWarnings) ->
-  TaskId = erlang:make_ref(),
-  Time = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
-  erlang:put(wpool_task, {TaskId, Time, Task}),
-  erlang:send_after(
-    OverrunTime, TimeChecker, {check, self(), TaskId, OverrunTime, MaxWarnings}).
+    TaskId = erlang:make_ref(),
+    Time =
+        calendar:datetime_to_gregorian_seconds(
+            calendar:universal_time()),
+    erlang:put(wpool_task, {TaskId, Time, Task}),
+    erlang:send_after(OverrunTime,
+                      TimeChecker,
+                      {check, self(), TaskId, OverrunTime, MaxWarnings}).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.
-task_end(undefined) -> erlang:erase(wpool_task);
+task_end(undefined) ->
+    erlang:erase(wpool_task);
 task_end(TimerRef) ->
-  _ = erlang:cancel_timer(TimerRef),
-  erlang:erase(wpool_task).
+    _ = erlang:cancel_timer(TimerRef),
+    erlang:erase(wpool_task).
 
 -spec notify_queue_manager(atom(), atom(), list()) -> ok | any().
 notify_queue_manager(Function, Name, Options) ->
-  case proplists:get_value(queue_manager, Options) of
-    undefined -> ok;
-    QueueManager -> wpool_queue_manager:Function(QueueManager, Name)
-  end.
+    case proplists:get_value(queue_manager, Options) of
+        undefined ->
+            ok;
+        QueueManager ->
+            wpool_queue_manager:Function(QueueManager, Name)
+    end.

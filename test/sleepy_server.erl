@@ -13,15 +13,11 @@
 % under the License.
 %% @doc a gen_server built to test wpool_process
 -module(sleepy_server).
--author('elbrujohalcon@inaka.net').
 
 -behaviour(gen_server).
 
 %% gen_server callbacks
--export([ init/1
-        , handle_call/3
-        , handle_cast/2
-        ]).
+-export([init/1, handle_call/3, handle_cast/2]).
 
 -dialyzer([no_behaviours]).
 
@@ -30,18 +26,19 @@
 %%%===================================================================
 -spec init(pos_integer()) -> {ok, state}.
 init(TimeToSleep) ->
-  ct:pal("Waiting ~pms to return...", [TimeToSleep]),
-  _ = timer:sleep(TimeToSleep),
-  ct:pal("Done waiting ~pms", [TimeToSleep]),
-  {ok, state}.
+    ct:pal("Waiting ~pms to return...", [TimeToSleep]),
+    _ = timer:sleep(TimeToSleep),
+    ct:pal("Done waiting ~pms", [TimeToSleep]),
+    {ok, state}.
 
 -spec handle_cast(pos_integer(), State) -> {noreply, State}.
 handle_cast(TimeToSleep, State) ->
-  _ = timer:sleep(TimeToSleep),
-  {noreply, State}.
+    _ = timer:sleep(TimeToSleep),
+    {noreply, State}.
 
 -type from() :: {pid(), reference()}.
+
 -spec handle_call(pos_integer(), from(), State) -> {reply, ok, State}.
 handle_call(TimeToSleep, _From, State) ->
-  _ = timer:sleep(TimeToSleep),
-  {reply, ok, State}.
+    _ = timer:sleep(TimeToSleep),
+    {reply, ok, State}.

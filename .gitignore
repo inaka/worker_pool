@@ -1,3 +1,5 @@
+rebar3.crashdump
+doc/
 codecov.json
 _build/
 all.coverdata

@@ -14,20 +14,19 @@
 % specific language governing permissions and limitations
 % under the License.
 
-{ application
-, worker_pool
-, [ {description, "Erlang Worker Pool"}
-  , {vsn, "4.0.3"}
-  , {id, "worker_pool"}
-  , {registered, []}
-  , {modules, []}
-  , {applications, [kernel, stdlib]}
-  , {mod, {wpool, []}}
-  , {env, []}
-  , {licenses, ["Apache2"]}
-  , {links, [ {"Github", "https://github.com/inaka/worker_pool"}
-            , {"Blog Post", "https://web.archive.org/web/20170602054156/http://inaka.net/blog/2014/09/25/worker-pool/"}
-            ]}
-  , {build_tools,["rebar3"]}
-  ]
-}.
+{application,
+ worker_pool,
+ [{description, "Erlang Worker Pool"},
+  {vsn, "4.0.3"},
+  {id, "worker_pool"},
+  {registered, []},
+  {modules, []},
+  {applications, [kernel, stdlib]},
+  {mod, {wpool, []}},
+  {env, []},
+  {licenses, ["Apache2"]},
+  {links,
+   [{"Github", "https://github.com/inaka/worker_pool"},
+    {"Blog Post",
+     "https://web.archive.org/web/20170602054156/http://inaka.net/blog/2014/09/25/worker-pool/"}]},
+  {build_tools, ["rebar3"]}]}.
