@@ -36,3 +36,7 @@ jobs:
       run: rebar3 format --verify
     - name: Run tests and verifications
       run: rebar3 test
+    - name: Upload code coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: "_build/test/covertool/worker_pool.covertool.xml"
