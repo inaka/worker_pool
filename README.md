@@ -77,6 +77,9 @@ It also ensures that, if a task takes too long, that doesn't block other tasks s
 ###### next_available_worker
 In a way, this strategy behaves like `available_worker` in the sense that it will pick the first worker that it can find which is not running any task at the moment, but the difference is that it will fail if all workers are busy.
 
+###### hash_worker
+This strategy takes a key and selects a worker using [`erlang:phash2/2`](https://www.erlang.org/doc/man/erlang.html#phash-2). This ensures that tasks classified under the same key will be delivered to the same worker, which is useful to classify events by key and work on them sequentially on the worker, distributing different keys across different workers.
+
 #### Broadcasting a Pool
 Wpool provides a way to `broadcast` a message to every worker within the given Pool.
 
