@@ -240,16 +240,12 @@ dec(Key) ->
     put(Key, get(Key) - 1).
 
 now_in_microseconds() ->
-    timer:now_diff(
-        os:timestamp(), {0, 0, 0}).
+    erlang:system_time(microsecond).
 
+expires(infinity) ->
+    infinity;
 expires(Timeout) ->
-    case Timeout of
-        infinity ->
-            infinity;
-        Timeout ->
-            now_in_microseconds() + Timeout * 1000
-    end.
+    now_in_microseconds() + Timeout * 1000.
 
 monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
     Ref = monitor(process, Worker),

@@ -36,7 +36,7 @@
          next :: pos_integer(),
          opts :: [wpool:option()],
          qmanager :: wpool_queue_manager:queue_mgr(),
-         born = os:timestamp() :: erlang:timestamp()}).
+         born = erlang:system_time(second) :: integer()}).
 
 -opaque wpool() :: #wpool{}.
 
