@@ -435,7 +435,7 @@ all_workers(Wpool) ->
         undefined ->
             exit(no_workers);
         _ ->
-            [wpool_pool:worker_name(Wpool, N) || N <- lists:seq(1, WPoolSize)]
+            [worker_name(Wpool, N) || N <- lists:seq(1, WPoolSize)]
     end.
 
 %% ===================================================================
