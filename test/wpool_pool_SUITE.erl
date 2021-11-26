@@ -471,6 +471,7 @@ ets_mess_up(_Config) ->
 
     ct:comment("Mess up with ets table..."),
     true = ets:delete(wpool_pool, Pool),
+    true = ets:delete_all_objects(wpool_worker_names),
 
     ct:comment("Rebuild stats"),
     1 = proplists:get_value(next_worker, wpool:stats(Pool)),
