@@ -470,24 +470,24 @@ ets_mess_up(_Config) ->
     Pool = ets_mess_up,
 
     ct:comment("Mess up with ets table..."),
-    true = ets:delete(wpool_pool, Pool),
+    ets_deletes(Pool),
 
     ct:comment("Rebuild stats"),
     1 = proplists:get_value(next_worker, wpool:stats(Pool)),
 
     ct:comment("Mess up with ets table again..."),
-    true = ets:delete(wpool_pool, Pool),
+    ets_deletes(Pool),
     {ok, ok} = wpool:call(Pool, {io, format, ["1!~n"]}, random_worker),
 
     ct:comment("Mess up with ets table once more..."),
     {ok, ok} = wpool:call(Pool, {io, format, ["2!~n"]}, next_worker),
     2 = proplists:get_value(next_worker, wpool:stats(Pool)),
-    true = ets:delete(wpool_pool, Pool),
+    ets_deletes(Pool),
     {ok, ok} = wpool:call(Pool, {io, format, ["3!~n"]}, next_worker),
     1 = proplists:get_value(next_worker, wpool:stats(Pool)),
 
     ct:comment("Mess up with ets table one final time..."),
-    true = ets:delete(wpool_pool, Pool),
+    ets_deletes(Pool),
     _ = wpool_pool:find_wpool(Pool),
 
     ct:comment("Now, delete the pool"),
@@ -509,6 +509,7 @@ ets_mess_up(_Config) ->
 
     ct:comment("And now delete the ets table altogether"),
     true = ets:delete(wpool_pool),
+    true = ets:delete(wpool_worker_names),
     _ = wpool_pool:find_wpool(Pool),
 
     wpool:stop(),
@@ -545,3 +546,7 @@ send_io_format(Pool) ->
 worker_msg_queue_lengths(Pool) ->
     lists:usort([proplists:get_value(message_queue_len, WS)
                  || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]).
+
+ets_deletes(Pool) ->
+    true = ets:delete(wpool_pool, Pool),
+    [ets:delete(wpool_worker_names, {Pool, I}) || I <- lists:seq(1, ?WORKERS)].
