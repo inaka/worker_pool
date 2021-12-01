@@ -304,7 +304,7 @@ time_checker_name(Sup) ->
 -spec init({wpool:name(), [wpool:option()]}) ->
               {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    Workers = proplists:get_value(workers, Options, 100),
+    Size = proplists:get_value(workers, Options, 100),
     QueueType = proplists:get_value(queue_type, Options),
     OverrunHandler =
         proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
@@ -312,12 +312,7 @@ init({Name, Options}) ->
     QueueManager = queue_manager_name(Name),
     ProcessSup = process_sup_name(Name),
     EventManagerName = event_manager_name(Name),
-    _Wpool =
-        store_wpool(#wpool{name = Name,
-                           size = Workers,
-                           next = 1,
-                           opts = Options,
-                           qmanager = QueueManager}),
+    _Wpool = store_wpool(Name, Size, Options),
     TimeCheckerSpec =
         {TimeChecker,
          {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]},
@@ -451,11 +446,17 @@ all_workers(Wpool) ->
 %% ===================================================================
 %% ETS functions
 %% ===================================================================
-store_wpool(Wpool = #wpool{name = Name, size = Size}) ->
+store_wpool(Name, Size, Options) ->
+    WPool =
+        #wpool{name = Name,
+               size = Size,
+               next = 1,
+               opts = Options,
+               qmanager = queue_manager_name(Name)},
     true = ets:insert(?WPOOL_TABLE, Wpool),
     [ets:insert(?WPOOL_WORKERS, {{Name, I}, build_worker_name(Name, I)})
      || I <- lists:seq(1, Size)],
-    Wpool.
+    WPool.
 
 move_wpool(Name) ->
     try
@@ -498,13 +499,7 @@ build_wpool(Name) ->
     try supervisor:count_children(process_sup_name(Name)) of
         Children ->
             Size = proplists:get_value(active, Children, 0),
-            Wpool =
-                #wpool{name = Name,
-                       size = Size,
-                       next = 1,
-                       opts = [],
-                       qmanager = queue_manager_name(Name)},
-            store_wpool(Wpool)
+            store_wpool(Name, Size, [])
     catch
         _:Error ->
             error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
