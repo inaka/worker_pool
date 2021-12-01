@@ -118,3 +118,6 @@ If you find any **bugs** or have a **problem** while using this library, please 
 
 ### On Hex.pm
 Worker Pool is available on [Hex.pm](https://hex.pm/packages/worker_pool).
+
+### Requirements
+**Required OTP version 23** or or higher. We only provide guarantees that the system runs on `OTP23+` since that's what we're testing it in, but the `minimum_otp_vsn` is `"21"` because some systems where **worker_pool** is integrated do require it.
