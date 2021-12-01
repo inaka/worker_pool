@@ -33,7 +33,8 @@
 -record(wpool,
         {name :: wpool:name(),
          size :: pos_integer(),
-         next :: pos_integer(),
+         next :: atomics:atomics_ref(),
+         workers :: tuple(),
          opts :: [wpool:option()],
          qmanager :: wpool_queue_manager:queue_mgr(),
          born = erlang:system_time(second) :: integer()}).
@@ -43,7 +44,6 @@
 -export_type([wpool/0]).
 
 -define(WPOOL_TABLE, ?MODULE).
--define(WPOOL_WORKERS, wpool_worker_names).
 
 %% ===================================================================
 %% API functions
@@ -53,7 +53,6 @@
 create_table() ->
     _ = ets:new(?WPOOL_TABLE,
                 [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
-    _ = ets:new(?WPOOL_WORKERS, [public, named_table, set, {read_concurrency, true}]),
     ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
@@ -77,22 +76,26 @@ best_worker(Name) ->
 %% @throws no_workers
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Name) ->
-    case wpool_size(Name) of
+    case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        WpoolSize ->
+        Wpool = #wpool{size = WpoolSize} ->
             WorkerNumber = rand:uniform(WpoolSize),
-            worker_name(Name, WorkerNumber)
+            worker_name(Wpool, WorkerNumber)
     end.
 
 %% @doc Picks the next worker in a round robin fashion
 %% @throws no_workers
 -spec next_worker(wpool:name()) -> atom().
 next_worker(Name) ->
-    case move_wpool(Name) of
+    case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-            worker_name(Name, Next)
+        Wpool = #wpool{next = Atomic, size = Size} ->
+            Index = atomics:get(Atomic, 1),
+            NextIndex = next_to_check(Index, Size),
+            _ = atomics:compare_exchange(Atomic, 1, Index, NextIndex),
+            worker_name(Wpool, Index)
     end.
 
 %% @doc Picks the first available worker, if any
@@ -132,12 +135,12 @@ call_available_worker(Name, Call, Timeout) ->
 %% @throws no_workers
 -spec hash_worker(wpool:name(), term()) -> atom().
 hash_worker(Name, HashKey) ->
-    case wpool_size(Name) of
+    case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        WpoolSize ->
+        Wpool = #wpool{size = WpoolSize} ->
             Index = 1 + erlang:phash2(HashKey, WpoolSize),
-            worker_name(Name, Index)
+            worker_name(Wpool, Index)
     end.
 
 %% @doc Casts a message to the first available worker.
@@ -178,7 +181,7 @@ stats(Name) ->
 stats(Wpool, Name) ->
     {Total, WorkerStats} =
         lists:foldl(fun(N, {T, L}) ->
-                       case worker_info(Name,
+                       case worker_info(Wpool,
                                         N,
                                         [message_queue_len,
                                          memory,
@@ -206,12 +209,12 @@ stats(Wpool, Name) ->
      {supervisor, erlang:whereis(Name)},
      {options, lists:ukeysort(1, proplists:unfold(Wpool#wpool.opts))},
      {size, Wpool#wpool.size},
-     {next_worker, Wpool#wpool.next},
+     {next_worker, atomics:get(Wpool#wpool.next, 1)},
      {total_message_queue_len, Total + PendingTasks},
      {workers, WorkerStats}].
 
-worker_info(Name, N, Info) ->
-    case erlang:whereis(worker_name(Name, N)) of
+worker_info(Wpool, N, Info) ->
+    case erlang:whereis(worker_name(Wpool, N)) of
         undefined ->
             undefined;
         Worker ->
@@ -233,33 +236,12 @@ task({_TaskId, Started, Task}) ->
             calendar:universal_time()),
     [{task, Task}, {runtime, Time - Started}].
 
-%% @doc the number of workers in the pool
--spec wpool_size(atom()) -> non_neg_integer() | undefined.
-wpool_size(Name) ->
-    try ets:update_counter(?WPOOL_TABLE, Name, {#wpool.size, 0}) of
-        WpoolSize ->
-            case erlang:whereis(Name) of
-                undefined ->
-                    ets:delete(?WPOOL_TABLE, Name),
-                    undefined;
-                _ ->
-                    WpoolSize
-            end
-    catch
-        _:badarg ->
-            case build_wpool(Name) of
-                undefined ->
-                    undefined;
-                Wpool ->
-                    Wpool#wpool.size
-            end
-    end.
-
 %% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
 -spec next(pos_integer(), wpool()) -> wpool().
-next(Next, WPool) ->
-    WPool#wpool{next = Next}.
+next(Next, WPool = #wpool{next = Atomic}) ->
+    atomics:put(Atomic, 1, Next),
+    WPool.
 
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(Pool, Module) ->
@@ -285,7 +267,7 @@ g(name, #wpool{name = Ret}) ->
 g(size, #wpool{size = Ret}) ->
     Ret;
 g(next, #wpool{next = Ret}) ->
-    Ret;
+    atomics:get(Ret, 1);
 g(opts, #wpool{opts = Ret}) ->
     Ret;
 g(qmanager, #wpool{qmanager = Ret}) ->
@@ -359,10 +341,11 @@ init({Name, Options}) ->
     {ok, {SupStrategy, Children}}.
 
 %% @private
--spec worker_name(wpool:name(), pos_integer()) -> atom().
+-spec worker_name(wpool() | wpool:name(), pos_integer()) -> atom().
+worker_name(#wpool{workers = Workers}, I) ->
+    element(I, Workers);
 worker_name(Name, I) ->
-    [{_, Worker}] = ets:lookup(?WPOOL_WORKERS, {Name, I}),
-    Worker.
+    build_worker_name(Name, I).
 
 -spec build_worker_name(wpool:name(), pos_integer()) -> atom().
 build_worker_name(Name, I) ->
@@ -384,23 +367,24 @@ worker_with_no_task(Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    First = rand:uniform(Wpool#wpool.size),
-    worker_with_no_task(0, Wpool#wpool{next = First}).
+    Size = Wpool#wpool.size,
+    First = rand:uniform(Size),
+    worker_with_no_task(0, Size, First, Wpool).
 
-worker_with_no_task(Size, #wpool{size = Size}) ->
+worker_with_no_task(Size, Size, _, _) ->
     undefined;
-worker_with_no_task(Checked, Wpool) ->
-    Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
+worker_with_no_task(Step, Size, ToCheck, Wpool) ->
+    Worker = worker_name(Wpool, ToCheck),
     case try_process_info(whereis(Worker), [message_queue_len, dictionary]) of
         [{message_queue_len, 0}, {dictionary, Dictionary}] ->
             case proplists:get_value(wpool_task, Dictionary) of
                 undefined ->
                     Worker;
                 _ ->
-                    worker_with_no_task(Checked + 1, next_wpool(Wpool))
+                    worker_with_no_task(Step + 1, Size, next_to_check(ToCheck, Size), Wpool)
             end;
         _ ->
-            worker_with_no_task(Checked + 1, next_wpool(Wpool))
+            worker_with_no_task(Step + 1, Size, next_to_check(ToCheck, Size), Wpool)
     end.
 
 try_process_info(undefined, _) ->
@@ -412,16 +396,24 @@ min_message_queue(Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    First = rand:uniform(Wpool#wpool.size),
-    min_message_queue(0, Wpool#wpool{next = First}, []).
+    Size = Wpool#wpool.size,
+    First = rand:uniform(Size),
+    min_message_queue(0, Size, First, Wpool, []).
 
-min_message_queue(Size, #wpool{size = Size}, Found) ->
+min_message_queue(Size, Size, _, _, Found) ->
     {_, Worker} = lists:min(Found),
     Worker;
-min_message_queue(Checked, Wpool, Found) ->
-    Worker = worker_name(Wpool#wpool.name, Wpool#wpool.next),
+min_message_queue(Step, Size, ToCheck, Wpool, Found) ->
+    Worker = worker_name(Wpool, ToCheck),
     QLength = queue_length(whereis(Worker)),
-    min_message_queue(Checked + 1, next_wpool(Wpool), [{QLength, Worker} | Found]).
+    min_message_queue(Step + 1,
+                      Size,
+                      next_to_check(ToCheck, Size),
+                      Wpool,
+                      [{QLength, Worker} | Found]).
+
+next_to_check(Next, Size) ->
+    Next rem Size + 1.
 
 queue_length(undefined) ->
     infinity;
@@ -435,57 +427,38 @@ queue_length(Pid) when is_pid(Pid) ->
 
 -spec all_workers(wpool:name()) -> [atom()].
 all_workers(Name) ->
-    WPoolSize = wpool_size(Name),
-    case WPoolSize of
+    case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        _ ->
+        Wpool = #wpool{size = WPoolSize} ->
             [worker_name(Wpool, N) || N <- lists:seq(1, WPoolSize)]
     end.
 
 %% ===================================================================
-%% ETS functions
+%% Storage functions
 %% ===================================================================
 store_wpool(Name, Size, Options) ->
+    Atomic = atomics:new(1, [{signed, false}]),
+    atomics:put(Atomic, 1, 1),
+    WorkerNames = list_to_tuple([build_worker_name(Name, I) || I <- lists:seq(1, Size)]),
     WPool =
         #wpool{name = Name,
                size = Size,
-               next = 1,
+               next = Atomic,
+               workers = WorkerNames,
                opts = Options,
                qmanager = queue_manager_name(Name)},
     true = ets:insert(?WPOOL_TABLE, Wpool),
-    [ets:insert(?WPOOL_WORKERS, {{Name, I}, build_worker_name(Name, I)})
-     || I <- lists:seq(1, Size)],
     WPool.
-
-move_wpool(Name) ->
-    try
-        WpoolSize = ets:update_counter(?WPOOL_TABLE, Name, {#wpool.size, 0}),
-        ets:update_counter(?WPOOL_TABLE, Name, {#wpool.next, 1, WpoolSize, 1})
-    catch
-        _:badarg ->
-            case build_wpool(Name) of
-                undefined ->
-                    undefined;
-                Wpool ->
-                    Wpool#wpool.next
-            end
-    end.
 
 %% @doc Use this function to get the Worker pool record in a custom worker.
 -spec find_wpool(atom()) -> undefined | wpool().
 find_wpool(Name) ->
-    try ets:lookup(?WPOOL_TABLE, Name) of
-        [Wpool | _] ->
-            case erlang:whereis(Name) of
-                undefined ->
-                    ets:delete(?WPOOL_TABLE, Name),
-                    undefined;
-                _ ->
-                    Wpool
-            end;
-        _ ->
-            build_wpool(Name)
+    try {erlang:whereis(Name), ets:lookup(?WPOOL_TABLE, Name)} of
+        {undefined, _} ->
+            undefined;
+        {_, [WPool | _]} ->
+            WPool
     catch
         _:badarg ->
             build_wpool(Name)
@@ -505,9 +478,6 @@ build_wpool(Name) ->
             error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
             undefined
     end.
-
-next_wpool(Wpool) ->
-    Wpool#wpool{next = Wpool#wpool.next rem Wpool#wpool.size + 1}.
 
 maybe_event_manager(Options, Item) ->
     EnableEventManager = proplists:get_value(enable_callbacks, Options, false),
