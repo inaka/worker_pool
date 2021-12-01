@@ -51,8 +51,7 @@
 %% @doc Creates the ets table that will hold the information about active pools
 -spec create_table() -> ok.
 create_table() ->
-    _ = ets:new(?WPOOL_TABLE,
-                [public, named_table, set, {read_concurrency, true}, {keypos, #wpool.name}]),
+    _ = ets:new(?WPOOL_TABLE, [public, named_table, set, {read_concurrency, true}]),
     ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
@@ -159,8 +158,7 @@ broadcast(Name, Cast) ->
 
 -spec all() -> [wpool:name()].
 all() ->
-    [Name
-     || #wpool{name = Name} <- ets:tab2list(?WPOOL_TABLE), find_wpool(Name) /= undefined].
+    [Name || {Name} <- ets:tab2list(?WPOOL_TABLE), find_wpool(Name) /= undefined].
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
@@ -448,16 +446,17 @@ store_wpool(Name, Size, Options) ->
                workers = WorkerNames,
                opts = Options,
                qmanager = queue_manager_name(Name)},
-    true = ets:insert(?WPOOL_TABLE, Wpool),
+    ets:insert(?WPOOL_TABLE, {Name}),
+    persistent_term:put({?MODULE, Name}, WPool),
     WPool.
 
 %% @doc Use this function to get the Worker pool record in a custom worker.
 -spec find_wpool(atom()) -> undefined | wpool().
 find_wpool(Name) ->
-    try {erlang:whereis(Name), ets:lookup(?WPOOL_TABLE, Name)} of
+    try {erlang:whereis(Name), persistent_term:get({?MODULE, Name})} of
         {undefined, _} ->
             undefined;
-        {_, [WPool | _]} ->
+        {_, WPool} ->
             WPool
     catch
         _:badarg ->
