@@ -484,7 +484,7 @@ mess_up_with_store(_Config) ->
     2 = proplists:get_value(next_worker, wpool:stats(Pool)),
     store_mess_up(Pool),
     {ok, ok} = wpool:call(Pool, {io, format, ["3!~n"]}, next_worker),
-    1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+    2 = proplists:get_value(next_worker, wpool:stats(Pool)),
 
     ct:comment("Mess up with ets table one final time..."),
     store_mess_up(Pool),
