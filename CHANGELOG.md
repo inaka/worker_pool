@@ -1,5 +1,7 @@
 # Changelog
 
+For newest versions (i.e. `5.0.0` and above), please check [Github Release Notes](https://github.com/inaka/worker_pool/releases).
+
 ## [5.0.0](https://github.com/inaka/worker_pool/tree/5.0.0) (2021-10-07)
 
 [Full Changelog](https://github.com/inaka/worker_pool/compare/4.0.3...5.0.0)
