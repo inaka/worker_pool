@@ -508,7 +508,6 @@ mess_up_with_store(_Config) ->
     true = process_flag(trap_exit, Flag),
 
     ct:comment("And now delete the ets table altogether"),
-    true = ets:delete(wpool_pool),
     true = persistent_term:erase({wpool_pool, Pool}),
     _ = wpool_pool:find_wpool(Pool),
 
@@ -548,5 +547,4 @@ worker_msg_queue_lengths(Pool) ->
                  || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]).
 
 store_mess_up(Pool) ->
-    true = ets:delete(wpool_pool, Pool),
     true = persistent_term:erase({wpool_pool, Pool}).

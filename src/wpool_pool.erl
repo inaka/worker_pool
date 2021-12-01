@@ -19,7 +19,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/2, create_table/0]).
+-export([start_link/2]).
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
          next_available_worker/1, call_available_worker/3, time_checker_name/1]).
 -export([cast_to_available_worker/2, broadcast/2]).
@@ -43,16 +43,9 @@
 
 -export_type([wpool/0]).
 
--define(WPOOL_TABLE, ?MODULE).
-
 %% ===================================================================
 %% API functions
 %% ===================================================================
-%% @doc Creates the ets table that will hold the information about active pools
--spec create_table() -> ok.
-create_table() ->
-    _ = ets:new(?WPOOL_TABLE, [public, named_table, set, {read_concurrency, true}]),
-    ok.
 
 %% @doc Starts a supervisor with several {@link wpool_process}es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->
@@ -158,7 +151,7 @@ broadcast(Name, Cast) ->
 
 -spec all() -> [wpool:name()].
 all() ->
-    [Name || {Name} <- ets:tab2list(?WPOOL_TABLE), find_wpool(Name) /= undefined].
+    [Name || {{?MODULE, Name}, _} <- persistent_term:get(), find_wpool(Name) /= undefined].
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
@@ -446,7 +439,6 @@ store_wpool(Name, Size, Options) ->
                workers = WorkerNames,
                opts = Options,
                qmanager = queue_manager_name(Name)},
-    ets:insert(?WPOOL_TABLE, {Name}),
     persistent_term:put({?MODULE, Name}, WPool),
     WPool.
 
@@ -464,7 +456,7 @@ find_wpool(Name) ->
     end.
 
 %% @doc We use this function not to report an error if for some reason we've
-%%      lost the record on the ets table. This SHOULDN'T be called too much
+%% lost the record on the persistent_term table. This SHOULDN'T be called too much.
 build_wpool(Name) ->
     error_logger:warning_msg("Building a #wpool record for ~p. Something must have failed.",
                              [Name]),
