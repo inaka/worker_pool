@@ -336,10 +336,6 @@ init({Name, Options}) ->
 worker_name(#wpool{workers = Workers}, I) ->
     element(I, Workers);
 worker_name(Name, I) ->
-    build_worker_name(Name, I).
-
--spec build_worker_name(wpool:name(), pos_integer()) -> atom().
-build_worker_name(Name, I) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ [$- | integer_to_list(I)]).
 
 %% ===================================================================
@@ -431,7 +427,7 @@ all_workers(Name) ->
 store_wpool(Name, Size, Options) ->
     Atomic = atomics:new(1, [{signed, false}]),
     atomics:put(Atomic, 1, 1),
-    WorkerNames = list_to_tuple([build_worker_name(Name, I) || I <- lists:seq(1, Size)]),
+    WorkerNames = list_to_tuple([worker_name(Name, I) || I <- lists:seq(1, Size)]),
     WPool =
         #wpool{name = Name,
                size = Size,
