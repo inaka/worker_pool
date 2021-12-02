@@ -26,7 +26,7 @@
 -export([stop_worker/1, best_worker/1, next_worker/1, random_worker/1, available_worker/1,
          hash_worker/1, custom_worker/1, next_available_worker/1, wpool_record/1,
          queue_type_fifo/1, queue_type_lifo/1]).
--export([manager_crash/1, super_fast/1, ets_mess_up/1]).
+-export([manager_crash/1, super_fast/1, mess_up_with_store/1]).
 
 -spec all() -> [atom()].
 all() ->
@@ -465,29 +465,29 @@ wpool_record(_Config) ->
 
     {comment, []}.
 
--spec ets_mess_up(config()) -> {comment, []}.
-ets_mess_up(_Config) ->
-    Pool = ets_mess_up,
+-spec mess_up_with_store(config()) -> {comment, []}.
+mess_up_with_store(_Config) ->
+    Pool = mess_up_with_store,
 
     ct:comment("Mess up with ets table..."),
-    ets_deletes(Pool),
+    store_mess_up(Pool),
 
     ct:comment("Rebuild stats"),
     1 = proplists:get_value(next_worker, wpool:stats(Pool)),
 
     ct:comment("Mess up with ets table again..."),
-    ets_deletes(Pool),
+    store_mess_up(Pool),
     {ok, ok} = wpool:call(Pool, {io, format, ["1!~n"]}, random_worker),
 
     ct:comment("Mess up with ets table once more..."),
     {ok, ok} = wpool:call(Pool, {io, format, ["2!~n"]}, next_worker),
     2 = proplists:get_value(next_worker, wpool:stats(Pool)),
-    ets_deletes(Pool),
+    store_mess_up(Pool),
     {ok, ok} = wpool:call(Pool, {io, format, ["3!~n"]}, next_worker),
-    1 = proplists:get_value(next_worker, wpool:stats(Pool)),
+    2 = proplists:get_value(next_worker, wpool:stats(Pool)),
 
     ct:comment("Mess up with ets table one final time..."),
-    ets_deletes(Pool),
+    store_mess_up(Pool),
     _ = wpool_pool:find_wpool(Pool),
 
     ct:comment("Now, delete the pool"),
@@ -508,8 +508,7 @@ ets_mess_up(_Config) ->
     true = process_flag(trap_exit, Flag),
 
     ct:comment("And now delete the ets table altogether"),
-    true = ets:delete(wpool_pool),
-    true = ets:delete(wpool_worker_names),
+    true = persistent_term:erase({wpool_pool, Pool}),
     _ = wpool_pool:find_wpool(Pool),
 
     wpool:stop(),
@@ -547,6 +546,5 @@ worker_msg_queue_lengths(Pool) ->
     lists:usort([proplists:get_value(message_queue_len, WS)
                  || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))]).
 
-ets_deletes(Pool) ->
-    true = ets:delete(wpool_pool, Pool),
-    [ets:delete(wpool_worker_names, {Pool, I}) || I <- lists:seq(1, ?WORKERS)].
+store_mess_up(Pool) ->
+    true = persistent_term:erase({wpool_pool, Pool}).
