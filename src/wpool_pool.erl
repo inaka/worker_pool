@@ -23,7 +23,7 @@
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
          next_available_worker/1, call_available_worker/3, time_checker_name/1]).
 -export([cast_to_available_worker/2, broadcast/2]).
--export([stats/0, stats/1]).
+-export([stats/0, stats/1, get_workers/1]).
 -export([worker_name/2, find_wpool/1, all/0]).
 -export([next/2, wpool_get/2]).
 -export([add_callback_module/2, remove_callback_module/2]).
@@ -152,6 +152,10 @@ broadcast(Name, Cast) ->
 -spec all() -> [wpool:name()].
 all() ->
     [Name || {{?MODULE, Name}, _} <- persistent_term:get(), find_wpool(Name) /= undefined].
+
+-spec get_workers(wpool:name()) -> [atom()].
+get_workers(Name) ->
+    all_workers(Name).
 
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].

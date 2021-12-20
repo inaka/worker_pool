@@ -71,7 +71,7 @@
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1, stop_sup_pool/1]).
 -export([call/2, cast/2, call/3, cast/3, call/4, broadcast/2]).
--export([stats/0, stats/1]).
+-export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -206,6 +206,10 @@ stats() ->
 -spec stats(name()) -> stats().
 stats(Sup) ->
     wpool_pool:stats(Sup).
+
+-spec get_workers(name()) -> [atom()].
+get_workers(Sup) ->
+    wpool_pool:get_workers(Sup).
 
 %% @doc Casts a message to all the workers within the given pool.
 -spec broadcast(wpool:name(), term()) -> ok.
