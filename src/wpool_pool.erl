@@ -421,8 +421,8 @@ all_workers(Name) ->
     case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        Wpool = #wpool{size = WPoolSize} ->
-            [worker_name(Wpool, N) || N <- lists:seq(1, WPoolSize)]
+        #wpool{workers = Workers} ->
+            tuple_to_list(Workers)
     end.
 
 %% ===================================================================
