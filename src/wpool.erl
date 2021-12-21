@@ -207,6 +207,8 @@ stats() ->
 stats(Sup) ->
     wpool_pool:stats(Sup).
 
+%% @doc Retrieves the list of worker registered names.
+%% This can be useful to manually inspect the workers or do custom work on them.
 -spec get_workers(name()) -> [atom()].
 get_workers(Sup) ->
     wpool_pool:get_workers(Sup).

@@ -153,6 +153,8 @@ broadcast(Name, Cast) ->
 all() ->
     [Name || {{?MODULE, Name}, _} <- persistent_term:get(), find_wpool(Name) /= undefined].
 
+%% @doc Retrieves the list of worker registered names.
+%% This can be useful to manually inspect the workers or do custom work on them.
 -spec get_workers(wpool:name()) -> [atom()].
 get_workers(Name) ->
     all_workers(Name).
