@@ -25,7 +25,7 @@
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 -export([stop_worker/1, best_worker/1, next_worker/1, random_worker/1, available_worker/1,
          hash_worker/1, custom_worker/1, next_available_worker/1, wpool_record/1,
-         queue_type_fifo/1, queue_type_lifo/1]).
+         queue_type_fifo/1, queue_type_lifo/1, get_workers/1]).
 -export([manager_crash/1, super_fast/1, mess_up_with_store/1]).
 
 -spec all() -> [atom()].
@@ -450,6 +450,19 @@ queue_type_lifo(_Config) ->
 
     ct:log("Check if tasks were performd in LIFO order."),
     Result = lists:reverse(Tasks),
+
+    {comment, []}.
+
+-spec get_workers(config()) -> {comment, []}.
+get_workers(_Config) ->
+    Pool = get_workers,
+
+    ct:log("Verify that there's the correct number of workers"),
+    Workers = wpool:get_workers(Pool),
+    ?WORKERS = length(Workers),
+
+    ct:log("All workers are alive"),
+    true = lists:all(fun(Whereis) -> Whereis =/= undefined end, Workers),
 
     {comment, []}.
 
