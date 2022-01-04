@@ -71,7 +71,9 @@ too_much_overrun(_Config) ->
                               {overrun_warning, 999},
                               {overrun_handler, {?MODULE, overrun_handler1}}]),
 
-    CheckerName = wpool_pool:time_checker_name(wpool_SUITE_too_much_overrun),
+    %% Sadly, the function that autogenerates this name is private.
+    CheckerName = 'wpool_pool-wpool_SUITE_too_much_overrun-time-checker',
+
     ok = wpool_time_checker:add_handler(CheckerName, {?MODULE, overrun_handler2}),
 
     ct:comment("Find the worker and the time checker..."),
