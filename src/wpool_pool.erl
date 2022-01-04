@@ -21,10 +21,10 @@
 %% API
 -export([start_link/2]).
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
-         next_available_worker/1, call_available_worker/3, time_checker_name/1]).
+         next_available_worker/1, call_available_worker/3]).
 -export([cast_to_available_worker/2, broadcast/2]).
 -export([stats/0, stats/1, get_workers/1]).
--export([worker_name/2, find_wpool/1, all/0]).
+-export([worker_name/2, find_wpool/1]).
 -export([next/2, wpool_get/2]).
 -export([add_callback_module/2, remove_callback_module/2]).
 %% Supervisor callbacks
@@ -240,11 +240,14 @@ next(Next, WPool = #wpool{next = Atomic}) ->
     atomics:put(Atomic, 1, Next),
     WPool.
 
+%% @doc Adds a callback module.
+%%      The module must implement the <pre>wpool_process_callbacks</pre> behaviour.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(Pool, Module) ->
     EventManager = event_manager_name(Pool),
     wpool_process_callbacks:add_callback_module(EventManager, Module).
 
+%% @doc Removes a callback module.
 -spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 remove_callback_module(Pool, Module) ->
     EventManager = event_manager_name(Pool),

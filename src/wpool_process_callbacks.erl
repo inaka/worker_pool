@@ -18,19 +18,23 @@
 -optional_callbacks([handle_init_start/1, handle_worker_creation/1,
                      handle_worker_death/2]).
 
+%% @private
 -spec init(module()) -> {ok, state()}.
 init(Module) ->
     {ok, Module}.
 
+%% @private
 -spec handle_event({event(), [any()]}, state()) -> {ok, state()}.
 handle_event({Event, Args}, Module) ->
     call(Module, Event, Args),
     {ok, Module}.
 
+%% @private
 -spec handle_call(Msg, state()) -> {ok, {error, {unexpected_call, Msg}}, state()}.
 handle_call(Msg, State) ->
     {ok, {error, {unexpected_call, Msg}}, State}.
 
+%% @doc Sends a notification to all registered callback modules.
 -spec notify(event(), [wpool:option()], [any()]) -> ok.
 notify(Event, Options, Args) ->
     case lists:keyfind(event_manager, 1, Options) of
@@ -40,6 +44,7 @@ notify(Event, Options, Args) ->
             ok
     end.
 
+%% @doc Adds a callback module.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, any()}.
 add_callback_module(EventManager, Module) ->
     case ensure_loaded(Module) of
@@ -49,6 +54,7 @@ add_callback_module(EventManager, Module) ->
             Other
     end.
 
+%% @doc Removes a callback module.
 -spec remove_callback_module(wpool:name(), module()) -> ok | {error, any()}.
 remove_callback_module(EventManager, Module) ->
     gen_event:delete_handler(EventManager, {wpool_process_callbacks, Module}, Module).

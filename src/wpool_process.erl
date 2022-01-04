@@ -73,7 +73,7 @@ init({Name, Mod, InitArgs, Options}) ->
 
     case Mod:init(InitArgs) of
         {ok, ModState} ->
-            ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
+            ok = notify_queue_manager(new_worker, Name, Options),
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
             {ok,
              #state{name = Name,
@@ -81,7 +81,7 @@ init({Name, Mod, InitArgs, Options}) ->
                     state = ModState,
                     options = Options}};
         {ok, ModState, NextStep} ->
-            ok = wpool_utils:notify_queue_manager(new_worker, Name, Options),
+            ok = notify_queue_manager(new_worker, Name, Options),
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
             {ok,
              #state{name = Name,
@@ -103,7 +103,7 @@ terminate(Reason, State) ->
            name = Name,
            options = Options} =
         State,
-    ok = wpool_utils:notify_queue_manager(worker_dead, Name, Options),
+    ok = notify_queue_manager(worker_dead, Name, Options),
     wpool_process_callbacks:notify(handle_worker_death, Options, [Name, Reason]),
     Mod:terminate(Reason, ModState).
 
@@ -203,7 +203,7 @@ handle_cast({cast, Cast}, State) ->
                               proplists:get_value(max_overrun_warnings,
                                                   State#state.options,
                                                   infinity)),
-    ok = wpool_utils:notify_queue_manager(worker_busy, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
     Reply =
         try (State#state.mod):handle_cast(Cast, State#state.state) of
             {noreply, NewState} ->
@@ -221,8 +221,7 @@ handle_cast({cast, Cast}, State) ->
                 {stop, Reason, State#state{state = NewState}}
         end,
     wpool_utils:task_end(Task),
-    ok =
-        wpool_utils:notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
     Reply.
 
 %% @private
@@ -241,7 +240,7 @@ handle_call(Call, From, State) ->
                               proplists:get_value(max_overrun_warnings,
                                                   State#state.options,
                                                   infinity)),
-    ok = wpool_utils:notify_queue_manager(worker_busy, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
     Reply =
         try (State#state.mod):handle_call(Call, From, State#state.state) of
             {noreply, NewState} ->
@@ -271,6 +270,13 @@ handle_call(Call, From, State) ->
                 {stop, Reason, Response, State#state{state = NewState}}
         end,
     wpool_utils:task_end(Task),
-    ok =
-        wpool_utils:notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
     Reply.
+
+notify_queue_manager(Function, Name, Options) ->
+    case proplists:get_value(queue_manager, Options) of
+        undefined ->
+            ok;
+        QueueManager ->
+            wpool_queue_manager:Function(QueueManager, Name)
+    end.

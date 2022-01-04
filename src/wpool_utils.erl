@@ -18,7 +18,7 @@
 -author('ferigis@gmail.com').
 
 %% API
--export([task_init/4, task_end/1, notify_queue_manager/3]).
+-export([task_init/4, task_end/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Api
@@ -50,12 +50,3 @@ task_end(undefined) ->
 task_end(TimerRef) ->
     _ = erlang:cancel_timer(TimerRef),
     erlang:erase(wpool_task).
-
--spec notify_queue_manager(atom(), atom(), list()) -> ok | any().
-notify_queue_manager(Function, Name, Options) ->
-    case proplists:get_value(queue_manager, Options) of
-        undefined ->
-            ok;
-        QueueManager ->
-            wpool_queue_manager:Function(QueueManager, Name)
-    end.
