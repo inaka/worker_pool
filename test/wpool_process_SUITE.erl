@@ -21,8 +21,8 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1, cast/1, call/1, continue/1, format_status/1,
-         no_format_status/1, stop/1]).
+-export([init/1, init_timeout/1, info/1, cast/1, send_request/1, call/1, continue/1,
+         format_status/1, no_format_status/1, stop/1]).
 -export([pool_restart_crash/1, pool_norestart_crash/1, complete_coverage/1]).
 
 -spec all() -> [atom()].
@@ -95,6 +95,27 @@ cast(_Config) ->
     false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
     {comment, []}.
+
+-spec send_request(config()) -> {comment, []}.
+send_request(_Config) ->
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    Req1 = wpool_process:send_request(Pid, {reply, ok1, newstate}),
+    ok1 = wait_response(Req1),
+    Req2 = wpool_process:send_request(Pid, {reply, ok2, newerstate, 1}),
+    ok2 = wait_response(Req2),
+    Req3 = wpool_process:send_request(Pid, {stop, normal, ok3, state}),
+    ok3 = wait_response(Req3),
+    false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
+
+    {comment, []}.
+
+wait_response(ReqId) ->
+    case gen_server:wait_response(ReqId, 5000) of
+        {reply, Reply} ->
+            Reply;
+        timeout ->
+            ct:fail("no response")
+    end.
 
 -spec continue(config()) -> {comment, []}.
 continue(_Config) ->

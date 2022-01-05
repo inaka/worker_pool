@@ -25,7 +25,7 @@
 -export([init_per_suite/1, end_per_suite/1]).
 -export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
          kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
-         overrun_handler2/1, default_options/1, complete_coverage/1, broadcast/1,
+         overrun_handler2/1, default_options/1, complete_coverage/1, broadcast/1, send_request/1,
          worker_killed_stats/1]).
 
 -spec all() -> [atom()].
@@ -40,6 +40,7 @@ all() ->
      default_options,
      complete_coverage,
      broadcast,
+     send_request,
      kill_on_overrun,
      worker_killed_stats].
 
@@ -406,6 +407,22 @@ broadcast(_Config) ->
     meck:unload(x),
     {comment, []}.
 
+-spec send_request(config()) -> {comment, []}.
+send_request(_Config) ->
+    Pool = send_request,
+    {ok, _Pid} = wpool:start_pool(Pool, []),
+
+    ct:comment("Check that the request can be placed"),
+    send_request_to_worker(Pool),
+
+    ct:comment("Check the hash_worker strategy"),
+    send_request_to_worker(Pool, {hash_worker, key}),
+
+    ct:comment("Check the random_worker strategy"),
+    send_request_to_worker(Pool, random_worker),
+
+    {comment, []}.
+
 -spec worker_killed_stats(config()) -> {comment, []}.
 worker_killed_stats(_Config) ->
     %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
@@ -461,4 +478,20 @@ no_messages() ->
             ok;
         Msgs2 ->
             ct:fail({unexpected_messages, Msgs2})
+    end.
+
+send_request_to_worker(Pool) ->
+    ReqId = wpool:send_request(Pool, {erlang, self, []}),
+    wait_response(ReqId).
+
+send_request_to_worker(Pool, Strategy) ->
+    ReqId = wpool:send_request(Pool, {erlang, self, []}, Strategy),
+    wait_response(ReqId).
+
+wait_response(ReqId) ->
+    case gen_server:wait_response(ReqId, 5000) of
+        {reply, {ok, _}} ->
+            ok;
+        timeout ->
+            ct:fail("no response")
     end.
