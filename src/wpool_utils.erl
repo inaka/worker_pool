@@ -18,7 +18,7 @@
 -author('ferigis@gmail.com').
 
 %% API
--export([task_init/4, task_end/1]).
+-export([task_init/4, task_end/1, add_defaults/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Api
@@ -50,3 +50,16 @@ task_end(undefined) ->
 task_end(TimerRef) ->
     _ = erlang:cancel_timer(TimerRef),
     erlang:erase(wpool_task).
+
+-spec add_defaults([wpool:option()]) -> [wpool:option()].
+add_defaults(Opts) ->
+    lists:ukeymerge(1, lists:sort(Opts), defaults()).
+
+-spec defaults() -> [wpool:option()].
+defaults() ->
+    [{max_overrun_warnings, infinity},
+     {overrun_handler, {error_logger, warning_report}},
+     {overrun_warning, infinity},
+     {queue_type, fifo},
+     {worker_opt, []},
+     {workers, 100}].
