@@ -27,7 +27,7 @@
         {wpool :: wpool:name(),
          clients :: queue:queue({cast | {pid(), _}, term()}),
          workers :: gb_sets:set(atom()),
-         monitors :: gb_trees:tree(atom(), monitored_from()),
+         monitors :: #{atom() := monitored_from()},
          queue_type :: queue_type()}).
 
 -type state() :: #state{}.
@@ -131,7 +131,7 @@ init(Args) ->
      #state{wpool = WPool,
             clients = queue:new(),
             workers = gb_sets:new(),
-            monitors = gb_trees:empty(),
+            monitors = #{},
             queue_type = QueueType}}.
 
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
@@ -152,12 +152,11 @@ handle_cast({worker_ready, Worker}, State0) ->
            queue_type = QueueType} =
         State0,
     State =
-        case gb_trees:is_defined(Worker, Mons) of
-            true ->
-                {Ref, _Client} = gb_trees:get(Worker, Mons),
+        case Mons of
+            #{Worker := {Ref, _Client}} ->
                 demonitor(Ref, [flush]),
-                State0#state{monitors = gb_trees:delete(Worker, Mons)};
-            false ->
+                State0#state{monitors = maps:remove(Worker, Mons)};
+            _ ->
                 State0
         end,
     case queue_out(Clients, QueueType) of
@@ -221,12 +220,11 @@ handle_call(pending_task_count, _From, State) ->
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
     handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
 handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
-    case gb_trees:is_defined(Worker, Mons) of
-        true ->
-            {_Ref, Client} = gb_trees:get(Worker, Mons),
+    case Mons of
+        #{Worker := {_Ref, Client}} ->
             gen_server:reply(Client, {'EXIT', Worker, Exit}),
-            {noreply, State#state{monitors = gb_trees:delete(Worker, Mons)}};
-        false ->
+            {noreply, State#state{monitors = maps:remove(Worker, Mons)}};
+        _ ->
             {noreply, State}
     end;
 handle_info(_Info, State) ->
@@ -289,7 +287,7 @@ now_in_milliseconds() ->
 
 monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
     Ref = monitor(process, Worker),
-    State#state{monitors = gb_trees:enter(Worker, {Ref, Client}, Mons)}.
+    State#state{monitors = maps:put(Worker, {Ref, Client}, Mons)}.
 
 queue_out(Clients, fifo) ->
     queue:out(Clients);
