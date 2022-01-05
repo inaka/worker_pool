@@ -19,7 +19,7 @@
 %% api
 -export([start_link/2, start_link/3]).
 -export([call_available_worker/3, cast_to_available_worker/2, new_worker/2, worker_dead/2,
-         worker_ready/2, worker_busy/2, pending_task_count/1]).
+         send_request_available_worker/3, worker_ready/2, worker_busy/2, pending_task_count/1]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
@@ -60,27 +60,17 @@ start_link(WPool, Name, Options) ->
 %% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
-    Start = now_in_milliseconds(),
-    ExpiresAt = expires(Timeout, Start),
-    try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
-        {'EXIT', _, noproc} ->
-            noproc;
-        {'EXIT', Worker, Exit} ->
-            exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
-        {ok, Worker} ->
-            TimeLeft = time_left(ExpiresAt),
+    case get_available_worker(QueueManager, Call, Timeout) of
+        {ok, TimeLeft, Worker} ->
             case TimeLeft > 0 of
                 true ->
                     wpool_process:call(Worker, Call, TimeLeft);
                 false ->
                     worker_ready(QueueManager, Worker),
                     timeout
-            end
-    catch
-        _:{noproc, {gen_server, call, _}} ->
-            noproc;
-        _:{timeout, {gen_server, call, _}} ->
-            timeout
+            end;
+        Other ->
+            Other
     end.
 
 %% @doc Casts a message to the first available worker.
@@ -90,6 +80,17 @@ call_available_worker(QueueManager, Call, Timeout) ->
 -spec cast_to_available_worker(queue_mgr(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) ->
     gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
+
+%% @doc returns the first available worker in the pool
+-spec send_request_available_worker(queue_mgr(), any(), timeout()) ->
+                                       noproc | timeout | reference().
+send_request_available_worker(QueueManager, Call, Timeout) ->
+    case get_available_worker(QueueManager, Call, Timeout) of
+        {ok, _TimeLeft, Worker} ->
+            wpool_process:send_request(Worker, Call);
+        Other ->
+            Other
+    end.
 
 %% @doc Mark a brand new worker as available
 -spec new_worker(queue_mgr(), atom()) -> ok.
@@ -234,6 +235,26 @@ handle_info(_Info, State) ->
 %%%===================================================================
 %%% private
 %%%===================================================================
+-spec get_available_worker(queue_mgr(), any(), timeout()) ->
+                              noproc | timeout | {ok, timeout(), any()}.
+get_available_worker(QueueManager, Call, Timeout) ->
+    Start = now_in_milliseconds(),
+    ExpiresAt = expires(Timeout, Start),
+    try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
+        {'EXIT', _, noproc} ->
+            noproc;
+        {'EXIT', Worker, Exit} ->
+            exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
+        {ok, Worker} ->
+            TimeLeft = time_left(ExpiresAt),
+            {ok, TimeLeft, Worker}
+    catch
+        _:{noproc, {gen_server, call, _}} ->
+            noproc;
+        _:{timeout, {gen_server, call, _}} ->
+            timeout
+    end.
+
 inc_pending_tasks() ->
     inc(pending_tasks).
 
