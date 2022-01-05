@@ -60,14 +60,22 @@ start_link(WPool, Name, Options) ->
 %% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
-    Expires = expires(Timeout),
-    try gen_server:call(QueueManager, {available_worker, Expires}, Timeout) of
+    Start = now_in_milliseconds(),
+    ExpiresAt = expires(Timeout, Start),
+    try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
         {'EXIT', _, noproc} ->
             noproc;
         {'EXIT', Worker, Exit} ->
             exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
         {ok, Worker} ->
-            wpool_process:call(Worker, Call, Timeout)
+            TimeLeft = time_left(ExpiresAt),
+            case TimeLeft > 0 of
+                true ->
+                    wpool_process:call(Worker, Call, TimeLeft);
+                false ->
+                    worker_ready(QueueManager, Worker),
+                    timeout
+            end
     catch
         _:{noproc, {gen_server, call, _}} ->
             noproc;
@@ -158,10 +166,10 @@ handle_cast({worker_ready, Worker}, State0) ->
             dec_pending_tasks(),
             ok = wpool_process:cast(Worker, Cast),
             {noreply, State#state{clients = NewClients}};
-        {{value, {Client = {ClientPid, _}, Expires}}, NewClients} ->
+        {{value, {Client = {ClientPid, _}, ExpiresAt}}, NewClients} ->
             dec_pending_tasks(),
             NewState = State#state{clients = NewClients},
-            case is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
+            case is_process_alive(ClientPid) andalso is_expired(ExpiresAt) of
                 true ->
                     MonitorState = monitor_worker(Worker, Client, NewState),
                     gen_server:reply(Client, {ok, Worker}),
@@ -187,16 +195,16 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
 %% @private
 -spec handle_call(call_request(), from(), state()) ->
                      {reply, {ok, atom()}, state()} | {noreply, state()}.
-handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
+handle_call({available_worker, ExpiresAt}, Client = {ClientPid, _Ref}, State) ->
     #state{workers = Workers, clients = Clients} = State,
     case gb_sets:is_empty(Workers) of
         true ->
             inc_pending_tasks(),
-            {noreply, State#state{clients = queue:in({Client, Expires}, Clients)}};
+            {noreply, State#state{clients = queue:in({Client, ExpiresAt}, Clients)}};
         false ->
             {Worker, NewWorkers} = gb_sets:take_smallest(Workers),
             %NOTE: It could've been a while since this call was made, so we check
-            case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
+            case erlang:is_process_alive(ClientPid) andalso is_expired(ExpiresAt) of
                 true ->
                     NewState = monitor_worker(Worker, Client, State#state{workers = NewWorkers}),
                     {reply, {ok, Worker}, NewState};
@@ -238,13 +246,25 @@ inc(Key) ->
 dec(Key) ->
     put(Key, get(Key) - 1).
 
-now_in_microseconds() ->
-    erlang:system_time(microsecond).
-
-expires(infinity) ->
+-spec expires(timeout(), integer()) -> timeout().
+expires(infinity, _) ->
     infinity;
-expires(Timeout) ->
-    now_in_microseconds() + Timeout * 1000.
+expires(Timeout, NowMs) ->
+    NowMs + Timeout.
+
+-spec time_left(timeout()) -> timeout().
+time_left(infinity) ->
+    infinity;
+time_left(ExpiresAt) ->
+    ExpiresAt - now_in_milliseconds().
+
+-spec is_expired(integer()) -> boolean().
+is_expired(ExpiresAt) ->
+    ExpiresAt > now_in_milliseconds().
+
+-spec now_in_milliseconds() -> integer().
+now_in_milliseconds() ->
+    erlang:system_time(millisecond).
 
 monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
     Ref = monitor(process, Worker),
