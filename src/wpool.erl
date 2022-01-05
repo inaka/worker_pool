@@ -71,6 +71,7 @@
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1, stop_sup_pool/1]).
 -export([call/2, cast/2, call/3, cast/3, call/4, broadcast/2]).
+-export([send_request/2, send_request/3, send_request/4]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
@@ -196,6 +197,31 @@ cast(Sup, Cast, Fun) when is_function(Fun) ->
 cast(Sup, Cast, Strategy) ->
     wpool_process:cast(
         wpool_pool:Strategy(Sup), Cast).
+
+%% @equiv send_request(Sup, Call, default_strategy(), 5000)
+-spec send_request(name(), term()) -> noproc | timeout | reference().
+send_request(Sup, Call) ->
+    send_request(Sup, Call, default_strategy()).
+
+%% @equiv send_request(Sup, Call, Strategy, 5000)
+-spec send_request(name(), term(), strategy()) -> noproc | timeout | reference().
+send_request(Sup, Call, Strategy) ->
+    send_request(Sup, Call, Strategy, 5000).
+
+%% @doc Picks a server and issues the call to it.
+%%      Timeout applies only for the time used choosing a worker in the available_worker strategy
+-spec send_request(name(), term(), strategy(), timeout()) ->
+                      noproc | timeout | reference().
+send_request(Sup, Call, available_worker, Timeout) ->
+    wpool_pool:send_request_available_worker(Sup, Call, Timeout);
+send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->
+    wpool_process:send_request(
+        wpool_pool:hash_worker(Sup, HashKey), Call);
+send_request(Sup, Call, Fun, _Timeout) when is_function(Fun) ->
+    wpool_process:send_request(Fun(Sup), Call);
+send_request(Sup, Call, Strategy, _Timeout) ->
+    wpool_process:send_request(
+        wpool_pool:Strategy(Sup), Call).
 
 %% @doc Retrieves a snapshot of the pool stats
 -spec stats() -> [stats()].
