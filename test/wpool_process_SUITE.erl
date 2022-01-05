@@ -231,16 +231,14 @@ pool_norestart_crash(_Config) ->
 
 -spec stop(config()) -> {comment, []}.
 stop(_Config) ->
-    From = {self(), Ref = make_ref()},
-
     ct:comment("cast_call with stop/reply"),
     {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
-    ok = wpool_process:cast_call(stopper, From, {stop, reason, response, state}),
-    receive
-        {Ref, response} ->
-            ok
-    after 5000 ->
-        ct:fail("no response")
+    ReqId1 = wpool_process:send_request(stopper, {stop, reason, response, state}),
+    case gen_server:wait_response(ReqId1, 5000) of
+        {reply, response} ->
+            ok;
+        timeout ->
+            ct:fail("no response")
     end,
     receive
         {'EXIT', Pid1, reason} ->
@@ -251,10 +249,14 @@ stop(_Config) ->
 
     ct:comment("cast_call with regular stop"),
     {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
-    ok = wpool_process:cast_call(stopper, From, {stop, reason, state}),
+    ReqId2 = wpool_process:send_request(stopper, {stop, reason, state}),
+    case gen_server:wait_response(ReqId2, 500) of
+        {error, {reason, Pid2}} ->
+            ok;
+        {reply, _} ->
+            ct:fail("unexpected response")
+    end,
     receive
-        {Ref, _} ->
-            ct:fail("unexpected response");
         {'EXIT', Pid2, reason} ->
             ok
     after 500 ->

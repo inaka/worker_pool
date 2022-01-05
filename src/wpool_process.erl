@@ -29,7 +29,7 @@
 -type next_step() :: timeout() | hibernate | {continue, term()}.
 
 %% api
--export([start_link/4, call/3, cast/2, cast_call/3]).
+-export([start_link/4, call/3, cast/2, send_request/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2,
          handle_continue/2, format_status/2]).
@@ -55,12 +55,12 @@ call(Process, Call, Timeout) ->
 %% @equiv gen_server:cast(Process, {cast, Cast})
 -spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) ->
-    gen_server:cast(Process, {cast, Cast}).
+    gen_server:cast(Process, Cast).
 
-%% @equiv gen_server:cast(Process, {call, From, Call})
--spec cast_call(wpool:name() | pid(), from(), term()) -> ok.
-cast_call(Process, From, Call) ->
-    gen_server:cast(Process, {call, From, Call}).
+%% @equiv gen_server:send_request(Process, Request)
+-spec send_request(wpool:name() | pid(), term()) -> term().
+send_request(Name, Request) ->
+    gen_server:send_request(Name, Request).
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -70,7 +70,6 @@ cast_call(Process, From, Call) ->
               {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
 init({Name, Mod, InitArgs, Options}) ->
     wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
-
     case Mod:init(InitArgs) of
         {ok, ModState} ->
             ok = notify_queue_manager(new_worker, Name, Options),
@@ -181,21 +180,7 @@ format_status(Opt, [PDict, State]) ->
 %% @private
 -spec handle_cast(term(), state()) ->
                      {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
-handle_cast({call, From, Call}, State) ->
-    case handle_call(Call, From, State) of
-        {reply, Response, NewState} ->
-            gen_server:reply(From, Response),
-            {noreply, NewState};
-        {reply, Response, NewState, NextStep} ->
-            gen_server:reply(From, Response),
-            {noreply, NewState, NextStep};
-        {stop, Reason, Response, NewState} ->
-            gen_server:reply(From, Response),
-            {stop, Reason, NewState};
-        Reply ->
-            Reply
-    end;
-handle_cast({cast, Cast}, State) ->
+handle_cast(Cast, State) ->
     Task =
         wpool_utils:task_init({cast, Cast},
                               proplists:get_value(time_checker, State#state.options, undefined),

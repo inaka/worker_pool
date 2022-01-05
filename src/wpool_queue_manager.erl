@@ -61,13 +61,13 @@ start_link(WPool, Name, Options) ->
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
     Expires = expires(Timeout),
-    try gen_server:call(QueueManager, {available_worker, Call, Expires}, Timeout) of
+    try gen_server:call(QueueManager, {available_worker, Expires}, Timeout) of
         {'EXIT', _, noproc} ->
             noproc;
         {'EXIT', Worker, Exit} ->
             exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
-        Result ->
-            Result
+        {ok, Worker} ->
+            wpool_process:call(Worker, Call, Timeout)
     catch
         _:{noproc, {gen_server, call, _}} ->
             noproc;
@@ -158,13 +158,13 @@ handle_cast({worker_ready, Worker}, State0) ->
             dec_pending_tasks(),
             ok = wpool_process:cast(Worker, Cast),
             {noreply, State#state{clients = NewClients}};
-        {{value, {Client = {ClientPid, _}, Call, Expires}}, NewClients} ->
+        {{value, {Client = {ClientPid, _}, Expires}}, NewClients} ->
             dec_pending_tasks(),
             NewState = State#state{clients = NewClients},
             case is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
                 true ->
                     MonitorState = monitor_worker(Worker, Client, NewState),
-                    ok = wpool_process:cast_call(Worker, Client, Call),
+                    gen_server:reply(Client, {ok, Worker}),
                     {noreply, MonitorState};
                 false ->
                     handle_cast({worker_ready, Worker}, NewState)
@@ -187,20 +187,19 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
 %% @private
 -spec handle_call(call_request(), from(), state()) ->
                      {reply, {ok, atom()}, state()} | {noreply, state()}.
-handle_call({available_worker, Call, Expires}, Client = {ClientPid, _Ref}, State) ->
+handle_call({available_worker, Expires}, Client = {ClientPid, _Ref}, State) ->
     #state{workers = Workers, clients = Clients} = State,
     case gb_sets:is_empty(Workers) of
         true ->
             inc_pending_tasks(),
-            {noreply, State#state{clients = queue:in({Client, Call, Expires}, Clients)}};
+            {noreply, State#state{clients = queue:in({Client, Expires}, Clients)}};
         false ->
             {Worker, NewWorkers} = gb_sets:take_smallest(Workers),
             %NOTE: It could've been a while since this call was made, so we check
             case erlang:is_process_alive(ClientPid) andalso Expires > now_in_microseconds() of
                 true ->
                     NewState = monitor_worker(Worker, Client, State#state{workers = NewWorkers}),
-                    ok = wpool_process:cast_call(Worker, Client, Call),
-                    {noreply, NewState};
+                    {reply, {ok, Worker}, NewState};
                 false ->
                     {noreply, State}
             end
