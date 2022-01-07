@@ -50,6 +50,7 @@ task_end(TimerRef) ->
     _ = erlang:cancel_timer(TimerRef),
     erlang:erase(wpool_task).
 
+%% @doc Adds default parameters to a pool configuration
 -spec add_defaults([wpool:option()]) -> [wpool:option()].
 add_defaults(Opts) ->
     lists:ukeymerge(1, lists:sort(Opts), defaults()).
