@@ -61,14 +61,11 @@ start_link(WPool, Name, Options) ->
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, TimeLeft, Worker} ->
-            case TimeLeft > 0 of
-                true ->
-                    wpool_process:call(Worker, Call, TimeLeft);
-                false ->
-                    worker_ready(QueueManager, Worker),
-                    timeout
-            end;
+        {ok, TimeLeft, Worker} when TimeLeft > 0 ->
+            wpool_process:call(Worker, Call, TimeLeft);
+        {ok, _, Worker} ->
+            worker_ready(QueueManager, Worker),
+            timeout;
         Other ->
             Other
     end.
