@@ -21,7 +21,7 @@
 %% API
 -export([start_link/2]).
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
-         next_available_worker/1, call_available_worker/3]).
+         next_available_worker/1, send_request_available_worker/3, call_available_worker/3]).
 -export([cast_to_available_worker/2, broadcast/2]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([worker_name/2, find_wpool/1]).
@@ -120,6 +120,15 @@ call_available_worker(Name, Call, Timeout) ->
         Result ->
             Result
     end.
+
+%% @doc Picks the first available worker and sends the request to it.
+%%      The timeout provided considers only the time it takes to get a worker
+-spec send_request_available_worker(wpool:name(), any(), timeout()) ->
+                                       noproc | timeout | reference().
+send_request_available_worker(Name, Call, Timeout) ->
+    wpool_queue_manager:send_request_available_worker(queue_manager_name(Name),
+                                                      Call,
+                                                      Timeout).
 
 %% @doc Picks a worker base on a hash result.
 %%      <pre>phash2(Term, Range)</pre> returns hash = integer,

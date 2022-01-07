@@ -21,8 +21,8 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1, cast/1, call/1, continue/1, format_status/1,
-         no_format_status/1, stop/1]).
+-export([init/1, init_timeout/1, info/1, cast/1, send_request/1, call/1, continue/1,
+         format_status/1, no_format_status/1, stop/1]).
 -export([pool_restart_crash/1, pool_norestart_crash/1, complete_coverage/1]).
 
 -spec all() -> [atom()].
@@ -95,6 +95,27 @@ cast(_Config) ->
     false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
     {comment, []}.
+
+-spec send_request(config()) -> {comment, []}.
+send_request(_Config) ->
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    Req1 = wpool_process:send_request(Pid, {reply, ok1, newstate}),
+    ok1 = wait_response(Req1),
+    Req2 = wpool_process:send_request(Pid, {reply, ok2, newerstate, 1}),
+    ok2 = wait_response(Req2),
+    Req3 = wpool_process:send_request(Pid, {stop, normal, ok3, state}),
+    ok3 = wait_response(Req3),
+    false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
+
+    {comment, []}.
+
+wait_response(ReqId) ->
+    case gen_server:wait_response(ReqId, 5000) of
+        {reply, Reply} ->
+            Reply;
+        timeout ->
+            ct:fail("no response")
+    end.
 
 -spec continue(config()) -> {comment, []}.
 continue(_Config) ->
@@ -231,16 +252,14 @@ pool_norestart_crash(_Config) ->
 
 -spec stop(config()) -> {comment, []}.
 stop(_Config) ->
-    From = {self(), Ref = make_ref()},
-
     ct:comment("cast_call with stop/reply"),
     {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
-    ok = wpool_process:cast_call(stopper, From, {stop, reason, response, state}),
-    receive
-        {Ref, response} ->
-            ok
-    after 5000 ->
-        ct:fail("no response")
+    ReqId1 = wpool_process:send_request(stopper, {stop, reason, response, state}),
+    case gen_server:wait_response(ReqId1, 5000) of
+        {reply, response} ->
+            ok;
+        timeout ->
+            ct:fail("no response")
     end,
     receive
         {'EXIT', Pid1, reason} ->
@@ -251,10 +270,14 @@ stop(_Config) ->
 
     ct:comment("cast_call with regular stop"),
     {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
-    ok = wpool_process:cast_call(stopper, From, {stop, reason, state}),
+    ReqId2 = wpool_process:send_request(stopper, {stop, reason, state}),
+    case gen_server:wait_response(ReqId2, 500) of
+        {error, {reason, Pid2}} ->
+            ok;
+        {reply, _} ->
+            ct:fail("unexpected response")
+    end,
     receive
-        {Ref, _} ->
-            ct:fail("unexpected response");
         {'EXIT', Pid2, reason} ->
             ok
     after 500 ->
