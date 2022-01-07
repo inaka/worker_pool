@@ -22,11 +22,16 @@
         {name :: atom(),
          mod :: atom(),
          state :: term(),
-         options :: [{time_checker | queue_manager, atom()} | wpool:option()]}).
+         options ::
+             #{time_checker := atom(),
+               queue_manager := atom(),
+               overrun_warning := timeout(),
+               _ => _}}).
 
 -type state() :: #state{}.
 -type from() :: {pid(), reference()}.
 -type next_step() :: timeout() | hibernate | {continue, term()}.
+-type options() :: [{time_checker | queue_manager, atom()} | wpool:option()].
 
 %% api
 -export([start_link/4, call/3, cast/2, send_request/2]).
@@ -38,13 +43,14 @@
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
--spec start_link(wpool:name(), module(), term(), [wpool:option()]) ->
+-spec start_link(wpool:name(), module(), term(), options()) ->
                     {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
-    WorkerOpt = proplists:get_value(worker_opt, Options, []),
+    FullOpts = wpool_utils:add_defaults(Options),
+    WorkerOpt = proplists:get_value(worker_opt, FullOpts, []),
     gen_server:start_link({local, Name},
                           ?MODULE,
-                          {Name, Module, InitArgs, Options},
+                          {Name, Module, InitArgs, FullOpts},
                           WorkerOpt).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
@@ -66,9 +72,10 @@ send_request(Name, Request) ->
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), atom(), term(), [wpool:option()]}) ->
+-spec init({atom(), atom(), term(), options()}) ->
               {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
-init({Name, Mod, InitArgs, Options}) ->
+init({Name, Mod, InitArgs, LOptions}) ->
+    Options = maps:from_list(LOptions),
     wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
     case Mod:init(InitArgs) of
         {ok, ModState} ->
@@ -180,15 +187,9 @@ format_status(Opt, [PDict, State]) ->
 %% @private
 -spec handle_cast(term(), state()) ->
                      {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
-handle_cast(Cast, State) ->
-    Task =
-        wpool_utils:task_init({cast, Cast},
-                              proplists:get_value(time_checker, State#state.options, undefined),
-                              proplists:get_value(overrun_warning, State#state.options, infinity),
-                              proplists:get_value(max_overrun_warnings,
-                                                  State#state.options,
-                                                  infinity)),
-    ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
+handle_cast(Cast, #state{options = Options} = State) ->
+    Task = wpool_utils:task_init({cast, Cast}, Options),
+    ok = notify_queue_manager(worker_busy, State#state.name, Options),
     Reply =
         try (State#state.mod):handle_cast(Cast, State#state.state) of
             {noreply, NewState} ->
@@ -206,7 +207,7 @@ handle_cast(Cast, State) ->
                 {stop, Reason, State#state{state = NewState}}
         end,
     wpool_utils:task_end(Task),
-    ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_ready, State#state.name, Options),
     Reply.
 
 %% @private
@@ -217,15 +218,9 @@ handle_cast(Cast, State) ->
                      {noreply, state(), next_step()} |
                      {stop, term(), term(), state()} |
                      {stop, term(), state()}.
-handle_call(Call, From, State) ->
-    Task =
-        wpool_utils:task_init({call, Call},
-                              proplists:get_value(time_checker, State#state.options, undefined),
-                              proplists:get_value(overrun_warning, State#state.options, infinity),
-                              proplists:get_value(max_overrun_warnings,
-                                                  State#state.options,
-                                                  infinity)),
-    ok = notify_queue_manager(worker_busy, State#state.name, State#state.options),
+handle_call(Call, From, #state{options = Options} = State) ->
+    Task = wpool_utils:task_init({call, Call}, Options),
+    ok = notify_queue_manager(worker_busy, State#state.name, Options),
     Reply =
         try (State#state.mod):handle_call(Call, From, State#state.state) of
             {noreply, NewState} ->
@@ -255,13 +250,10 @@ handle_call(Call, From, State) ->
                 {stop, Reason, Response, State#state{state = NewState}}
         end,
     wpool_utils:task_end(Task),
-    ok = notify_queue_manager(worker_ready, State#state.name, State#state.options),
+    ok = notify_queue_manager(worker_ready, State#state.name, Options),
     Reply.
 
-notify_queue_manager(Function, Name, Options) ->
-    case proplists:get_value(queue_manager, Options) of
-        undefined ->
-            ok;
-        QueueManager ->
-            wpool_queue_manager:Function(QueueManager, Name)
-    end.
+notify_queue_manager(Function, Name, #{queue_manager := QueueManager}) ->
+    wpool_queue_manager:Function(QueueManager, Name);
+notify_queue_manager(_, _, _) ->
+    ok.

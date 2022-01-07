@@ -18,26 +18,25 @@
 -author('ferigis@gmail.com').
 
 %% API
--export([task_init/4, task_end/1]).
+-export([task_init/2, task_end/1, add_defaults/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Api
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc Marks Task as started in this worker
--spec task_init(term(), atom(), infinity | pos_integer(), infinity | pos_integer()) ->
+-spec task_init(term(), #{overrun_warning := timeout(), _ => _}) ->
                    undefined | reference().
-task_init(Task, _TimeChecker, infinity, _MaxWarnings) ->
-    Time =
-        calendar:datetime_to_gregorian_seconds(
-            calendar:universal_time()),
+task_init(Task, #{overrun_warning := infinity}) ->
+    Time = erlang:system_time(second),
     erlang:put(wpool_task, {undefined, Time, Task}),
     undefined;
-task_init(Task, TimeChecker, OverrunTime, MaxWarnings) ->
+task_init(Task,
+          #{overrun_warning := OverrunTime,
+            time_checker := TimeChecker,
+            max_overrun_warnings := MaxWarnings}) ->
     TaskId = erlang:make_ref(),
-    Time =
-        calendar:datetime_to_gregorian_seconds(
-            calendar:universal_time()),
+    Time = erlang:system_time(second),
     erlang:put(wpool_task, {TaskId, Time, Task}),
     erlang:send_after(OverrunTime,
                       TimeChecker,
@@ -50,3 +49,16 @@ task_end(undefined) ->
 task_end(TimerRef) ->
     _ = erlang:cancel_timer(TimerRef),
     erlang:erase(wpool_task).
+
+-spec add_defaults([wpool:option()]) -> [wpool:option()].
+add_defaults(Opts) ->
+    lists:ukeymerge(1, lists:sort(Opts), defaults()).
+
+-spec defaults() -> [wpool:option()].
+defaults() ->
+    [{max_overrun_warnings, infinity},
+     {overrun_handler, {error_logger, warning_report}},
+     {overrun_warning, infinity},
+     {queue_type, fifo},
+     {worker_opt, []},
+     {workers, 100}].

@@ -18,14 +18,6 @@
 
 -behaviour(application).
 
--define(DEFAULTS,
-        [{overrun_warning, infinity},
-         {max_overrun_warnings, infinity},
-         {overrun_handler, {error_logger, warning_report}},
-         {workers, 100},
-         {worker_opt, []},
-         {queue_type, fifo}]).
-
 %% Copied from gen.erl
 -type debug_flag() :: trace | log | statistics | debug | {logfile, string()}.
 -type gen_option() ::
@@ -115,7 +107,7 @@ start_pool(Name) ->
 -spec start_pool(name(), [option()]) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_pool(Name, Options) ->
-    wpool_pool:start_link(Name, all_opts(Options)).
+    wpool_pool:start_link(Name, wpool_utils:add_defaults(Options)).
 
 %% @doc Stops the pool
 -spec stop_pool(name()) -> true.
@@ -136,7 +128,7 @@ start_sup_pool(Name) ->
 -spec start_sup_pool(name(), [option()]) ->
                         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_sup_pool(Name, Options) ->
-    wpool_sup:start_pool(Name, all_opts(Options)).
+    wpool_sup:start_pool(Name, wpool_utils:add_defaults(Options)).
 
 %% @doc Stops the pool
 -spec stop_sup_pool(name()) -> ok.
@@ -243,9 +235,3 @@ get_workers(Sup) ->
 -spec broadcast(wpool:name(), term()) -> ok.
 broadcast(Sup, Cast) ->
     wpool_pool:broadcast(Sup, Cast).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% PRIVATE
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-all_opts(Options) ->
-    Options ++ ?DEFAULTS.

@@ -35,14 +35,11 @@ handle_call(Msg, State) ->
     {ok, {error, {unexpected_call, Msg}}, State}.
 
 %% @doc Sends a notification to all registered callback modules.
--spec notify(event(), [wpool:option()], [any()]) -> ok.
-notify(Event, Options, Args) ->
-    case lists:keyfind(event_manager, 1, Options) of
-        {event_manager, EventMgr} ->
-            gen_event:notify(EventMgr, {Event, Args});
-        _ ->
-            ok
-    end.
+-spec notify(event(), #{event_manager := any(), _ => _}, [any()]) -> ok.
+notify(Event, #{event_manager := EventMgr}, Args) ->
+    gen_event:notify(EventMgr, {Event, Args});
+notify(_, _, _) ->
+    ok.
 
 %% @doc Adds a callback module.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, any()}.
