@@ -22,7 +22,7 @@ All user functions are exposed through the [wpool module](https://hexdocs.pm/wor
 #### Starting a Pool
 To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
 
-* **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The task is monitored until it is finished, thus more than one warning might be emitted for a single task. The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead: after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000` warnings would be emmited after 1000, 2000, 4000, 8000 ...) The default value for this setting is `infinity` (i.e. no warnings are emitted)
+* **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The task is monitored until it is finished, thus more than one warning might be emitted for a single task. The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead: after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000` warnings would be emitted after 1000, 2000, 4000, 8000 ...) The default value for this setting is `infinity` (i.e. no warnings are emitted)
 * **max_overrun_warnings**: The maximum number of overrun warnings emitted before killing a delayed task: that is, killing the worker running the task. If this parameter is set to a value other than `infinity` the rounds of warnings becomes equally timed (i.e. with `overrun_warning = 1000` and `max_overrun_warnings = 5` the task would be killed after 5 seconds of execution) The default value for this setting is `infinity` (i.e. delayed tasks are not killed)
 
 
@@ -70,7 +70,7 @@ Just picks a random worker. This strategy is the fastest one when to select a wo
 Picks the next worker in a round-robin fashion. That ensures evenly distribution of tasks.
 
 ###### available_worker
-Instead of just picking one of the workers in the queue and sending the request to it, this strategy queues the request and waits until a worker is available to perform it. That may render the worker selection part of the process much slower (thus generating the need for an aditional parameter: **Worker_Timeout** that controls how many milliseconds is the client willing to spend in that, regardless of the global **Timeout** for the call).
+Instead of just picking one of the workers in the queue and sending the request to it, this strategy queues the request and waits until a worker is available to perform it. That may render the worker selection part of the process much slower (thus generating the need for an additional parameter: **Worker_Timeout** that controls how many milliseconds is the client willing to spend in that, regardless of the global **Timeout** for the call).
 This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
 It also ensures that, if a task takes too long, that doesn't block other tasks since, as soon as other worker is free it can pick up the next task in the list.
 
@@ -105,7 +105,7 @@ To stop a pool, just use `wpool:stop/1`.
 
 ### Examples
 
-To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios excercised in the different suites.
+To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios exercised in the different suites.
 
 If you want to see **worker_pool** in a _real life_ project, I recommend you to check [sumo_db](https://github.com/inaka/sumo_db), another open-source library from [Inaka](http://inaka.github.io/) that uses wpool intensively.
 
