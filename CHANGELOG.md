@@ -328,7 +328,7 @@ For newest versions (i.e. `5.0.0` and above), please check [Github Release Notes
 - wpool\_queue\_manager crash cripples worker pool [\#36](https://github.com/inaka/worker_pool/pull/36) ([marcsugiyama](https://github.com/marcsugiyama))
 - worker pools do not restart after hitting the restart intensity limit [\#35](https://github.com/inaka/worker_pool/pull/35) ([marcsugiyama](https://github.com/marcsugiyama))
 - Allow setting `gen\_server` options in workers [\#34](https://github.com/inaka/worker_pool/pull/34) ([x4lldux](https://github.com/x4lldux))
-- Add suport for distributing work based on a hashed term [\#33](https://github.com/inaka/worker_pool/pull/33) ([JoshRagem](https://github.com/JoshRagem))
+- Add support for distributing work based on a hashed term [\#33](https://github.com/inaka/worker_pool/pull/33) ([JoshRagem](https://github.com/JoshRagem))
 - Rebased from TT and improved dialyzation [\#31](https://github.com/inaka/worker_pool/pull/31) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Completely remove lager [\#30](https://github.com/inaka/worker_pool/pull/30) ([elbrujohalcon](https://github.com/elbrujohalcon))
 - Version Bump to 1.0.4 [\#41](https://github.com/inaka/worker_pool/pull/41) ([elbrujohalcon](https://github.com/elbrujohalcon))
