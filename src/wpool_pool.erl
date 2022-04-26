@@ -71,9 +71,9 @@ random_worker(Name) ->
     case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        Wpool = #wpool{size = WpoolSize} ->
-            WorkerNumber = rand:uniform(WpoolSize),
-            worker_name(Wpool, WorkerNumber)
+        Wpool = #wpool{size = Size} ->
+            WorkerNumber = fast_rand_uniform(Size),
+            nth_worker_name(Wpool, WorkerNumber)
     end.
 
 %% @doc Picks the next worker in a round robin fashion
@@ -87,7 +87,7 @@ next_worker(Name) ->
             Index = atomics:get(Atomic, 1),
             NextIndex = next_to_check(Index, Size),
             _ = atomics:compare_exchange(Atomic, 1, Index, NextIndex),
-            worker_name(Wpool, Index)
+            nth_worker_name(Wpool, Index)
     end.
 
 %% @doc Picks the first available worker, if any
@@ -141,7 +141,7 @@ hash_worker(Name, HashKey) ->
             exit(no_workers);
         Wpool = #wpool{size = WpoolSize} ->
             Index = 1 + erlang:phash2(HashKey, WpoolSize),
-            worker_name(Wpool, Index)
+            nth_worker_name(Wpool, Index)
     end.
 
 %% @doc Casts a message to the first available worker.
@@ -220,7 +220,7 @@ stats(Wpool, Name) ->
      {workers, WorkerStats}].
 
 worker_info(Wpool, N, Info) ->
-    case erlang:whereis(worker_name(Wpool, N)) of
+    case erlang:whereis(nth_worker_name(Wpool, N)) of
         undefined ->
             undefined;
         Worker ->
@@ -350,9 +350,11 @@ init({Name, Options}) ->
     {ok, {SupStrategy, Children}}.
 
 %% @private
--spec worker_name(wpool() | wpool:name(), pos_integer()) -> atom().
-worker_name(#wpool{workers = Workers}, I) ->
-    element(I, Workers);
+-spec nth_worker_name(wpool(), pos_integer()) -> atom().
+nth_worker_name(#wpool{workers = Workers}, I) ->
+    element(I, Workers).
+
+-spec worker_name(wpool:name(), pos_integer()) -> atom().
 worker_name(Name, I) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ [$- | integer_to_list(I)]).
 
@@ -368,18 +370,17 @@ queue_manager_name(Name) ->
 event_manager_name(Name) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ "-event-manager").
 
-worker_with_no_task(Wpool) ->
+worker_with_no_task(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    Size = Wpool#wpool.size,
-    First = rand:uniform(Size),
+    First = fast_rand_uniform(Size),
     worker_with_no_task(0, Size, First, Wpool).
 
 worker_with_no_task(Size, Size, _, _) ->
     undefined;
 worker_with_no_task(Step, Size, ToCheck, Wpool) ->
-    Worker = worker_name(Wpool, ToCheck),
+    Worker = nth_worker_name(Wpool, ToCheck),
     case try_process_info(whereis(Worker), [message_queue_len, dictionary]) of
         [{message_queue_len, 0}, {dictionary, Dictionary}] ->
             case proplists:get_value(wpool_task, Dictionary) of
@@ -397,28 +398,36 @@ try_process_info(undefined, _) ->
 try_process_info(Pid, Keys) ->
     erlang:process_info(Pid, Keys).
 
-min_message_queue(Wpool) ->
+min_message_queue(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    Size = Wpool#wpool.size,
-    First = rand:uniform(Size),
-    min_message_queue(0, Size, First, Wpool, []).
-
-min_message_queue(Size, Size, _, _, Found) ->
-    {_, Worker} = lists:min(Found),
-    Worker;
-min_message_queue(Step, Size, ToCheck, Wpool, Found) ->
-    Worker = worker_name(Wpool, ToCheck),
+    First = fast_rand_uniform(Size),
+    Worker = nth_worker_name(Wpool, First),
     QLength = queue_length(whereis(Worker)),
-    min_message_queue(Step + 1,
-                      Size,
-                      next_to_check(ToCheck, Size),
-                      Wpool,
-                      [{QLength, Worker} | Found]).
+    min_message_queue(0, Size, First, Wpool, QLength, Worker).
+
+min_message_queue(_, _, _, _, 0, Worker) ->
+    Worker;
+min_message_queue(Size, Size, _, _, _QLength, Worker) ->
+    Worker;
+min_message_queue(Step, Size, ToCheck, Wpool, CurrentQLength, CurrentWorker) ->
+    Worker = nth_worker_name(Wpool, ToCheck),
+    QLength = queue_length(whereis(Worker)),
+    Next = next_to_check(ToCheck, Size),
+    case QLength < CurrentQLength of
+        true ->
+            min_message_queue(Step + 1, Size, Next, Wpool, QLength, Worker);
+        false ->
+            min_message_queue(Step + 1, Size, Next, Wpool, CurrentQLength, CurrentWorker)
+    end.
 
 next_to_check(Next, Size) ->
     Next rem Size + 1.
+
+fast_rand_uniform(Range) ->
+    UI = erlang:unique_integer(),
+    1 + erlang:phash2(UI, Range).
 
 queue_length(undefined) ->
     infinity;
