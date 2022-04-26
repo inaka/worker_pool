@@ -71,8 +71,8 @@ random_worker(Name) ->
     case find_wpool(Name) of
         undefined ->
             exit(no_workers);
-        Wpool = #wpool{size = WpoolSize} ->
-            WorkerNumber = rand:uniform(WpoolSize),
+        Wpool = #wpool{size = Size} ->
+            WorkerNumber = fast_rand_uniform(Size),
             nth_worker_name(Wpool, WorkerNumber)
     end.
 
@@ -374,7 +374,7 @@ worker_with_no_task(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    First = rand:uniform(Size),
+    First = fast_rand_uniform(Size),
     worker_with_no_task(0, Size, First, Wpool).
 
 worker_with_no_task(Size, Size, _, _) ->
@@ -402,7 +402,7 @@ min_message_queue(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    First = rand:uniform(Size),
+    First = fast_rand_uniform(Size),
     min_message_queue(0, Size, First, Wpool, []).
 
 min_message_queue(Size, Size, _, _, Found) ->
@@ -419,6 +419,10 @@ min_message_queue(Step, Size, ToCheck, Wpool, Found) ->
 
 next_to_check(Next, Size) ->
     Next rem Size + 1.
+
+fast_rand_uniform(Range) ->
+    UI = erlang:unique_integer(),
+    1 + erlang:phash2(UI, Range).
 
 queue_length(undefined) ->
     infinity;
