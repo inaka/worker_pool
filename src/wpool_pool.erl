@@ -73,7 +73,7 @@ random_worker(Name) ->
             exit(no_workers);
         Wpool = #wpool{size = WpoolSize} ->
             WorkerNumber = rand:uniform(WpoolSize),
-            worker_name(Wpool, WorkerNumber)
+            nth_worker_name(Wpool, WorkerNumber)
     end.
 
 %% @doc Picks the next worker in a round robin fashion
@@ -87,7 +87,7 @@ next_worker(Name) ->
             Index = atomics:get(Atomic, 1),
             NextIndex = next_to_check(Index, Size),
             _ = atomics:compare_exchange(Atomic, 1, Index, NextIndex),
-            worker_name(Wpool, Index)
+            nth_worker_name(Wpool, Index)
     end.
 
 %% @doc Picks the first available worker, if any
@@ -141,7 +141,7 @@ hash_worker(Name, HashKey) ->
             exit(no_workers);
         Wpool = #wpool{size = WpoolSize} ->
             Index = 1 + erlang:phash2(HashKey, WpoolSize),
-            worker_name(Wpool, Index)
+            nth_worker_name(Wpool, Index)
     end.
 
 %% @doc Casts a message to the first available worker.
@@ -220,7 +220,7 @@ stats(Wpool, Name) ->
      {workers, WorkerStats}].
 
 worker_info(Wpool, N, Info) ->
-    case erlang:whereis(worker_name(Wpool, N)) of
+    case erlang:whereis(nth_worker_name(Wpool, N)) of
         undefined ->
             undefined;
         Worker ->
@@ -350,9 +350,11 @@ init({Name, Options}) ->
     {ok, {SupStrategy, Children}}.
 
 %% @private
--spec worker_name(wpool() | wpool:name(), pos_integer()) -> atom().
-worker_name(#wpool{workers = Workers}, I) ->
-    element(I, Workers);
+-spec nth_worker_name(wpool(), pos_integer()) -> atom().
+nth_worker_name(#wpool{workers = Workers}, I) ->
+    element(I, Workers).
+
+-spec worker_name(wpool:name(), pos_integer()) -> atom().
 worker_name(Name, I) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ [$- | integer_to_list(I)]).
 
@@ -378,7 +380,7 @@ worker_with_no_task(#wpool{size = Size} = Wpool) ->
 worker_with_no_task(Size, Size, _, _) ->
     undefined;
 worker_with_no_task(Step, Size, ToCheck, Wpool) ->
-    Worker = worker_name(Wpool, ToCheck),
+    Worker = nth_worker_name(Wpool, ToCheck),
     case try_process_info(whereis(Worker), [message_queue_len, dictionary]) of
         [{message_queue_len, 0}, {dictionary, Dictionary}] ->
             case proplists:get_value(wpool_task, Dictionary) of
@@ -407,7 +409,7 @@ min_message_queue(Size, Size, _, _, Found) ->
     {_, Worker} = lists:min(Found),
     Worker;
 min_message_queue(Step, Size, ToCheck, Wpool, Found) ->
-    Worker = worker_name(Wpool, ToCheck),
+    Worker = nth_worker_name(Wpool, ToCheck),
     QLength = queue_length(whereis(Worker)),
     min_message_queue(Step + 1,
                       Size,
