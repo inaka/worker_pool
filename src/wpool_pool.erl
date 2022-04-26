@@ -368,11 +368,10 @@ queue_manager_name(Name) ->
 event_manager_name(Name) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ "-event-manager").
 
-worker_with_no_task(Wpool) ->
+worker_with_no_task(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    Size = Wpool#wpool.size,
     First = rand:uniform(Size),
     worker_with_no_task(0, Size, First, Wpool).
 
@@ -397,11 +396,10 @@ try_process_info(undefined, _) ->
 try_process_info(Pid, Keys) ->
     erlang:process_info(Pid, Keys).
 
-min_message_queue(Wpool) ->
+min_message_queue(#wpool{size = Size} = Wpool) ->
     %% Moving the beginning of the list to a random point to ensure that clients
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
-    Size = Wpool#wpool.size,
     First = rand:uniform(Size),
     min_message_queue(0, Size, First, Wpool, []).
 
