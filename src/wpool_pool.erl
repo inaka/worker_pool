@@ -403,19 +403,24 @@ min_message_queue(#wpool{size = Size} = Wpool) ->
     %% do not always start asking for process_info to the processes that are most
     %% likely to have bigger message queues
     First = fast_rand_uniform(Size),
-    min_message_queue(0, Size, First, Wpool, []).
+    Worker = nth_worker_name(Wpool, First),
+    QLength = queue_length(whereis(Worker)),
+    min_message_queue(0, Size, First, Wpool, QLength, Worker).
 
-min_message_queue(Size, Size, _, _, Found) ->
-    {_, Worker} = lists:min(Found),
+min_message_queue(_, _, _, _, 0, Worker) ->
     Worker;
-min_message_queue(Step, Size, ToCheck, Wpool, Found) ->
+min_message_queue(Size, Size, _, _, _QLength, Worker) ->
+    Worker;
+min_message_queue(Step, Size, ToCheck, Wpool, CurrentQLength, CurrentWorker) ->
     Worker = nth_worker_name(Wpool, ToCheck),
     QLength = queue_length(whereis(Worker)),
-    min_message_queue(Step + 1,
-                      Size,
-                      next_to_check(ToCheck, Size),
-                      Wpool,
-                      [{QLength, Worker} | Found]).
+    Next = next_to_check(ToCheck, Size),
+    case QLength < CurrentQLength of
+        true ->
+            min_message_queue(Step + 1, Size, Next, Wpool, QLength, Worker);
+        false ->
+            min_message_queue(Step + 1, Size, Next, Wpool, CurrentQLength, CurrentWorker)
+    end.
 
 next_to_check(Next, Size) ->
     Next rem Size + 1.
