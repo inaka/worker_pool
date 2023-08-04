@@ -21,6 +21,10 @@
 
 -dialyzer([no_behaviours]).
 
+-type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
+
 %%%===================================================================
 %%% callbacks
 %%%===================================================================
@@ -35,8 +39,6 @@ init(TimeToSleep) ->
 handle_cast(TimeToSleep, State) ->
     _ = timer:sleep(TimeToSleep),
     {noreply, State}.
-
--type from() :: {pid(), reference()}.
 
 -spec handle_call(pos_integer(), from(), State) -> {reply, ok, State}.
 handle_call(TimeToSleep, _From, State) ->

@@ -22,6 +22,16 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
 
+-record(state, {}).
+
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
+-type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -43,10 +53,6 @@ cast(S, M, F, A) ->
 %%%===================================================================
 %%% simple callbacks
 %%%===================================================================
-
--record(state, {}).
-
--type state() :: #state{}.
 
 %% @private
 -spec init(undefined) -> {ok, state()}.
@@ -70,8 +76,6 @@ handle_cast({M, F, A}, State) ->
 handle_cast(Cast, State) ->
     error_logger:error_msg("Invalid cast:~p", [Cast]),
     {noreply, State, hibernate}.
-
--type from() :: {pid(), reference()}.
 
 %% @private
 -spec handle_call(term(), from(), state()) ->

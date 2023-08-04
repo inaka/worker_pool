@@ -28,10 +28,21 @@
                overrun_warning := timeout(),
                _ => _}}).
 
--type state() :: #state{}.
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
 -type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
+
 -type next_step() :: timeout() | hibernate | {continue, term()}.
+
+-export_type([next_step/0]).
+
 -type options() :: [{time_checker | queue_manager, atom()} | wpool:option()].
+
+-export_type([options/0]).
 
 %% api
 -export([start_link/4, call/3, cast/2, send_request/2]).

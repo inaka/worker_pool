@@ -15,8 +15,6 @@
 %%% @doc Common functions for wpool_process and other modules.
 -module(wpool_utils).
 
--author('ferigis@gmail.com').
-
 %% API
 -export([task_init/2, task_end/1, add_defaults/1]).
 

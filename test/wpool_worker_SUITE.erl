@@ -19,6 +19,8 @@
 
 -type config() :: [{atom(), term()}].
 
+-export_type([config/0]).
+
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
 -export([call/1, cast/1, complete_coverage/1]).

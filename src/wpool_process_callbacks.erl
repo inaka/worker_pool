@@ -9,7 +9,12 @@
 -export([notify/3, add_callback_module/2, remove_callback_module/2]).
 
 -type state() :: module().
+
+-export_type([state/0]).
+
 -type event() :: handle_init_start | handle_worker_creation | handle_worker_death.
+
+-export_type([event/0]).
 
 -callback handle_init_start(wpool:name()) -> any().
 -callback handle_worker_creation(wpool:name()) -> any().

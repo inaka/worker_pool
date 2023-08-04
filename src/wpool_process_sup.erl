@@ -33,14 +33,9 @@ init({Name, Options}) ->
     Workers = proplists:get_value(workers, Options, 100),
     Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     maybe_add_event_handler(Options),
-    {WorkerType, Worker, InitArgs} =
-        case proplists:get_value(worker_type, Options, gen_server) of
-            gen_server ->
-                {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
-                {wpool_process, W, IA}
-        end,
-    %% We'll eventually add more types (like gen_statem),
-    %% that's why this case remains
+    gen_server = proplists:get_value(worker_type, Options, gen_server),
+    {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
+    {WorkerType, Worker, InitArgs} = {wpool_process, W, IA},
     WorkerShutdown = proplists:get_value(worker_shutdown, Options, 5000),
     WorkerSpecs =
         [{wpool_pool:worker_name(Name, I),
