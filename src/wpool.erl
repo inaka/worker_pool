@@ -125,7 +125,7 @@ stop_pool(Name) ->
 start_sup_pool(Name) ->
     start_sup_pool(Name, []).
 
-%% @doc Starts a pool of N wpool_processes supervised by {@link wpool_sup}
+%% @doc Starts a pool of N wpool_processes supervised by `wpool_sup'
 -spec start_sup_pool(name(), [option()]) ->
                         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_sup_pool(Name, Options) ->

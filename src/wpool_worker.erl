@@ -12,7 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Default instance for {@link wpool_process}
+%%% @doc Default instance for `wpool_process'
 -module(wpool_worker).
 
 -behaviour(gen_server).

@@ -47,7 +47,7 @@
 %% API functions
 %% ===================================================================
 
-%% @doc Starts a supervisor with several {@link wpool_process}es as its children
+%% @doc Starts a supervisor with several `wpool_process'es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Name, Options) ->

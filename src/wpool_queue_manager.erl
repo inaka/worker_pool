@@ -63,7 +63,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-%% @equiv start_link(WPool, Name, [])
 -spec start_link(wpool:name(), queue_mgr()) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) ->

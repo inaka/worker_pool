@@ -12,7 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Decorator over {@link gen_server} that lets {@link wpool_pool}
+%%% @doc Decorator over `gen_server' that lets `wpool_pool'
 %%%      control certain aspects of the execution
 -module(wpool_process).
 
