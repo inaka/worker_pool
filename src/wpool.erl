@@ -70,6 +70,18 @@
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
+-if(?OTP_RELEASE >= 25).
+
+-type gen_server_request_id() :: gen_server:request_id().
+
+-else.
+
+-type gen_server_request_id() :: reference().
+
+-endif.
+
+-elvis([{elvis_style, export_used_types, disable}]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ADMIN API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -194,19 +206,20 @@ cast(Sup, Cast, Strategy) ->
         wpool_pool:Strategy(Sup), Cast).
 
 %% @equiv send_request(Sup, Call, default_strategy(), 5000)
--spec send_request(name(), term()) -> noproc | timeout | reference().
+-spec send_request(name(), term()) -> noproc | timeout | gen_server_request_id().
 send_request(Sup, Call) ->
     send_request(Sup, Call, default_strategy()).
 
 %% @equiv send_request(Sup, Call, Strategy, 5000)
--spec send_request(name(), term(), strategy()) -> noproc | timeout | reference().
+-spec send_request(name(), term(), strategy()) ->
+                      noproc | timeout | gen_server_request_id().
 send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
 %%      Timeout applies only for the time used choosing a worker in the available_worker strategy
 -spec send_request(name(), term(), strategy(), timeout()) ->
-                      noproc | timeout | reference().
+                      noproc | timeout | gen_server_request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
     wpool_pool:send_request_available_worker(Sup, Call, Timeout);
 send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->

@@ -43,6 +43,18 @@
 
 -export_type([wpool/0]).
 
+-if(?OTP_RELEASE >= 25).
+
+-type gen_server_request_id() :: gen_server:request_id().
+
+-else.
+
+-type gen_server_request_id() :: reference().
+
+-endif.
+
+-elvis([{elvis_style, export_used_types, disable}]).
+
 %% ===================================================================
 %% API functions
 %% ===================================================================
@@ -124,7 +136,7 @@ call_available_worker(Name, Call, Timeout) ->
 %% @doc Picks the first available worker and sends the request to it.
 %%      The timeout provided considers only the time it takes to get a worker
 -spec send_request_available_worker(wpool:name(), any(), timeout()) ->
-                                       noproc | timeout | reference().
+                                       noproc | timeout | gen_server_request_id().
 send_request_available_worker(Name, Call, Timeout) ->
     wpool_queue_manager:send_request_available_worker(queue_manager_name(Name),
                                                       Call,
