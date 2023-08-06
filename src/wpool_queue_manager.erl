@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @hidden
+%%% @private
 -module(wpool_queue_manager).
 
 -behaviour(gen_server).
@@ -68,7 +68,6 @@
 start_link(WPool, Name) ->
     start_link(WPool, Name, []).
 
-%% @private
 -spec start_link(wpool:name(), queue_mgr(), options()) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Options) ->
@@ -135,7 +134,6 @@ pending_task_count(QueueManager) ->
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
-%% @private
 -spec init(args()) -> {ok, state()}.
 init(Args) ->
     WPool = proplists:get_value(pool, Args),
@@ -148,7 +146,6 @@ init(Args) ->
             monitors = #{},
             queue_type = QueueType}}.
 
-%% @private
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
     handle_cast({worker_ready, Worker}, State);
@@ -202,7 +199,6 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
             {noreply, State#state{workers = NewWorkers}}
     end.
 
-%% @private
 -spec handle_call(call_request(), from(), state()) ->
                      {reply, {ok, atom()}, state()} | {noreply, state()}.
 handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
@@ -225,7 +221,6 @@ handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
 handle_call(pending_task_count, _From, State) ->
     {reply, get(pending_tasks), State}.
 
-%% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
     handle_info({'DOWN', Ref, Type, Worker, Exit}, State);

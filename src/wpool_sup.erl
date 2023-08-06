@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @hidden
+%%% @private
 -module(wpool_sup).
 
 -behaviour(supervisor).
@@ -47,7 +47,6 @@ stop_pool(Name) ->
 %%----------------------------------------------------------------------
 %% Supervisor behaviour callbacks
 %%----------------------------------------------------------------------
-%% @hidden
 -spec init([]) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
 init([]) ->
     {ok,
