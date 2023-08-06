@@ -1,6 +1,6 @@
 # Worker Pool [![Build Status](https://travis-ci.org/inaka/worker_pool.svg?branch=main)](https://travis-ci.org/inaka/worker_pool)[![codecov](https://codecov.io/gh/inaka/worker_pool/branch/main/graph/badge.svg)](https://codecov.io/gh/inaka/worker_pool)
 
-<img src="http://img3.wikia.nocookie.net/__cb20140705120849/clubpenguin/images/thumb/f/ff/MINIONS.jpg/481px-MINIONS.jpg" align="right" style="float:right" height="400" />
+<img src="https://img3.wikia.nocookie.net/__cb20140705120849/clubpenguin/images/thumb/f/ff/MINIONS.jpg/481px-MINIONS.jpg" align="right" style="float:right" height="400" />
 
 A pool of gen servers.
 
@@ -17,7 +17,7 @@ The documentation can be generated from code using [edoc](http://www.erlang.org/
 All user functions are exposed through the [wpool module](https://hexdocs.pm/worker_pool/wpool.html).
 
 #### Starting the Application
-**Worker Pool** is an erlang application that can be started using the functions in the [`application`](http://erldocs.com/current/kernel/application.html) module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
+**Worker Pool** is an erlang application that can be started using the functions in the [`application`](https://erldocs.com/current/kernel/application.html) module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
 
 #### Starting a Pool
 To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
@@ -41,7 +41,7 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
 
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
 * **worker_type**: The type of the worker. The available values are `gen_server`. The default value is `gen_server`. Eventually we'll add `gen_statem` as well.
-* **worker**: The [`gen_server`](http://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](https://hexdocs.pm/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
+* **worker**: The [`gen_server`](https://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](https://hexdocs.pm/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
 * **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
 * **worker_shutdown**: The `shutdown` option to be used in the child specs of the workers. Defaults to `5000`.
 * **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
@@ -59,9 +59,9 @@ Since the workers are `gen_server`s, messages can be `call`ed or `cast`ed to the
 ##### Choosing a Strategy
 Beyond the regular parameters for `gen_server`, wpool also provides an extra optional parameter: **Strategy**.
 The strategy used to pick up the worker to perform the task. If not provided, the result of `wpool:default_strategy/0` is used.  The available strategies are defined in the `wpool:strategy/0` type and also described below:
+Picks the worker with the smaller queue of messages. Loosely based on [this article](https://lethain.com/load-balancing-across-erlang-process-groups/). This strategy is usually useful when your workers always perform the same task, or tasks with expectedly similar runtimes.
 
 ###### best_worker
-Picks the worker with the smaller queue of messages. Loosely based on [this article](http://lethain.com/load-balancing-across-erlang-process-groups/). This strategy is usually useful when your workers always perform the same task, or tasks with expectedly similar runtimes.
 
 ###### random_worker
 Just picks a random worker. This strategy is the fastest one when to select a worker. It's ideal if your workers will perform many short tasks.
@@ -107,7 +107,7 @@ To stop a pool, just use `wpool:stop/1`.
 
 To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios exercised in the different suites.
 
-If you want to see **worker_pool** in a _real life_ project, I recommend you to check [sumo_db](https://github.com/inaka/sumo_db), another open-source library from [Inaka](http://inaka.github.io/) that uses wpool intensively.
+If you want to see **worker_pool** in a _real life_ project, I recommend you to check [sumo_db](https://github.com/inaka/sumo_db), another open-source library from [Inaka](https://inaka.github.io/) that uses wpool intensively.
 
 ### Benchmarks
 
