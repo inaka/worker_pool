@@ -32,6 +32,8 @@
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
+-dialyzer({no_underspecs, all/0}).
+
 -spec all() -> [atom()].
 all() ->
     [too_much_overrun,
@@ -58,11 +60,11 @@ end_per_suite(Config) ->
     wpool:stop(),
     Config.
 
--spec overrun_handler1(M) -> M.
+-spec overrun_handler1(M) -> {overrun1, M}.
 overrun_handler1(M) ->
     overrun_handler ! {overrun1, M}.
 
--spec overrun_handler2(M) -> M.
+-spec overrun_handler2(M) -> {overrun2, M}.
 overrun_handler2(M) ->
     overrun_handler ! {overrun2, M}.
 

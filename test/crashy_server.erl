@@ -29,7 +29,7 @@
 %%%===================================================================
 %%% callbacks
 %%%===================================================================
--spec init(Something) -> Something.
+-spec init(Something) -> {ok, Something}.
 init(Something) ->
     {ok, Something}.
 

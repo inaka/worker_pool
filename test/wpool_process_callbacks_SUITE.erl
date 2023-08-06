@@ -14,6 +14,8 @@
          crashing_callback_does_not_affect_others/1, non_existsing_module_does_not_affect_others/1,
          complete_coverage/1]).
 
+-dialyzer({no_underspecs, all/0}).
+
 -spec all() -> [atom()].
 all() ->
     [complete_callback_passed_when_starting_pool,
