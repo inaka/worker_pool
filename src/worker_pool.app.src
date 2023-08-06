@@ -26,7 +26,7 @@
   {env, []},
   {licenses, ["Apache2"]},
   {links,
-   [{"Github", "https://github.com/inaka/worker_pool"},
+   [{"GitHub", "https://github.com/inaka/worker_pool"},
     {"Blog Post",
      "https://web.archive.org/web/20170602054156/https://inaka.net/blog/2014/09/25/worker-pool/"}]},
   {build_tools, ["rebar3"]}]}.
