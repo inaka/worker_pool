@@ -1,14 +1,6 @@
 rebar3.crashdump
+.rebar3
 doc/
-codecov.json
-_build/
-all.coverdata
-doc
-.DS_Store
+_*
 erl_crash.dump
-*.beam
-*.log
-*~
-.idea
-*.iml
-*.orig
+logs
