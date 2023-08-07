@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ['24', '25', '26']
+        otp: ['25', '26']
         rebar: ['3.22']
 
     steps:

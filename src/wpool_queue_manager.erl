@@ -34,7 +34,7 @@
 
 -export_type([state/0]).
 
--type from() :: {pid(), gen_server_reply_tag()}.
+-type from() :: {pid(), gen_server:reply_tag()}.
 
 -export_type([from/0]).
 
@@ -59,20 +59,6 @@
 
 -export_type([call_request/0]).
 -export_type([queue_mgr/0, queue_type/0]).
-
--if(?OTP_RELEASE >= 25).
-
--type gen_server_request_id() :: gen_server:request_id().
--type gen_server_reply_tag() :: gen_server:reply_tag().
-
--else.
-
--type gen_server_request_id() :: reference().
--type gen_server_reply_tag() :: reference().
-
--endif.
-
--elvis([{elvis_style, export_used_types, disable}]).
 
 %%%===================================================================
 %%% API
@@ -110,7 +96,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 
 %% @doc returns the first available worker in the pool
 -spec send_request_available_worker(queue_mgr(), any(), timeout()) ->
-                                       noproc | timeout | gen_server_request_id().
+                                       noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
         {ok, _TimeLeft, Worker} ->
