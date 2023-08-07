@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -37,7 +37,9 @@
     {pool_sup_intensity, non_neg_integer()} |
     {pool_sup_shutdown, brutal_kill | timeout()} |
     {pool_sup_period, non_neg_integer()} |
-    {queue_type, wpool_queue_manager:queue_type()}.
+    {queue_type, wpool_queue_manager:queue_type()} |
+    {enable_callbacks, boolean()} |
+    {callbacks, [module()]}.
 -type custom_strategy() :: fun(([atom()]) -> Atom :: atom()).
 -type strategy() ::
     best_worker |
@@ -125,7 +127,7 @@ stop_pool(Name) ->
 start_sup_pool(Name) ->
     start_sup_pool(Name, []).
 
-%% @doc Starts a pool of N wpool_processes supervised by {@link wpool_sup}
+%% @doc Starts a pool of N wpool_processes supervised by `wpool_sup'
 -spec start_sup_pool(name(), [option()]) ->
                         {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_sup_pool(Name, Options) ->
@@ -192,19 +194,20 @@ cast(Sup, Cast, Strategy) ->
         wpool_pool:Strategy(Sup), Cast).
 
 %% @equiv send_request(Sup, Call, default_strategy(), 5000)
--spec send_request(name(), term()) -> noproc | timeout | reference().
+-spec send_request(name(), term()) -> noproc | timeout | gen_server:request_id().
 send_request(Sup, Call) ->
     send_request(Sup, Call, default_strategy()).
 
 %% @equiv send_request(Sup, Call, Strategy, 5000)
--spec send_request(name(), term(), strategy()) -> noproc | timeout | reference().
+-spec send_request(name(), term(), strategy()) ->
+                      noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
 %%      Timeout applies only for the time used choosing a worker in the available_worker strategy
 -spec send_request(name(), term(), strategy(), timeout()) ->
-                      noproc | timeout | reference().
+                      noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
     wpool_pool:send_request_available_worker(Sup, Call, Timeout);
 send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->

@@ -4,6 +4,8 @@
 
 -type config() :: [{atom(), term()}].
 
+-export_type([config/0]).
+
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
 -export([complete_callback_passed_when_starting_pool/1,
@@ -11,6 +13,8 @@
          callback_can_be_added_and_removed_after_pool_is_started/1,
          crashing_callback_does_not_affect_others/1, non_existsing_module_does_not_affect_others/1,
          complete_coverage/1]).
+
+-dialyzer({no_underspecs, all/0}).
 
 -spec all() -> [atom()].
 all() ->

@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -12,7 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Decorator over {@link gen_server} that lets {@link wpool_pool}
+%%% @doc Decorator over `gen_server' that lets `wpool_pool'
 %%%      control certain aspects of the execution
 -module(wpool_process).
 
@@ -28,10 +28,21 @@
                overrun_warning := timeout(),
                _ => _}}).
 
--type state() :: #state{}.
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
 -type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
+
 -type next_step() :: timeout() | hibernate | {continue, term()}.
+
+-export_type([next_step/0]).
+
 -type options() :: [{time_checker | queue_manager, atom()} | wpool:option()].
+
+-export_type([options/0]).
 
 %% api
 -export([start_link/4, call/3, cast/2, send_request/2]).

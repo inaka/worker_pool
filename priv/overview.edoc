@@ -1,6 +1,0 @@
-** this is the overview.doc file for Worker Pool **
-
-@author Brujo <brujo.benavides@nextroll.com>
-@title Worker Pool
-@doc This project goal is simple: It's just a pool of Gen Servers.
-@reference See <a target="_blank" href="https://github.com/inaka/worker_pool">our README</a> for more information.

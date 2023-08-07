@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -12,7 +12,7 @@
 % specific language governing permissions and limitations
 % under the License.
 %%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc Default instance for {@link wpool_process}
+%%% @doc Default instance for `wpool_process'
 -module(wpool_worker).
 
 -behaviour(gen_server).
@@ -21,6 +21,16 @@
 -export([call/4, cast/4]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
+
+-record(state, {}).
+
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
+-type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
 
 %%%===================================================================
 %%% API
@@ -44,10 +54,6 @@ cast(S, M, F, A) ->
 %%% simple callbacks
 %%%===================================================================
 
--record(state, {}).
-
--type state() :: #state{}.
-
 %% @private
 -spec init(undefined) -> {ok, state()}.
 init(undefined) ->
@@ -70,8 +76,6 @@ handle_cast({M, F, A}, State) ->
 handle_cast(Cast, State) ->
     error_logger:error_msg("Invalid cast:~p", [Cast]),
     {noreply, State, hibernate}.
-
--type from() :: {pid(), reference()}.
 
 %% @private
 -spec handle_call(term(), from(), state()) ->

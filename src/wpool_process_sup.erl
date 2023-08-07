@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @hidden
+%%% @private
 -module(wpool_process_sup).
 
 -behaviour(supervisor).
@@ -33,14 +33,8 @@ init({Name, Options}) ->
     Workers = proplists:get_value(workers, Options, 100),
     Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     maybe_add_event_handler(Options),
-    {WorkerType, Worker, InitArgs} =
-        case proplists:get_value(worker_type, Options, gen_server) of
-            gen_server ->
-                {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
-                {wpool_process, W, IA}
-        end,
-    %% We'll eventually add more types (like gen_statem),
-    %% that's why this case remains
+    {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
+    {WorkerType, Worker, InitArgs} = {wpool_process, W, IA},
     WorkerShutdown = proplists:get_value(worker_shutdown, Options, 5000),
     WorkerSpecs =
         [{wpool_pool:worker_name(Name, I),

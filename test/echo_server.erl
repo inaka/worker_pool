@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -21,6 +21,10 @@
          handle_continue/2, format_status/2]).
 
 -dialyzer([no_behaviours]).
+
+-type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
 
 %%%===================================================================
 %%% callbacks
@@ -46,8 +50,6 @@ handle_info(Info, _State) ->
 -spec handle_cast(Cast, term()) -> Cast.
 handle_cast(Cast, _State) ->
     Cast.
-
--type from() :: {pid(), reference()}.
 
 -spec handle_call(Call, from(), term()) -> Call.
 handle_call(Call, _From, _State) ->

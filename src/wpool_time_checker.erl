@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -11,21 +11,31 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @hidden
+%%% @private
 -module(wpool_time_checker).
 
 -behaviour(gen_server).
 
 -type handler() :: {atom(), atom()}.
 
+-export_type([handler/0]).
+
 -record(state, {wpool :: wpool:name(), handlers :: [handler()]}).
 
--type state() :: #state{}.
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
+-type from() :: {pid(), reference()}.
+
+-export_type([from/0]).
 
 %% api
 -export([start_link/3, add_handler/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
+
+-elvis([{elvis_style, no_catch_expressions, disable}]).
 
 %%%===================================================================
 %%% API
@@ -56,10 +66,8 @@ init({WPool, Handlers}) ->
 handle_cast(_Cast, State) ->
     {noreply, State}.
 
--type from() :: {pid(), reference()}.
-
 -spec handle_call({add_handler, handler()}, from(), state()) -> {reply, ok, state()}.
-handle_call({add_handler, Handler}, _, State = #state{handlers = Handlers}) ->
+handle_call({add_handler, Handler}, _, #state{handlers = Handlers} = State) ->
     {reply, ok, State#state{handlers = [Handler | Handlers]}}.
 
 %%%===================================================================

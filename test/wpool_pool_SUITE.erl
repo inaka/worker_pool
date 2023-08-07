@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -19,6 +19,8 @@
 
 -type config() :: [{atom(), term()}].
 
+-export_type([config/0]).
+
 -define(WORKERS, 6).
 
 -export([all/0]).
@@ -27,6 +29,9 @@
          hash_worker/1, custom_worker/1, next_available_worker/1, wpool_record/1,
          queue_type_fifo/1, queue_type_lifo/1, get_workers/1]).
 -export([manager_crash/1, super_fast/1, mess_up_with_store/1]).
+
+-elvis([{elvis_style, no_block_expressions, disable}]).
+-elvis([{elvis_style, no_catch_expressions, disable}]).
 
 -spec all() -> [atom()].
 all() ->

@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -47,7 +47,7 @@
 %% API functions
 %% ===================================================================
 
-%% @doc Starts a supervisor with several {@link wpool_process}es as its children
+%% @doc Starts a supervisor with several `wpool_process'es as its children
 -spec start_link(wpool:name(), [wpool:option()]) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(Name, Options) ->
@@ -124,7 +124,7 @@ call_available_worker(Name, Call, Timeout) ->
 %% @doc Picks the first available worker and sends the request to it.
 %%      The timeout provided considers only the time it takes to get a worker
 -spec send_request_available_worker(wpool:name(), any(), timeout()) ->
-                                       noproc | timeout | reference().
+                                       noproc | timeout | gen_server:request_id().
 send_request_available_worker(Name, Call, Timeout) ->
     wpool_queue_manager:send_request_available_worker(queue_manager_name(Name),
                                                       Call,
@@ -245,9 +245,9 @@ task({_TaskId, Started, Task}) ->
 %% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
 -spec next(pos_integer(), wpool()) -> wpool().
-next(Next, WPool = #wpool{next = Atomic}) ->
+next(Next, #wpool{next = Atomic} = Wpool) ->
     atomics:put(Atomic, 1, Next),
-    WPool.
+    Wpool.
 
 %% @doc Adds a callback module.
 %%      The module must implement the <pre>wpool_process_callbacks</pre> behaviour.
@@ -266,10 +266,10 @@ remove_callback_module(Pool, Module) ->
 %% strategy function.
 -spec wpool_get(atom(), wpool()) -> any();
                ([atom()], wpool()) -> any().
-wpool_get(List, WPool) when is_list(List) ->
-    [g(Atom, WPool) || Atom <- List];
-wpool_get(Atom, WPool) when is_atom(Atom) ->
-    g(Atom, WPool).
+wpool_get(List, Wpool) when is_list(List) ->
+    [g(Atom, Wpool) || Atom <- List];
+wpool_get(Atom, Wpool) when is_atom(Atom) ->
+    g(Atom, Wpool).
 
 g(name, #wpool{name = Ret}) ->
     Ret;
@@ -455,15 +455,15 @@ store_wpool(Name, Size, Options) ->
     Atomic = atomics:new(1, [{signed, false}]),
     atomics:put(Atomic, 1, 1),
     WorkerNames = list_to_tuple([worker_name(Name, I) || I <- lists:seq(1, Size)]),
-    WPool =
+    Wpool =
         #wpool{name = Name,
                size = Size,
                next = Atomic,
                workers = WorkerNames,
                opts = Options,
                qmanager = queue_manager_name(Name)},
-    persistent_term:put({?MODULE, Name}, WPool),
-    WPool.
+    persistent_term:put({?MODULE, Name}, Wpool),
+    Wpool.
 
 %% @doc Use this function to get the Worker pool record in a custom worker.
 -spec find_wpool(atom()) -> undefined | wpool().
@@ -471,8 +471,8 @@ find_wpool(Name) ->
     try {erlang:whereis(Name), persistent_term:get({?MODULE, Name})} of
         {undefined, _} ->
             undefined;
-        {_, WPool} ->
-            WPool
+        {_, Wpool} ->
+            Wpool
     catch
         _:badarg ->
             build_wpool(Name)

@@ -3,7 +3,7 @@
 % except in compliance with the License.  You may obtain
 % a copy of the License at
 %
-% http://www.apache.org/licenses/LICENSE-2.0
+% https://www.apache.org/licenses/LICENSE-2.0
 %
 % Unless required by applicable law or agreed to in writing,
 % software distributed under the License is distributed on an
@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @hidden
+%%% @private
 -module(wpool_queue_manager).
 
 -behaviour(gen_server).
@@ -30,28 +30,44 @@
          monitors :: #{atom() := monitored_from()},
          queue_type :: queue_type()}).
 
--type state() :: #state{}.
--type from() :: {pid(), reference()}.
+-opaque state() :: #state{}.
+
+-export_type([state/0]).
+
+-type from() :: {pid(), gen_server:reply_tag()}.
+
+-export_type([from/0]).
+
 -type monitored_from() :: {reference(), from()}.
 -type options() :: [{option(), term()}].
+
+-export_type([options/0]).
+
 -type option() :: queue_type.
 -type args() :: [{arg(), term()}].
+
+-export_type([args/0]).
+
 -type arg() :: option() | pool.
 -type queue_mgr() :: atom().
 -type queue_type() :: fifo | lifo.
+-type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 
+-export_type([worker_event/0]).
+
+-type call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
+
+-export_type([call_request/0]).
 -export_type([queue_mgr/0, queue_type/0]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-%% @equiv start_link(WPool, Name, [])
 -spec start_link(wpool:name(), queue_mgr()) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name) ->
     start_link(WPool, Name, []).
 
-%% @private
 -spec start_link(wpool:name(), queue_mgr(), options()) ->
                     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Options) ->
@@ -80,7 +96,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 
 %% @doc returns the first available worker in the pool
 -spec send_request_available_worker(queue_mgr(), any(), timeout()) ->
-                                       noproc | timeout | reference().
+                                       noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
         {ok, _TimeLeft, Worker} ->
@@ -118,7 +134,6 @@ pending_task_count(QueueManager) ->
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
-%% @private
 -spec init(args()) -> {ok, state()}.
 init(Args) ->
     WPool = proplists:get_value(pool, Args),
@@ -131,9 +146,6 @@ init(Args) ->
             monitors = #{},
             queue_type = QueueType}}.
 
--type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
-
-%% @private
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
     handle_cast({worker_ready, Worker}, State);
@@ -187,12 +199,9 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
             {noreply, State#state{workers = NewWorkers}}
     end.
 
--type call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
-
-%% @private
 -spec handle_call(call_request(), from(), state()) ->
                      {reply, {ok, atom()}, state()} | {noreply, state()}.
-handle_call({available_worker, ExpiresAt}, Client = {ClientPid, _Ref}, State) ->
+handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
     #state{workers = Workers, clients = Clients} = State,
     case gb_sets:is_empty(Workers) of
         true ->
@@ -212,11 +221,10 @@ handle_call({available_worker, ExpiresAt}, Client = {ClientPid, _Ref}, State) ->
 handle_call(pending_task_count, _From, State) ->
     {reply, get(pending_tasks), State}.
 
-%% @private
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
     handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
-handle_info({'DOWN', _, _, Worker, Exit}, State = #state{monitors = Mons}) ->
+handle_info({'DOWN', _, _, Worker, Exit}, #state{monitors = Mons} = State) ->
     case Mons of
         #{Worker := {_Ref, Client}} ->
             gen_server:reply(Client, {'EXIT', Worker, Exit}),
@@ -282,7 +290,7 @@ is_expired(ExpiresAt) ->
 now_in_milliseconds() ->
     erlang:system_time(millisecond).
 
-monitor_worker(Worker, Client, State = #state{monitors = Mons}) ->
+monitor_worker(Worker, Client, #state{monitors = Mons} = State) ->
     Ref = monitor(process, Worker),
     State#state{monitors = maps:put(Worker, {Ref, Client}, Mons)}.
 
