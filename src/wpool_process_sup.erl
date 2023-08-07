@@ -33,7 +33,6 @@ init({Name, Options}) ->
     Workers = proplists:get_value(workers, Options, 100),
     Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
     maybe_add_event_handler(Options),
-    gen_server = proplists:get_value(worker_type, Options, gen_server),
     {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
     {WorkerType, Worker, InitArgs} = {wpool_process, W, IA},
     WorkerShutdown = proplists:get_value(worker_shutdown, Options, 5000),
