@@ -22,7 +22,7 @@
 -export([start_link/2]).
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
          next_available_worker/1, send_request_available_worker/3, call_available_worker/3]).
--export([cast_to_available_worker/2, broadcast/2]).
+-export([cast_to_available_worker/2, broadcast/2, broadcall/3]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([worker_name/2, find_wpool/1]).
 -export([next/2, wpool_get/2]).
@@ -157,6 +157,31 @@ cast_to_available_worker(Name, Cast) ->
 broadcast(Name, Cast) ->
     lists:foreach(fun(Worker) -> ok = wpool_process:cast(Worker, Cast) end,
                   all_workers(Name)).
+
+%% @doc Calls all workers in the pool in parallel
+%%
+%% Waits for responses in parallel too, and it assumes that if any response times out,
+%% all of them did too and therefore exits with reason timeout like a regular `gen_server' does.
+-spec broadcall(wpool:name(), term(), timeout()) ->
+                   {[Replies :: term()], [Errors :: term()]}.
+broadcall(Name, Call, Timeout) ->
+    Workers = all_workers(Name),
+    ReqId0 = gen_server:reqids_new(),
+    RequestFold = fun(Worker, Acc) -> gen_server:send_request(Worker, Call, Name, Acc) end,
+    ReqId1 = lists:foldl(RequestFold, ReqId0, Workers),
+    WaitFold =
+        fun(_, {Coll, Replies, Errors}) ->
+           case gen_server:receive_response(Coll, Timeout, true) of
+               {{reply, Reply}, _, Coll1} ->
+                   {Coll1, [Reply | Replies], Errors};
+               {{error, Error}, _, Coll1} ->
+                   {Coll1, Replies, [Error | Errors]};
+               timeout ->
+                   exit({timeout, {?MODULE, broadcall, [Name, Call, Timeout]}})
+           end
+        end,
+    {_, Replies, Errors} = lists:foldl(WaitFold, {ReqId1, [], []}, Workers),
+    {Replies, Errors}.
 
 -spec all() -> [wpool:name()].
 all() ->

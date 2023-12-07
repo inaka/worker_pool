@@ -65,7 +65,7 @@
 -export([start/0, start/2, stop/0, stop/1]).
 -export([start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1, stop_sup_pool/1]).
--export([call/2, cast/2, call/3, cast/3, call/4, broadcast/2]).
+-export([call/2, cast/2, call/3, cast/3, call/4, broadcall/3, broadcast/2]).
 -export([send_request/2, send_request/3, send_request/4]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
@@ -239,3 +239,9 @@ get_workers(Sup) ->
 -spec broadcast(wpool:name(), term()) -> ok.
 broadcast(Sup, Cast) ->
     wpool_pool:broadcast(Sup, Cast).
+
+%% @doc Calls all the workers within the given pool async and waits for the responses synchronously
+-spec broadcall(wpool:name(), term(), timeout()) ->
+                   {[Replies :: term()], [Errors :: term()]}.
+broadcall(Sup, Call, Timeout) ->
+    wpool_pool:broadcall(Sup, Call, Timeout).
