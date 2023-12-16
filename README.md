@@ -38,7 +38,6 @@ To start a new worker pool, you can either use `wpool:start_pool` (if you want t
   * *{runtime, Runtime}*: The runtime of the current round
 
 * **workers**: The number of workers in the pool. The default value for this setting is `100`
-* **worker_type**: The type of the worker. The available values are `gen_server`. The default value is `gen_server`. Eventually we'll add `gen_statem` as well.
 * **worker**: The [`gen_server`](https://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](https://hexdocs.pm/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
 * **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
 * **worker_shutdown**: The `shutdown` option to be used in the child specs of the workers. Defaults to `5000`.
