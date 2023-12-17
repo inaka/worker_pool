@@ -27,8 +27,8 @@
 -export([init_per_suite/1, end_per_suite/1]).
 -export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
          kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
-         overrun_handler2/1, default_options/1, complete_coverage/1, broadcall/1, broadcast/1,
-         send_request/1, worker_killed_stats/1]).
+         overrun_handler2/1, default_options/1, complete_coverage/1, child_spec/1, broadcall/1,
+         broadcast/1, send_request/1, worker_killed_stats/1]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
@@ -45,6 +45,7 @@ all() ->
      default_strategy,
      default_options,
      complete_coverage,
+     child_spec,
      broadcast,
      broadcall,
      send_request,
@@ -382,6 +383,14 @@ complete_coverage(_Config) ->
     QMPid = get_queue_manager(PoolPid),
     QMPid ! info,
     {ok, _} = wpool_queue_manager:init([{pool, pool}]),
+
+    {comment, []}.
+
+-spec child_spec(config()) -> {comment, []}.
+child_spec(_Config) ->
+    ct:comment("Verify child_spec is correct"),
+    ChildSpec = wpool:child_spec(child_spec, []),
+    ok = supervisor:check_childspecs([ChildSpec]),
 
     {comment, []}.
 
