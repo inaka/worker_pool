@@ -27,8 +27,8 @@
 -export([init_per_suite/1, end_per_suite/1]).
 -export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
          kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
-         overrun_handler2/1, default_options/1, complete_coverage/1, broadcast/1, send_request/1,
-         worker_killed_stats/1]).
+         overrun_handler2/1, default_options/1, complete_coverage/1, broadcall/1, broadcast/1,
+         send_request/1, worker_killed_stats/1]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
@@ -46,6 +46,7 @@ all() ->
      default_options,
      complete_coverage,
      broadcast,
+     broadcall,
      send_request,
      kill_on_overrun,
      worker_killed_stats].
@@ -382,6 +383,38 @@ complete_coverage(_Config) ->
     QMPid ! info,
     {ok, _} = wpool_queue_manager:init([{pool, pool}]),
 
+    {comment, []}.
+
+-spec broadcall(config()) -> {comment, []}.
+broadcall(_Config) ->
+    Pool = broadcall,
+    WorkersCount = 19,
+    {ok, _Pid} = wpool:start_pool(Pool, [{workers, WorkersCount}]),
+
+    ct:comment("Check mecked function is called ~p times.", [WorkersCount]),
+    meck:new(x, [non_strict]),
+    meck:expect(x, x, fun() -> ok end),
+    % Broadcall x:x() execution to workers.
+    {[_ | _], _} = wpool:broadcall(Pool, {x, x, []}, infinity),
+    % Give some time for the workers to perform the calls.
+    WorkersCount = ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
+
+    ct:comment("Check they all are \"working\""),
+    try
+        % Make all the workers sleep for 1.5 seconds
+        wpool:broadcall(Pool, {timer, sleep, [1500]}, 1000),
+        % check they all are actually busy (executing timer:sleep/1 function).
+        ct:fail("They finished before the timeout")
+    catch
+        _:{timeout, _} ->
+            ok
+    end,
+
+    ct:comment("Check that failures are delivered as errors"),
+    meck:expect(x, fail, fun() -> exit(self(), shutdown) end),
+    {_, [_ | _]} = wpool:broadcall(Pool, {x, fail, []}, infinity),
+
+    meck:unload(x),
     {comment, []}.
 
 -spec broadcast(config()) -> {comment, []}.
