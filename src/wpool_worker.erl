@@ -11,10 +11,9 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%% @doc Default instance for `wpool_process'
-%%
-%% It is a module that implements a very simple RPC-like interface.
+%%% @doc Default instance for `wpool_process'
+%%%
+%%% It is a module that implements a very simple RPC-like interface.
 -module(wpool_worker).
 
 -behaviour(gen_server).

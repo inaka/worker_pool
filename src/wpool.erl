@@ -11,46 +11,48 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%% @doc Worker pool main interface.
-%%
-%% Use functions provided by this module to manage your pools of workers.
-%%
-%% <h2>Starting the application</h2>
-%% <b>Worker Pool</b> is an Erlang application that can be started using the functions in the
-%% `application' module. For convenience, `wpool:start/0' and `wpool:stop/0' are also provided.
-%%
-%% <h2>Starting a Pool</h2>
-%%
-%% To start a new worker pool, you can either
-%% <ul>
-%%   <li>Use `wpool:child_spec/2' if you want to add the pool under a supervision tree
-%%   initialisation;</li>
-%%   <li>Use `wpool:start_pool/1' or `wpool:start_pool/2' if you want to supervise it yourself;</li>
-%%   <li>Use `wpool:start_sup_pool/1' or `wpool:start_sup_pool/2' if you want the pool to live under
-%%   wpool's supervision tree.</li>
-%% </ul>
-%%
-%% <h2>Stopping a Pool</h2>
-%% To stop a pool, just use `wpool:stop_pool/1' or `wpool:stop_sup_pool/1' according to how you
-%% started the pool.
-%%
-%% <h2>Using the Workers</h2>
-%%
-%% Since the workers are `gen_server's, messages can be `call'ed or `cast'ed to them. To do that you
-%% can use `wpool:call' and `wpool:cast' as you would use the equivalent functions on `gen_server'.
-%%
-%% <h3>Choosing a Strategy</h3>
-%%
-%% Beyond the regular parameters for `gen_server', wpool also provides an extra optional parameter
-%% <b>Strategy</b> The strategy used to pick up the worker to perform the task. If not provided,
-%% the result of `wpool:default_strategy/0' is used.
-%%
-%% The available strategies are defined in the `t:wpool:strategy/0' type.
-%%
-%% <h2>Watching a Pool</h2>
-%% Wpool provides a way to get live statistics about a pool. To do that, you can use
-%% `wpool:stats/1'.
+%%% @doc Worker pool main interface.
+%%%
+%%% Use functions provided by this module to manage your pools of workers.
+%%%
+%%% <h2>Starting the application</h2>
+%%% <b>Worker Pool</b> is an Erlang application that can be started using the functions in the
+%%% `application' module. For convenience, `wpool:start/0' and `wpool:stop/0' are also provided.
+%%%
+%%% <h2>Starting a Pool</h2>
+%%%
+%%% To start a new worker pool, you can either
+%%% <ul>
+%%%   <li>Use `wpool:child_spec/2' if you want to add the pool under a supervision tree
+%%%   initialisation;</li>
+%%%   <li>Use `wpool:start_pool/1' or `wpool:start_pool/2' if you want to supervise it
+%%%   yourself;</li>
+%%%   <li>Use `wpool:start_sup_pool/1' or `wpool:start_sup_pool/2' if you want the pool to live
+%%%   under
+%%%   wpool's supervision tree.</li>
+%%% </ul>
+%%%
+%%% <h2>Stopping a Pool</h2>
+%%% To stop a pool, just use `wpool:stop_pool/1' or `wpool:stop_sup_pool/1' according to how you
+%%% started the pool.
+%%%
+%%% <h2>Using the Workers</h2>
+%%%
+%%% Since the workers are `gen_server's, messages can be `call'ed or `cast'ed to them. To do that
+%%% you can use `wpool:call' and `wpool:cast' as you would use the equivalent functions on
+%%% `gen_server'.
+%%%
+%%% <h3>Choosing a Strategy</h3>
+%%%
+%%% Beyond the regular parameters for `gen_server', wpool also provides an extra optional parameter
+%%% <b>Strategy</b> The strategy used to pick up the worker to perform the task. If not provided,
+%%% the result of `wpool:default_strategy/0' is used.
+%%%
+%%% The available strategies are defined in the `t:wpool:strategy/0' type.
+%%%
+%%% <h2>Watching a Pool</h2>
+%%% Wpool provides a way to get live statistics about a pool. To do that, you can use
+%%% `wpool:stats/1'.
 -module(wpool).
 
 -behaviour(application).
