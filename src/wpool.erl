@@ -33,7 +33,6 @@
     {worker_opt, gen_options()} |
     {worker, {Module :: atom(), InitArg :: term()}} |
     {strategy, supervisor_strategy()} |
-    {worker_type, gen_server} |
     {pool_sup_intensity, non_neg_integer()} |
     {pool_sup_shutdown, brutal_kill | timeout()} |
     {pool_sup_period, non_neg_integer()} |
