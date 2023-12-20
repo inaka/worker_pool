@@ -55,6 +55,9 @@
 %%% `wpool:stats/1'.
 -module(wpool).
 
+%% @todo remove this line when https://github.com/AdRoll/rebar3_format/issues/356 is fixed
+-format ignore.
+
 -behaviour(application).
 
 -type overrun_warning() :: infinity | pos_integer().
