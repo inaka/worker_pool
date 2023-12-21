@@ -11,9 +11,14 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @author Fernando Benavides <elbrujohalcon@inaka.net>
-%%% @doc A pool of workers. If you want to put it in your supervisor tree,
-%%%      remember it's a supervisor.
+%%% @doc Top supervisor for a `worker_pool'.
+%%%
+%%% This supervisor supervises `wpool_process_sup' (which is the worker's supervisor) together with
+%%% auxiliary servers that help keep the whole pool running and in order.
+%%%
+%%% The strategy of this supervisor must be `one_for_all' but the intensity and period may be
+%%% changed from their defaults by the `t:wpool:pool_sup_intensity()' and
+%%% `t:wpool:pool_sup_intensity()' options respectively.
 -module(wpool_pool).
 
 -behaviour(supervisor).
@@ -275,7 +280,7 @@ next(Next, #wpool{next = Atomic} = Wpool) ->
     Wpool.
 
 %% @doc Adds a callback module.
-%%      The module must implement the <pre>wpool_process_callbacks</pre> behaviour.
+%%      The module must implement the `wpool_process_callbacks' behaviour.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(Pool, Module) ->
     EventManager = event_manager_name(Pool),
@@ -371,7 +376,10 @@ init({Name, Options}) ->
 
     SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
     SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
-    SupStrategy = {one_for_all, SupIntensity, SupPeriod},
+    SupStrategy =
+        #{strategy => one_for_all,
+          intensity => SupIntensity,
+          period => SupPeriod},
     {ok, {SupStrategy, Children}}.
 
 %% @private

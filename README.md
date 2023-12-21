@@ -6,116 +6,93 @@ A pool of gen servers.
 
 ## Abstract
 
-The goal of **worker pool** is pretty straightforward: To provide a transparent way to manage a pool of workers and _do the best effort_ in balancing the load among them distributing the tasks requested to the pool.
+The goal of **worker pool** is pretty straightforward: to provide a transparent way to manage a pool of workers and _do the best effort_ in balancing the load among them, distributing the tasks requested to the pool.
+
+You can just replace your calls to the `gen_server` module with calls to the `wpool` module, i.e., wherever you had a `gen_server:call/N` now you put a `wpool:call/N`, and that’s it!
+
+## Installation
+
+Worker Pool is available on [Hex.pm](https://hex.pm/packages/worker_pool). To install, just add it to your dependencies in `rebar.config`:
+```erlang
+{deps, [{worker_pool, "~> 6.1"}]}.
+```
+or in `mix.ers`
+```elixir
+defp deps() do
+  [{:worker_pool, "~> 6.1"}]
+end
+```
 
 ## Documentation
 
-The documentation can be generated from code using [rebar3_ex_doc](https://github.com/starbelly/rebar3_ex_doc) with `rebar3 ex_doc`. It is also available online [here](https://hexdocs.pm/worker_pool/)
-
-## Usage
+The documentation can be generated from code using [rebar3_ex_doc](https://github.com/starbelly/rebar3_ex_doc) with `rebar3 ex_doc`. It is also available online in [Hexdocs](https://hexdocs.pm/worker_pool/).
 
 All user functions are exposed through the [wpool module](https://hexdocs.pm/worker_pool/wpool.html).
 
-### Starting the Application
-
-**Worker Pool** is an erlang application that can be started using the functions in the [`application`](https://erldocs.com/current/kernel/application.html) module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
-
-### Starting a Pool
-
-To start a new worker pool, you can either use `wpool:start_pool` (if you want to supervise it yourself) or `wpool:start_sup_pool` (if you want the pool to live under wpool's supervision tree). You can provide several options on any of those calls:
-
-* **overrun_warning**: The number of milliseconds after which a task is considered *overrun* (i.e. delayed) so a warning is emitted using **overrun_handler**. The task is monitored until it is finished, thus more than one warning might be emitted for a single task. The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead: after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000` warnings would be emitted after 1000, 2000, 4000, 8000 ...) The default value for this setting is `infinity` (i.e. no warnings are emitted)
-* **max_overrun_warnings**: The maximum number of overrun warnings emitted before killing a delayed task: that is, killing the worker running the task. If this parameter is set to a value other than `infinity` the rounds of warnings becomes equally timed (i.e. with `overrun_warning = 1000` and `max_overrun_warnings = 5` the task would be killed after 5 seconds of execution) The default value for this setting is `infinity` (i.e. delayed tasks are not killed)
-
-   **NOTE:** As the worker is being killed it might cause worker's messages to be missing if you are using a worker stategy other than `available_worker` (see worker strategies below)
-
-* **overrun_handler**: The module and function to call when a task is *overrun*. The default value for this setting is `{error_logger, warning_report}`. Repor values are:
-
-  * *{alert, AlertType}*: Where `AlertType` is `overrun` on regular warnings, or `max_overrun_limit` when the worker is about to be killed.
-  * *{pool, Pool}*: The poolname
-  * *{worker, Pid}*: Pid of the worker
-  * *{task, Task}*: A description of the task
-  * *{runtime, Runtime}*: The runtime of the current round
-
-* **workers**: The number of workers in the pool. The default value for this setting is `100`
-* **worker**: The [`gen_server`](https://erldocs.com/current/stdlib/gen_server.html) module that each worker will run and the `InitArgs` to use on the corresponding `start_link` call used to initiate it. The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't provide a worker implementation, the pool will be generated with this default one. [`wpool_worker`](https://hexdocs.pm/worker_pool/wpool_worker.html) is a module that implements a very simple RPC-like interface.
-* **worker_opt**: Options that will be passed to each `gen_server` worker. This are the same as described at `gen_server` documentation.
-* **worker_shutdown**: The `shutdown` option to be used in the child specs of the workers. Defaults to `5000`.
-* **strategy**: Not the worker selection strategy (discussed below) but the supervisor flags to be used in the supervisor over the individual workers (`wpool_process_sup`). Defaults to `{one_for_one, 5, 60}`
-* **pool_sup_intensity** and **pool_sup_period**: The intensity and period for the supervisor that manages the worker pool system (`wpool_pool`). The strategy of this supervisor must be `one_for_all` but the intensity and period may be changed from their defaults of `5` and `60`.
-* **pool_sup_shutdown**: The `shutdown` option to be used for the supervisor over the individual workers (`wpool_process_sup`). That is, the value set in the child spec for this supervisor, which is specified in its parent supervisor (`wpool_pool`).
-* **queue_type**: Order in which requests will be stored and handled by workers. This option can take values `lifo` or `fifo`. Defaults to `fifo`.
-* **enable_callbacks**: A boolean value determining if `event_manager` should be started for callback modules.
-  Defaults to `false`.
-* **callbacks**: Initial list of callback modules implementing `wpool_process_callbacks` to be called on certain worker events.
-  This options will only work if the `enable_callbacks` is set to **true**. Callbacks can be added and removed later by `wpool_pool:add_callback_module/2` and `wpool_pool:remove_callback_module/2`.
-
-### Using the Workers
-
-Since the workers are `gen_server`s, messages can be `call`ed or `cast`ed to them. To do that you can use `wpool:call` and `wpool:cast` as you would use the equivalent functions on `gen_server`.
-
-#### Choosing a Strategy
-
-Beyond the regular parameters for `gen_server`, wpool also provides an extra optional parameter: **Strategy**.
-The strategy used to pick up the worker to perform the task. If not provided, the result of `wpool:default_strategy/0` is used.  The available strategies are defined in the `t:wpool:strategy/0` type and also described below:
-
-##### best_worker
-
-Picks the worker with the smaller queue of messages. Loosely based on [this article](https://lethain.com/load-balancing-across-erlang-process-groups/). This strategy is usually useful when your workers always perform the same task, or tasks with expectedly similar runtimes.
-
-##### random_worker
-
-Just picks a random worker. This strategy is the fastest one when to select a worker. It's ideal if your workers will perform many short tasks.
-
-##### next_worker
-
-Picks the next worker in a round-robin fashion. That ensures evenly distribution of tasks.
-
-##### available_worker
-
-Instead of just picking one of the workers in the queue and sending the request to it, this strategy queues the request and waits until a worker is available to perform it. That may render the worker selection part of the process much slower (thus generating the need for an additional parameter: **Worker_Timeout** that controls how many milliseconds is the client willing to spend in that, regardless of the global **Timeout** for the call).
-This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
-It also ensures that, if a task takes too long, that doesn't block other tasks since, as soon as other worker is free it can pick up the next task in the list.
-
-##### next_available_worker
-
-In a way, this strategy behaves like `available_worker` in the sense that it will pick the first worker that it can find which is not running any task at the moment, but the difference is that it will fail if all workers are busy.
-
-##### hash_worker
-
-This strategy takes a key and selects a worker using [`erlang:phash2/2`](https://www.erlang.org/doc/man/erlang.html#phash-2). This ensures that tasks classified under the same key will be delivered to the same worker, which is useful to classify events by key and work on them sequentially on the worker, distributing different keys across different workers.
-
-### Broadcasting a Pool
-
-Wpool provides a way to `broadcast` a message to every worker within the given Pool.
-
-```erlang
-1> wpool:start().
-ok
-2> wpool:start_pool(my_pool, [{workers, 3}]).
-{ok,<0.299.0>}
-3> wpool:broadcast(my_pool, {io, format, ["I got a message.~n"]}).
-I got a message.
-I got a message.
-I got a message.
-ok
-```
-
-**NOTE:** This messages don't get queued, they go straight to the worker's message queues, so if you're using available_worker strategy to balance the charge and you have some tasks queued up waiting for the next available worker, the broadcast will reach all the workers **before** the queued up tasks.
-
-### Watching a Pool
-
-Wpool provides a way to get live statistics about a pool. To do that, you can use `wpool:stats/1`.
-
-### Stopping a Pool
-
-To stop a pool, just use `wpool:stop_pool/1`.
+Detailed usage is also documented in the same [wpool module summary](https://hexdocs.pm/worker_pool/doc/wpool.html#content).
 
 ## Examples
 
+Say your application needs a connection to a third-party service that is frequently used. You implement a `gen_server` called `my_server` that knows how to talk the third-party protocol and keeps the connection open, and your business logic uses this `my_server` as the API to interact with. But this server is not only a single-point-of-failure, but also a bottleneck.
+
+Let's pool this server!
+
+#### Starting the pool
+
+First we need to start the pool, instead of starting a single server. If your server was part of your supervision tree, and your supervisor had a child-spec like:
+```erlang
+    ChildSpec = #{id => my_server_name,
+      start => {my_server, start_link, Arguments},
+      restart => permanent,
+      shutdown => 5000,
+      type => worker}.
+```
+
+You can now replace it by
+```erlang
+    WPoolOpts = [{worker, {my_server, Arguments}}],
+    ChildSpec = wpool:child_spec(my_server_name, WPoolOpts),
+```
+
+#### Using the pool
+
+Now that the pool is in place, wherever you've called the server, now you can simply call the pool: all code like the following
+```erlang
+    %% ...
+    gen_server:call(my_server, Request),
+    %% ...
+    gen_server:cast(my_server, Notify),
+    %% ...
+```
+can simply be replaced by
+```erlang
+    %% ...
+    wpool:call(my_server, Request),
+    %% ...
+    wpool:cast(my_server, Notify),
+    %% ...
+```
+
+If you want all the workers to get notified of an event (for example for consistency reasons), you can use:
+```erlang
+    wpool:broadcast(my_server, Request)
+```
+
+And if events have a partial ordering, that is, there is a subset of them were they should be processed in a strict ordering, for example requests by user `X` should be processed sequentially but how they interleave with other requests is irrelevant, you can use:
+```erlang
+    wpool:call(my_server, Request, {hash_worker, X})
+```
+and requests for `X` will always be sent to the same worker.
+
+And just like that, all your requests are now pooled!
+
+By passing a more complex configuration in the `WPoolOpts` parameter, you can tweak many things, for example the number of workers (`t:wpool:workers()`), options to pass to OTP's the `gen_server` engine behind your code `t:wpool:worker_opt()`, the strategy to supervise all the workers (`t:wpool:strategy()`), register callbacks you want to be triggered on worker's events (`t:wpool:callbacks()`), and many more. See `t:wpool:option()` for all options available.
+
+#### Case studies used in production
+
 To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios exercised in the different suites.
 
-If you want to see **worker_pool** in a _real life_ project, I recommend you to check [sumo_db](https://github.com/inaka/sumo_db), another open-source library from [Inaka](https://inaka.github.io/) that uses wpool intensively.
+If you want to see **worker_pool** in a _real life_ project, we recommend you to check [sumo_db](https://github.com/inaka/sumo_db), another open-source library from [Inaka](https://inaka.github.io/) that uses wpool intensively, or [MongooseIM](https://github.com/esl/MongooseIM), an Erlang Solutions' Messaging server that uses wpool in many different ways.
 
 ## Benchmarks
 
@@ -124,10 +101,6 @@ If you want to see **worker_pool** in a _real life_ project, I recommend you to 
 ## Contact Us
 
 If you find any **bugs** or have a **problem** while using this library, please [open an issue](https://github.com/inaka/worker_pool/issues/new) in this repo (or a pull request :)).
-
-## On Hex.pm
-
-Worker Pool is available on [Hex.pm](https://hex.pm/packages/worker_pool).
 
 ## Requirements
 

@@ -11,7 +11,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @author Felipe Ripoll <ferigis@gmail.com>
 %%% @doc Common functions for wpool_process and other modules.
 -module(wpool_utils).
 

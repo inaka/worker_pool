@@ -11,7 +11,7 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
+%%% @doc This is the supervisor that supervises the `gen_server' workers specifically.
 -module(wpool_process_sup).
 
 -behaviour(supervisor).
