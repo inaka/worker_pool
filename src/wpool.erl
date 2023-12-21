@@ -77,7 +77,7 @@
 -type max_overrun_warnings() :: infinity | pos_integer().
 %% The maximum number of overrun warnings emitted before killing the worker with a delayed task.
 %%
-%% If this parameter is set to a value other than `infinity' the rounds of warnings becomes equally
+%% If this parameter is set to a value other than `infinity' the rounds of warnings become equally
 %% timed (i.e. with `overrun_warning = 1000' and `max_overrun_warnings = 5' the task would be killed
 %% after 5 seconds of execution).
 %%
@@ -107,7 +107,7 @@
 %% The default value for this setting is `100'
 
 -type worker() :: {Module :: module(), InitArg :: term()}.
-%% The `gen_server' module and ther arguments to pass to the `init' callback.
+%% The `gen_server' module and the arguments to pass to the `init' callback.
 %%
 %% This is the module that each worker will run and the `InitArgs' to use on the corresponding
 %% `start_link' call used to initiate it.
@@ -119,7 +119,7 @@
 -type worker_opt() :: gen_server:start_opt().
 %% Server options that will be passed to each `gen_server' worker.
 %%
-%% This are the same as described at the `gen_server' documentation.
+%% These are the same as described at the `gen_server' documentation.
 
 -type worker_shutdown() :: worker_shutdown().
 %% The `shutdown' option to be used over the individual workers.
@@ -201,15 +201,15 @@
 %% Strategy to use when choosing a worker.
 %%
 %% <h2>`best_worker'</h2>
-%% Picks the worker with the smaller queue of messages. Loosely based on this
+%% Picks the worker with the shortest queue of messages. Loosely based on this
 %% article: [https://lethain.com/load-balancing-across-erlang-process-groups/].
 %%
 %% This strategy is usually useful when your workers always perform the same task,
 %% or tasks with expectedly similar runtimes.
 %%
 %% <h2>`random_worker'</h2>
-%% Just picks a random worker. This strategy is the fastest one when to select a worker. It's ideal
-%% if your workers will perform many short tasks.
+%% Just picks a random worker. This strategy is the fastest one to select a worker.
+%% It's ideal if your workers will perform many short tasks.
 %%
 %% <h2>`next_worker'</h2>
 %% Picks the next worker in a round-robin fashion. This ensures an evenly distribution of tasks.
@@ -218,7 +218,7 @@
 %% Instead of just picking one of the workers in the queue and sending the request to it, this
 %% strategy queues the request and waits until a worker is available to perform it. That may render
 %% the worker selection part of the process much slower (thus generating the need for an additional
-%% parameter: `Worker_Timeout' that controls how many milliseconds is the client willing to spend
+%% parameter: `Worker_Timeout' that controls how many milliseconds the client is willing to spend
 %% in that, regardless of the global `Timeout' for the call).
 %%
 %% This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
@@ -444,7 +444,7 @@ get_workers(Sup) ->
 
 %% @doc Casts a message to all the workers within the given pool.
 %%
-%% <b>NOTE:</b> This messages don't get queued, they go straight to the worker's message queues, so
+%% <b>NOTE:</b> These messages don't get queued, they go straight to the worker's message queues, so
 %% if you're using available_worker strategy to balance the charge and you have some tasks queued up
 %% waiting for the next available worker, the broadcast will reach all the workers <b>before</b> the
 %% queued up tasks.
