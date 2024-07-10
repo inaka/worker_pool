@@ -15,18 +15,13 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    strategy:
-      matrix:
-        otp: ['25', '26']
-        rebar: ['3.22']
-
     steps:
       - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
         id: setup-beam
         with:
-          otp-version: ${{matrix.otp}}
-          rebar3-version: ${{matrix.rebar}}
+          version-type: strict
+          version-file: .tool-versions
       - name: Restore _build
         uses: actions/cache@v3
         with:

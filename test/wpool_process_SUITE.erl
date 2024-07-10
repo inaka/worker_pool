@@ -175,24 +175,19 @@ continue(_Config) ->
 
 -spec format_status(config()) -> {comment, []}.
 format_status(_Config) ->
-    %% echo_server implements format_status/2
+    %% echo_server implements format_status/1
     {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
-    %% therefore it returns {formatted_state, State} as its status
-    {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-    [state] = [S || SItemList = [_ | _] <- SItems, {formatted_state, S} <- SItemList],
-    %% this code is actually what we use to retrieve the state in other tests
+    %% therefore it returns State as its status
     state = get_state(Pid),
     {comment, []}.
 
 -spec no_format_status(config()) -> {comment, []}.
 no_format_status(_Config) ->
-    %% crashy_server doesn't implement format_status/2
+    %% crashy_server doesn't implement format_status/1
     {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, state, []),
     %% therefore it uses the default format for the stauts (but with the status of
     %% the gen_server, not wpool_process)
-    {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-    [state] =
-        [S || SItemList = [_ | _] <- SItems, {data, Data} <- SItemList, {"State", S} <- Data],
+    state = get_state(Pid),
     {comment, []}.
 
 -spec call(config()) -> {comment, []}.
@@ -329,13 +324,20 @@ complete_coverage(_Config) ->
     {comment, []}.
 
 %% @doc We can use this function in tests since echo_server implements
-%%      format_status/2 by returning the state as a tuple {formatted_state, S}.
+%%      format_status/1 by returning the status as a map S.
 %%      We can safely grab it from the result of sys:get_status/1
-%% @see gen_server:format_status/2
+%% @see gen_server:format_status/1
 %% @see sys:get_status/2
 get_state(Atom) when is_atom(Atom) ->
     get_state(whereis(Atom));
 get_state(Pid) ->
-    {status, Pid, {module, gen_server}, SItems} = sys:get_status(Pid),
-    [State] = [S || SItemList = [_ | _] <- SItems, {formatted_state, S} <- SItemList],
-    State.
+    {status, Pid, {module, gen_server}, [_PDict, _SysState, _Parent, _Dbg, Misc]} =
+        sys:get_status(Pid),
+    [State] =
+        lists:filtermap(fun ({data, [{"State", State}]}) ->
+                                {true, State};
+                            (_) ->
+                                false
+                        end,
+                        Misc),
+    wpool_process:get_state(State).

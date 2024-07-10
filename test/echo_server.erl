@@ -18,7 +18,7 @@
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2,
-         handle_continue/2, format_status/2]).
+         handle_continue/2, format_status/1]).
 
 -dialyzer([no_behaviours]).
 
@@ -59,7 +59,6 @@ handle_call(Call, _From, _State) ->
 handle_continue(Continue, _State) ->
     Continue.
 
--spec format_status(normal | terminate, [[{_, _}] | State, ...]) ->
-                       {formatted_state, State}.
-format_status(_, [_PDict, State]) ->
-    {formatted_state, State}.
+-spec format_status(gen_server:format_status()) -> gen_server:format_status().
+format_status(State) ->
+    State.
