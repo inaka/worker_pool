@@ -46,9 +46,16 @@
 
 %% api
 -export([start_link/4, call/3, cast/2, send_request/2]).
+
+-ifdef(TEST).
+
+-export([get_state/1]).
+
+-endif.
+
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2,
-         handle_continue/2, format_status/2]).
+         handle_continue/2, format_status/1]).
 
 %%%===================================================================
 %%% API
@@ -78,6 +85,14 @@ cast(Process, Cast) ->
 -spec send_request(wpool:name() | pid(), term()) -> term().
 send_request(Name, Request) ->
     gen_server:send_request(Name, Request).
+
+-ifdef(TEST).
+
+-spec get_state(state()) -> term().
+get_state(#state{state = State}) ->
+    State.
+
+-endif.
 
 %%%===================================================================
 %%% init, terminate, code_change, info callbacks
@@ -177,19 +192,13 @@ handle_continue(Continue, State) ->
     end.
 
 %% @private
--spec format_status(normal | terminate, [[{_, _}] | state(), ...]) -> term().
-format_status(Opt, [PDict, State]) ->
-    case erlang:function_exported(State#state.mod, format_status, 2) of
+-spec format_status(gen_server:format_status()) -> gen_server:format_status().
+format_status(#{state := #state{mod = Mod}} = Status) ->
+    case erlang:function_exported(Mod, format_status, 1) of
         false ->
-            case Opt % This is copied from gen_server:format_status/4
-            of
-                terminate ->
-                    State#state.state;
-                normal ->
-                    [{data, [{"State", State#state.state}]}]
-            end;
+            Status;
         true ->
-            (State#state.mod):format_status(Opt, [PDict, State#state.state])
+            Mod:format_status(Status)
     end.
 
 %%%===================================================================
