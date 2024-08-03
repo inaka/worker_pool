@@ -18,9 +18,33 @@
 
 -behaviour(gen_server).
 
+%% Taken from gen_server OTP
+-record(callback_cache,
+        {module :: module(),
+         handle_call ::
+             fun((Request :: term(), From :: from(), State :: term()) ->
+                     {reply, Reply :: term(), NewState :: term()} |
+                     {reply,
+                      Reply :: term(),
+                      NewState :: term(),
+                      timeout() | hibernate | {continue, term()}} |
+                     {noreply, NewState :: term()} |
+                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
+                     {stop, Reason :: term(), Reply :: term(), NewState :: term()} |
+                     {stop, Reason :: term(), NewState :: term()}),
+         handle_cast ::
+             fun((Request :: term(), State :: term()) ->
+                     {noreply, NewState :: term()} |
+                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
+                     {stop, Reason :: term(), NewState :: term()}),
+         handle_info ::
+             fun((Info :: timeout | term(), State :: term()) ->
+                     {noreply, NewState :: term()} |
+                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
+                     {stop, Reason :: term(), NewState :: term()})}).
 -record(state,
         {name :: atom(),
-         mod :: atom(),
+         mod :: #callback_cache{},
          state :: term(),
          options ::
              #{time_checker := atom(),
@@ -103,13 +127,14 @@ get_state(#state{state = State}) ->
 init({Name, Mod, InitArgs, LOptions}) ->
     Options = maps:from_list(LOptions),
     wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
+    CbCache = create_callback_cache(Mod),
     case Mod:init(InitArgs) of
         {ok, ModState} ->
             ok = notify_queue_manager(new_worker, Name, Options),
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
             {ok,
              #state{name = Name,
-                    mod = Mod,
+                    mod = CbCache,
                     state = ModState,
                     options = Options}};
         {ok, ModState, NextStep} ->
@@ -117,7 +142,7 @@ init({Name, Mod, InitArgs, LOptions}) ->
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
             {ok,
              #state{name = Name,
-                    mod = Mod,
+                    mod = CbCache,
                     state = ModState,
                     options = Options},
              NextStep};
@@ -130,7 +155,7 @@ init({Name, Mod, InitArgs, LOptions}) ->
 %% @private
 -spec terminate(atom(), state()) -> term().
 terminate(Reason, State) ->
-    #state{mod = Mod,
+    #state{mod = #callback_cache{module = Mod},
            state = ModState,
            name = Name,
            options = Options} =
@@ -146,7 +171,7 @@ terminate(Reason, State) ->
 
 %% @private
 -spec code_change(string(), state(), any()) -> {ok, state()} | {error, term()}.
-code_change(OldVsn, #state{mod = Mod} = State, Extra) ->
+code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) ->
     case erlang:function_exported(Mod, code_change, 3) of
         true ->
             case Mod:code_change(OldVsn, State#state.state, Extra) of
@@ -162,8 +187,9 @@ code_change(OldVsn, #state{mod = Mod} = State, Extra) ->
 %% @private
 -spec handle_info(any(), state()) ->
                      {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
-handle_info(Info, #state{mod = Mod} = State) ->
-    try Mod:handle_info(Info, State#state.state) of
+handle_info(Info, #state{mod = CbCache} = State) ->
+    #callback_cache{module = Mod, handle_info = HandleInfo} = CbCache,
+    try HandleInfo(Info, State#state.state) of
         {noreply, NewState} ->
             {noreply, State#state{state = NewState}};
         {noreply, NewState, NextStep} ->
@@ -191,8 +217,8 @@ handle_info(Info, #state{mod = Mod} = State) ->
                          {noreply, state()} |
                          {noreply, state(), next_step()} |
                          {stop, term(), state()}.
-handle_continue(Continue, State) ->
-    try (State#state.mod):handle_continue(Continue, State#state.state) of
+handle_continue(Continue, #state{mod = #callback_cache{module = Mod}} = State) ->
+    try Mod:handle_continue(Continue, State#state.state) of
         {noreply, NewState} ->
             {noreply, State#state{state = NewState}};
         {noreply, NewState, NextStep} ->
@@ -210,7 +236,7 @@ handle_continue(Continue, State) ->
 
 %% @private
 -spec format_status(gen_server:format_status()) -> gen_server:format_status().
-format_status(#{state := #state{mod = Mod}} = Status) ->
+format_status(#{state := #state{mod = #callback_cache{module = Mod}}} = Status) ->
     case erlang:function_exported(Mod, format_status, 1) of
         false ->
             Status;
@@ -224,11 +250,12 @@ format_status(#{state := #state{mod = Mod}} = Status) ->
 %% @private
 -spec handle_cast(term(), state()) ->
                      {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
-handle_cast(Cast, #state{options = Options} = State) ->
+handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
+    #callback_cache{handle_cast = HandleCast} = CbCache,
     Task = wpool_utils:task_init({cast, Cast}, Options),
     ok = notify_queue_manager(worker_busy, State#state.name, Options),
     Reply =
-        try (State#state.mod):handle_cast(Cast, State#state.state) of
+        try HandleCast(Cast, State#state.state) of
             {noreply, NewState} ->
                 {noreply, State#state{state = NewState}};
             {noreply, NewState, NextStep} ->
@@ -255,11 +282,12 @@ handle_cast(Cast, #state{options = Options} = State) ->
                      {noreply, state(), next_step()} |
                      {stop, term(), term(), state()} |
                      {stop, term(), state()}.
-handle_call(Call, From, #state{options = Options} = State) ->
+handle_call(Call, From, #state{mod = CbCache, options = Options} = State) ->
+    #callback_cache{handle_call = HandleCall} = CbCache,
     Task = wpool_utils:task_init({call, Call}, Options),
     ok = notify_queue_manager(worker_busy, State#state.name, Options),
     Reply =
-        try (State#state.mod):handle_call(Call, From, State#state.state) of
+        try HandleCall(Call, From, State#state.state) of
             {noreply, NewState} ->
                 {noreply, State#state{state = NewState}};
             {noreply, NewState, NextStep} ->
@@ -294,3 +322,9 @@ notify_queue_manager(Function, Name, #{queue_manager := QueueManager}) ->
     wpool_queue_manager:Function(QueueManager, Name);
 notify_queue_manager(_, _, _) ->
     ok.
+
+create_callback_cache(Mod) ->
+    #callback_cache{module = Mod,
+                    handle_call = fun Mod:handle_call/3,
+                    handle_cast = fun Mod:handle_cast/2,
+                    handle_info = fun Mod:handle_info/2}.
