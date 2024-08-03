@@ -137,23 +137,33 @@ terminate(Reason, State) ->
         State,
     ok = notify_queue_manager(worker_dead, Name, Options),
     wpool_process_callbacks:notify(handle_worker_death, Options, [Name, Reason]),
-    Mod:terminate(Reason, ModState).
+    case erlang:function_exported(Mod, terminate, 2) of
+        true ->
+            Mod:terminate(Reason, ModState);
+        _ ->
+            ok
+    end.
 
 %% @private
 -spec code_change(string(), state(), any()) -> {ok, state()} | {error, term()}.
-code_change(OldVsn, State, Extra) ->
-    case (State#state.mod):code_change(OldVsn, State#state.state, Extra) of
-        {ok, NewState} ->
-            {ok, State#state{state = NewState}};
-        Error ->
-            {error, Error}
+code_change(OldVsn, #state{mod = Mod} = State, Extra) ->
+    case erlang:function_exported(Mod, code_change, 3) of
+        true ->
+            case Mod:code_change(OldVsn, State#state.state, Extra) of
+                {ok, NewState} ->
+                    {ok, State#state{state = NewState}};
+                Error ->
+                    {error, Error}
+            end;
+        _ ->
+            {ok, State}
     end.
 
 %% @private
 -spec handle_info(any(), state()) ->
                      {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
-handle_info(Info, State) ->
-    try (State#state.mod):handle_info(Info, State#state.state) of
+handle_info(Info, #state{mod = Mod} = State) ->
+    try Mod:handle_info(Info, State#state.state) of
         {noreply, NewState} ->
             {noreply, State#state{state = NewState}};
         {noreply, NewState, NextStep} ->
@@ -161,6 +171,13 @@ handle_info(Info, State) ->
         {stop, Reason, NewState} ->
             {stop, Reason, State#state{state = NewState}}
     catch
+        error:undef:Stacktrace ->
+            case erlang:function_exported(Mod, handle_info, 2) of
+                false ->
+                    {noreply, State};
+                true ->
+                    erlang:raise(error, undef, Stacktrace)
+            end;
         _:{noreply, NewState} ->
             {noreply, State#state{state = NewState}};
         _:{noreply, NewState, NextStep} ->
