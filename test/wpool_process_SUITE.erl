@@ -334,7 +334,7 @@ complete_coverage(_Config) ->
     ct:comment("Code Change"),
     {ok, State} = wpool_process:init({complete_coverage, echo_server, {ok, state}, []}),
     {ok, _} = wpool_process:code_change("oldvsn", State, {ok, state}),
-    {error, bad} = wpool_process:code_change("oldvsn", State, bad),
+    {error, bad} = wpool_process:code_change("oldvsn", State, {error, bad}),
 
     {comment, []}.
 

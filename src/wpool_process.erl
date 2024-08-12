@@ -170,14 +170,15 @@ terminate(Reason, State) ->
     end.
 
 %% @private
--spec code_change(string(), state(), any()) -> {ok, state()} | {error, term()}.
+-spec code_change(string() | {down, string()}, state(), any()) ->
+                     {ok, state()} | {error, term()}.
 code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) ->
     case erlang:function_exported(Mod, code_change, 3) of
         true ->
             case Mod:code_change(OldVsn, State#state.state, Extra) of
                 {ok, NewState} ->
                     {ok, State#state{state = NewState}};
-                Error ->
+                {error, Error} ->
                     {error, Error}
             end;
         _ ->
