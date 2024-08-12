@@ -24,7 +24,7 @@
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 -export([init/1, init_timeout/1, info/1, cast/1, send_request/1, call/1, continue/1,
-         format_status/1, no_format_status/1, stop/1]).
+         handle_info_missing/1, handle_info_fails/1, format_status/1, no_format_status/1, stop/1]).
 -export([pool_restart_crash/1, pool_norestart_crash/1, complete_coverage/1]).
 
 -spec all() -> [atom()].
@@ -171,6 +171,21 @@ continue(_Config) ->
     wpool_process:cast(Pid, {noreply, state, {continue, {stop, normal, state}}}),
     false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
 
+    {comment, []}.
+
+-spec handle_info_missing(config()) -> {comment, []}.
+handle_info_missing(_Config) ->
+    %% sleepy_server does not implement handle_info/2
+    {ok, Pid} = wpool_process:start_link(?MODULE, sleepy_server, 1, []),
+    Pid ! test,
+    {comment, []}.
+
+-spec handle_info_fails(config()) -> {comment, []}.
+handle_info_fails(_Config) ->
+    %% sleepy_server does not implement handle_info/2
+    {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, {ok, state}, []),
+    Pid ! undef,
+    false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
     {comment, []}.
 
 -spec format_status(config()) -> {comment, []}.
