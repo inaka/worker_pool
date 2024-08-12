@@ -44,6 +44,8 @@ code_change(_OldVsn, State, _Extra) ->
 -spec handle_info(timeout | Info, term()) -> {noreply, timeout} | Info.
 handle_info(timeout, _State) ->
     {noreply, timeout};
+handle_info(undef, _State) ->
+    erlang:error(undef);
 handle_info(Info, _State) ->
     Info.
 
