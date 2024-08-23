@@ -383,6 +383,7 @@ complete_coverage(_Config) ->
     ct:comment("Queue Manager"),
     QMPid = get_queue_manager(PoolPid),
     QMPid ! info,
+    {ok, _} = wpool_queue_manager:start_link(pool, pool_queue_manager),
     {ok, _} = wpool_queue_manager:init([{pool, pool}]),
 
     {comment, []}.
