@@ -526,7 +526,7 @@ mess_up_with_store(_Config) ->
     true = process_flag(trap_exit, Flag),
 
     ct:comment("And now delete the ets table altogether"),
-    true = persistent_term:erase({wpool_pool, Pool}),
+    store_mess_up(Pool),
     _ = wpool_pool:find_wpool(Pool),
 
     wpool:stop(),
