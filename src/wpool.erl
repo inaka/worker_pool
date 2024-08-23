@@ -387,14 +387,18 @@ call(Sup, Call, Strategy) ->
 -spec call(name(), term(), strategy(), timeout()) -> term().
 call(Sup, Call, available_worker, Timeout) ->
     wpool_pool:call_available_worker(Sup, Call, Timeout);
+call(Sup, Call, next_available_worker, Timeout) ->
+    wpool_process:call(wpool_pool:next_available_worker(Sup), Call, Timeout);
+call(Sup, Call, next_worker, Timeout) ->
+    wpool_process:call(wpool_pool:next_worker(Sup), Call, Timeout);
+call(Sup, Call, random_worker, Timeout) ->
+    wpool_process:call(wpool_pool:random_worker(Sup), Call, Timeout);
+call(Sup, Call, best_worker, Timeout) ->
+    wpool_process:call(wpool_pool:best_worker(Sup), Call, Timeout);
 call(Sup, Call, {hash_worker, HashKey}, Timeout) ->
-    wpool_process:call(
-        wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
-call(Sup, Call, Fun, Timeout) when is_function(Fun) ->
-    wpool_process:call(Fun(Sup), Call, Timeout);
-call(Sup, Call, Strategy, Timeout) ->
-    wpool_process:call(
-        wpool_pool:Strategy(Sup), Call, Timeout).
+    wpool_process:call(wpool_pool:hash_worker(Sup, HashKey), Call, Timeout);
+call(Sup, Call, Fun, Timeout) when is_function(Fun, 1) ->
+    wpool_process:call(Fun(Sup), Call, Timeout).
 
 %% @equiv cast(Sup, Cast, default_strategy())
 -spec cast(name(), term()) -> ok.
@@ -405,14 +409,18 @@ cast(Sup, Cast) ->
 -spec cast(name(), term(), strategy()) -> ok.
 cast(Sup, Cast, available_worker) ->
     wpool_pool:cast_to_available_worker(Sup, Cast);
+cast(Sup, Cast, next_available_worker) ->
+    wpool_process:cast(wpool_pool:next_available_worker(Sup), Cast);
+cast(Sup, Cast, next_worker) ->
+    wpool_process:cast(wpool_pool:next_worker(Sup), Cast);
+cast(Sup, Cast, random_worker) ->
+    wpool_process:cast(wpool_pool:random_worker(Sup), Cast);
+cast(Sup, Cast, best_worker) ->
+    wpool_process:cast(wpool_pool:best_worker(Sup), Cast);
 cast(Sup, Cast, {hash_worker, HashKey}) ->
-    wpool_process:cast(
-        wpool_pool:hash_worker(Sup, HashKey), Cast);
-cast(Sup, Cast, Fun) when is_function(Fun) ->
-    wpool_process:cast(Fun(Sup), Cast);
-cast(Sup, Cast, Strategy) ->
-    wpool_process:cast(
-        wpool_pool:Strategy(Sup), Cast).
+    wpool_process:cast(wpool_pool:hash_worker(Sup, HashKey), Cast);
+cast(Sup, Cast, Fun) when is_function(Fun, 1) ->
+    wpool_process:cast(Fun(Sup), Cast).
 
 %% @equiv send_request(Sup, Call, default_strategy(), 5000)
 -spec send_request(name(), term()) -> noproc | timeout | gen_server:request_id().
@@ -431,14 +439,37 @@ send_request(Sup, Call, Strategy) ->
                       noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
     wpool_pool:send_request_available_worker(Sup, Call, Timeout);
+send_request(Sup, Call, next_available_worker, _Timeout) ->
+    wpool_process:send_request(wpool_pool:next_available_worker(Sup), Call);
+send_request(Sup, Call, next_worker, _Timeout) ->
+    wpool_process:send_request(wpool_pool:next_worker(Sup), Call);
+send_request(Sup, Call, random_worker, _Timeout) ->
+    wpool_process:send_request(wpool_pool:random_worker(Sup), Call);
+send_request(Sup, Call, best_worker, _Timeout) ->
+    wpool_process:send_request(wpool_pool:best_worker(Sup), Call);
 send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->
-    wpool_process:send_request(
-        wpool_pool:hash_worker(Sup, HashKey), Call);
-send_request(Sup, Call, Fun, _Timeout) when is_function(Fun) ->
-    wpool_process:send_request(Fun(Sup), Call);
-send_request(Sup, Call, Strategy, _Timeout) ->
-    wpool_process:send_request(
-        wpool_pool:Strategy(Sup), Call).
+    wpool_process:send_request(wpool_pool:hash_worker(Sup, HashKey), Call);
+send_request(Sup, Call, Fun, _Timeout) when is_function(Fun, 1) ->
+    wpool_process:send_request(Fun(Sup), Call).
+
+
+%% @doc Casts a message to all the workers within the given pool.
+%%
+%% <b>NOTE:</b> These messages don't get queued, they go straight to the worker's message queues, so
+%% if you're using available_worker strategy to balance the charge and you have some tasks queued up
+%% waiting for the next available worker, the broadcast will reach all the workers <b>before</b> the
+%% queued up tasks.
+-spec broadcast(wpool:name(), term()) -> ok.
+broadcast(Sup, Cast) ->
+    wpool_pool:broadcast(Sup, Cast).
+
+%% @doc Calls all the workers within the given pool async and waits for the responses synchronously.
+%%
+%% If one worker times out, the entire call is considered timed-out.
+-spec broadcall(wpool:name(), term(), timeout()) ->
+                   {[Replies :: term()], [Errors :: term()]}.
+broadcall(Sup, Call, Timeout) ->
+    wpool_pool:broadcall(Sup, Call, Timeout).
 
 %% @doc Retrieves a snapshot of statistics for all pools.
 %%
@@ -459,21 +490,3 @@ stats(Sup) ->
 -spec get_workers(name()) -> [atom()].
 get_workers(Sup) ->
     wpool_pool:get_workers(Sup).
-
-%% @doc Casts a message to all the workers within the given pool.
-%%
-%% <b>NOTE:</b> These messages don't get queued, they go straight to the worker's message queues, so
-%% if you're using available_worker strategy to balance the charge and you have some tasks queued up
-%% waiting for the next available worker, the broadcast will reach all the workers <b>before</b> the
-%% queued up tasks.
--spec broadcast(wpool:name(), term()) -> ok.
-broadcast(Sup, Cast) ->
-    wpool_pool:broadcast(Sup, Cast).
-
-%% @doc Calls all the workers within the given pool async and waits for the responses synchronously.
-%%
-%% If one worker times out, the entire call is considered timed-out.
--spec broadcall(wpool:name(), term(), timeout()) ->
-                   {[Replies :: term()], [Errors :: term()]}.
-broadcall(Sup, Call, Timeout) ->
-    wpool_pool:broadcall(Sup, Call, Timeout).
