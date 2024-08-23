@@ -121,7 +121,7 @@
 %%
 %% These are the same as described at the `gen_server' documentation.
 
--type worker_shutdown() :: worker_shutdown().
+-type worker_shutdown() :: brutal_kill | timeout().
 %% The `shutdown' option to be used over the individual workers.
 %%
 %% Defaults to `5000'. See {@link wpool_process_sup} for more details.
@@ -187,7 +187,7 @@
 %% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
 %% that take a list of these options as a parameter.
 
--type custom_strategy() :: fun(([atom()]) -> Atom :: atom()).
+-type custom_strategy() :: fun((atom()) -> Atom :: atom()).
 %% A callback that gets the pool name and returns a worker's name.
 
 -type strategy() ::
@@ -293,15 +293,14 @@ stop(_State) ->
 %% PUBLIC API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @equiv start_pool(Name, [])
--spec start_pool(name()) -> {ok, pid()}.
+-spec start_pool(name()) -> supervisor:startlink_ret().
 start_pool(Name) ->
     start_pool(Name, []).
 
 %% @doc Starts (and links) a pool of N wpool_processes.
 %%      The result pid belongs to a supervisor (in case you want to add it to a
 %%      supervisor tree)
--spec start_pool(name(), [option()]) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_pool(name(), [option()]) -> supervisor:startlink_ret().
 start_pool(Name, Options) ->
     wpool_pool:start_link(Name, wpool_utils:add_defaults(Options)).
 

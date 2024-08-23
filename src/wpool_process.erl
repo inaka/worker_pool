@@ -106,7 +106,7 @@ cast(Process, Cast) ->
     gen_server:cast(Process, Cast).
 
 %% @equiv gen_server:send_request(Process, Request)
--spec send_request(wpool:name() | pid(), term()) -> term().
+-spec send_request(wpool:name() | pid(), term()) -> gen_server:request_id().
 send_request(Name, Request) ->
     gen_server:send_request(Name, Request).
 
