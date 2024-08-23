@@ -58,16 +58,16 @@ end_per_testcase(_TestCase, Config) ->
 
 -spec init(config()) -> {comment, []}.
 init(_Config) ->
-    {error, can_not_ignore} = wpool_process:start_link(?MODULE, echo_server, ignore, []),
-    {error, ?MODULE} = wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, []),
-    {ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {error, can_not_ignore} = wpool_process:start_link(?MODULE, echo_server, ignore, #{}),
+    {error, ?MODULE} = wpool_process:start_link(?MODULE, echo_server, {stop, ?MODULE}, #{}),
+    {ok, _Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     wpool_process:cast(?MODULE, {stop, normal, state}),
 
     {comment, []}.
 
 -spec init_timeout(config()) -> {comment, []}.
 init_timeout(_Config) ->
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state, 0}, #{}),
     timeout = get_state(?MODULE),
     Pid ! {stop, normal, state},
     false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
@@ -76,7 +76,7 @@ init_timeout(_Config) ->
 
 -spec info(config()) -> {comment, []}.
 info(_Config) ->
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     Pid ! {noreply, newstate},
     newstate = get_state(?MODULE),
     Pid ! {noreply, newerstate, 1},
@@ -88,7 +88,7 @@ info(_Config) ->
 
 -spec cast(config()) -> {comment, []}.
 cast(_Config) ->
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     wpool_process:cast(Pid, {noreply, newstate}),
     newstate = get_state(?MODULE),
     wpool_process:cast(Pid, {noreply, newerstate, 0}),
@@ -100,7 +100,7 @@ cast(_Config) ->
 
 -spec send_request(config()) -> {comment, []}.
 send_request(_Config) ->
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     Req1 = wpool_process:send_request(Pid, {reply, ok1, newstate}),
     ok1 = wait_response(Req1),
     Req2 = wpool_process:send_request(Pid, {reply, ok2, newerstate, 1}),
@@ -127,7 +127,7 @@ continue(_Config) ->
         wpool_process:start_link(?MODULE,
                                  echo_server,
                                  {ok, state, {continue, C(continue_state)}},
-                                 []),
+                                 #{}),
     continue_state = get_state(Pid),
 
     %% handle_call/3 returns {continue, ...}
@@ -176,14 +176,14 @@ continue(_Config) ->
 -spec handle_info_missing(config()) -> {comment, []}.
 handle_info_missing(_Config) ->
     %% sleepy_server does not implement handle_info/2
-    {ok, Pid} = wpool_process:start_link(?MODULE, sleepy_server, 1, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, sleepy_server, 1, #{}),
     Pid ! test,
     {comment, []}.
 
 -spec handle_info_fails(config()) -> {comment, []}.
 handle_info_fails(_Config) ->
     %% sleepy_server does not implement handle_info/2
-    {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, {ok, state}, #{}),
     Pid ! undef,
     false = ktn_task:wait_for(fun() -> erlang:is_process_alive(Pid) end, false),
     {comment, []}.
@@ -191,7 +191,7 @@ handle_info_fails(_Config) ->
 -spec format_status(config()) -> {comment, []}.
 format_status(_Config) ->
     %% echo_server implements format_status/1
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     %% therefore it returns State as its status
     state = get_state(Pid),
     {comment, []}.
@@ -199,7 +199,7 @@ format_status(_Config) ->
 -spec no_format_status(config()) -> {comment, []}.
 no_format_status(_Config) ->
     %% crashy_server doesn't implement format_status/1
-    {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, state, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, crashy_server, state, #{}),
     %% therefore it uses the default format for the stauts (but with the status of
     %% the gen_server, not wpool_process)
     state = get_state(Pid),
@@ -207,7 +207,7 @@ no_format_status(_Config) ->
 
 -spec call(config()) -> {comment, []}.
 call(_Config) ->
-    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, []),
+    {ok, Pid} = wpool_process:start_link(?MODULE, echo_server, {ok, state}, #{}),
     ok1 = wpool_process:call(Pid, {reply, ok1, newstate}, 5000),
     newstate = get_state(?MODULE),
     ok2 = wpool_process:call(Pid, {reply, ok2, newerstate, 1}, 5000),
@@ -265,7 +265,7 @@ pool_norestart_crash(_Config) ->
 -spec stop(config()) -> {comment, []}.
 stop(_Config) ->
     ct:comment("cast_call with stop/reply"),
-    {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+    {ok, Pid1} = wpool_process:start_link(stopper, echo_server, {ok, state}, #{}),
     ReqId1 = wpool_process:send_request(stopper, {stop, reason, response, state}),
     case gen_server:wait_response(ReqId1, 5000) of
         {reply, response} ->
@@ -281,7 +281,7 @@ stop(_Config) ->
     end,
 
     ct:comment("cast_call with regular stop"),
-    {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+    {ok, Pid2} = wpool_process:start_link(stopper, echo_server, {ok, state}, #{}),
     ReqId2 = wpool_process:send_request(stopper, {stop, reason, state}),
     case gen_server:wait_response(ReqId2, 500) of
         {error, {reason, Pid2}} ->
@@ -297,7 +297,7 @@ stop(_Config) ->
     end,
 
     ct:comment("call with regular stop"),
-    {ok, Pid3} = wpool_process:start_link(stopper, echo_server, {ok, state}, []),
+    {ok, Pid3} = wpool_process:start_link(stopper, echo_server, {ok, state}, #{}),
     try wpool_process:call(stopper, {noreply, state}, 100) of
         _ ->
             ct:fail("unexpected response")

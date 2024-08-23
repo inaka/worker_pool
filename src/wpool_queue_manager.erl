@@ -63,13 +63,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec start_link(wpool:name(), queue_mgr()) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link(wpool:name(), queue_mgr()) -> gen_server:start_ret().
 start_link(WPool, Name) ->
     start_link(WPool, Name, []).
 
--spec start_link(wpool:name(), queue_mgr(), options()) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link(wpool:name(), queue_mgr(), options()) -> gen_server:start_ret().
 start_link(WPool, Name, Options) ->
     gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options], []).
 

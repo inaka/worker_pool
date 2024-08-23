@@ -187,6 +187,26 @@
 %% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
 %% that take a list of these options as a parameter.
 
+-type options() :: #{workers => workers(),
+                     worker => worker(),
+                     worker_opt => [worker_opt()],
+                     strategy => supervisor_strategy(),
+                     worker_shutdown => worker_shutdown(),
+                     overrun_handler => overrun_handler(),
+                     overrun_warning => overrun_warning(),
+                     max_overrun_warnings => max_overrun_warnings(),
+                     pool_sup_intensity => pool_sup_intensity(),
+                     pool_sup_shutdown => pool_sup_shutdown(),
+                     pool_sup_period => pool_sup_period(),
+                     queue_type => queue_type(),
+                     enable_callbacks => enable_callbacks(),
+                     callbacks => callbacks(),
+                     _ => _}.
+%% Options that can be provided to a new pool.
+%%
+%% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
+%% that take a list of these options as a parameter.
+
 -type custom_strategy() :: fun((atom()) -> Atom :: atom()).
 %% A callback that gets the pool name and returns a worker's name.
 
@@ -246,14 +266,14 @@
 -type stats() ::
     [{pool, name()} |
      {supervisor, pid()} |
-     {options, [option()]} |
+     {options, [option()] | options()} |
      {size, non_neg_integer()} |
      {next_worker, pos_integer()} |
      {total_message_queue_len, non_neg_integer()} |
      {workers, [{pos_integer(), worker_stats()}]}].
 %% Statistics about a given live pool.
 
--export_type([name/0, option/0, custom_strategy/0, strategy/0, worker_stats/0, stats/0]).
+-export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0, worker_stats/0, stats/0]).
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([child_spec/2, start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
@@ -280,7 +300,7 @@ stop() ->
 %% BEHAVIOUR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @private
--spec start(any(), any()) -> {ok, pid()} | {error, term()}.
+-spec start(any(), any()) -> supervisor:startlink_ret().
 start(_StartType, _StartArgs) ->
     wpool_sup:start_link().
 
@@ -300,12 +320,12 @@ start_pool(Name) ->
 %% @doc Starts (and links) a pool of N wpool_processes.
 %%      The result pid belongs to a supervisor (in case you want to add it to a
 %%      supervisor tree)
--spec start_pool(name(), [option()]) -> supervisor:startlink_ret().
+-spec start_pool(name(), [option()] | options()) -> supervisor:startlink_ret().
 start_pool(Name, Options) ->
     wpool_pool:start_link(Name, wpool_utils:add_defaults(Options)).
 
 %% @doc Builds a child specification to pass to a supervisor.
--spec child_spec(name(), [option()]) -> supervisor:child_spec().
+-spec child_spec(name(), [option()] | options()) -> supervisor:child_spec().
 child_spec(Name, Options) ->
     FullOptions = wpool_utils:add_defaults(Options),
     #{id => Name,
@@ -325,13 +345,12 @@ stop_pool(Name) ->
     end.
 
 %% @equiv start_sup_pool(Name, [])
--spec start_sup_pool(name()) -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_sup_pool(name()) -> supervisor:startchild_ret().
 start_sup_pool(Name) ->
     start_sup_pool(Name, []).
 
 %% @doc Starts a pool of N wpool_processes supervised by `wpool_sup'
--spec start_sup_pool(name(), [option()]) ->
-                        {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_sup_pool(name(), [option()] | options()) -> supervisor:startchild_ret().
 start_sup_pool(Name, Options) ->
     wpool_sup:start_pool(Name, wpool_utils:add_defaults(Options)).
 

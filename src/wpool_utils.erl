@@ -48,15 +48,16 @@ task_end(TimerRef) ->
     erlang:erase(wpool_task).
 
 %% @doc Adds default parameters to a pool configuration
--spec add_defaults([wpool:option()]) -> [wpool:option()].
-add_defaults(Opts) ->
-    lists:ukeymerge(1, lists:sort(Opts), defaults()).
+-spec add_defaults([wpool:option()] | wpool:options()) -> wpool:options().
+add_defaults(Opts) when is_map(Opts) ->
+    maps:merge(defaults(), Opts);
+add_defaults(Opts) when is_list(Opts) ->
+    maps:merge(defaults(), maps:from_list(Opts)).
 
--spec defaults() -> [wpool:option()].
 defaults() ->
-    [{max_overrun_warnings, infinity},
-     {overrun_handler, {error_logger, warning_report}},
-     {overrun_warning, infinity},
-     {queue_type, fifo},
-     {worker_opt, []},
-     {workers, 100}].
+    #{max_overrun_warnings => infinity,
+      overrun_handler => {error_logger, warning_report},
+      overrun_warning => infinity,
+      queue_type => fifo,
+      worker_opt => [],
+      workers => 100}.

@@ -28,7 +28,7 @@
 -export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
          kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
          overrun_handler2/1, default_options/1, complete_coverage/1, child_spec/1, broadcall/1,
-         broadcast/1, send_request/1, worker_killed_stats/1]).
+         broadcast/1, send_request/1, worker_killed_stats/1, accepts_maps_and_lists_as_opts/1]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
@@ -50,7 +50,8 @@ all() ->
      broadcall,
      send_request,
      kill_on_overrun,
-     worker_killed_stats].
+     worker_killed_stats,
+     accepts_maps_and_lists_as_opts].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -493,6 +494,23 @@ worker_killed_stats(_Config) ->
     ct:comment("Once the process is alive again, we should see it at the stats"),
     true = ktn_task:wait_for(fun() -> is_pid(whereis(WorkerName)) end, true, 10, 75),
     {workers, [_, _, _]} = Workers(),
+
+    {comment, []}.
+
+-spec accepts_maps_and_lists_as_opts(config()) -> {comment, []}.
+accepts_maps_and_lists_as_opts(_Config) ->
+    %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
+    {ok, PoolPidList} =
+        wpool:start_sup_pool(accepts_maps_and_lists_as_opts_list,
+                             [{workers, 3}, {worker, {sleepy_server, 500}}]),
+    true = erlang:is_process_alive(PoolPidList),
+    ct:comment("accepts lists as opts"),
+
+    {ok, PoolPidMap} =
+        wpool:start_sup_pool(accepts_maps_and_lists_as_opts_map,
+                             #{workers => 3, worker => {sleepy_server, 500}}),
+    true = erlang:is_process_alive(PoolPidMap),
+    ct:comment("accepts lists as opts"),
 
     {comment, []}.
 
