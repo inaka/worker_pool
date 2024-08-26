@@ -22,37 +22,39 @@
 -export([init/1]).
 
 %% @private
--spec start_link(wpool:name(), atom(), [wpool:option()]) -> {ok, pid()}.
+-spec start_link(wpool:name(), atom(), wpool:options()) -> supervisor:startlink_ret().
 start_link(Parent, Name, Options) ->
     supervisor:start_link({local, Name}, ?MODULE, {Parent, Options}).
 
 %% @private
--spec init({wpool:name(), [wpool:option()]}) ->
+-spec init({wpool:name(), wpool:options()}) ->
               {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    Workers = proplists:get_value(workers, Options, 100),
-    Strategy = proplists:get_value(strategy, Options, {one_for_one, 5, 60}),
+    Workers = maps:get(workers, Options, 100),
+    Strategy = maps:get(strategy, Options, {one_for_one, 5, 60}),
+    WorkerShutdown = maps:get(worker_shutdown, Options, 5000),
+    {Worker, InitArgs} = maps:get(worker, Options, {wpool_worker, undefined}),
     maybe_add_event_handler(Options),
-    {W, IA} = proplists:get_value(worker, Options, {wpool_worker, undefined}),
-    {WorkerType, Worker, InitArgs} = {wpool_process, W, IA},
-    WorkerShutdown = proplists:get_value(worker_shutdown, Options, 5000),
     WorkerSpecs =
-        [{wpool_pool:worker_name(Name, I),
-          {WorkerType, start_link, [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]},
-          permanent,
-          WorkerShutdown,
-          worker,
-          [Worker]}
+        [#{id => wpool_pool:worker_name(Name, I),
+           start =>
+               {wpool_process,
+                start_link,
+                [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]},
+           restart => permanent,
+           shutdown => WorkerShutdown,
+           type => worker,
+           modules => [Worker]}
          || I <- lists:seq(1, Workers)],
     {ok, {Strategy, WorkerSpecs}}.
 
 maybe_add_event_handler(Options) ->
-    case proplists:get_value(event_manager, Options, undefined) of
+    case maps:get(event_manager, Options, undefined) of
         undefined ->
             ok;
         EventMgr ->
             lists:foreach(fun(M) -> add_initial_callback(EventMgr, M) end,
-                          proplists:get_value(callbacks, Options, []))
+                          maps:get(callbacks, Options, []))
     end.
 
 add_initial_callback(EventManager, Module) ->

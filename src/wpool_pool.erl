@@ -40,7 +40,7 @@
          size :: pos_integer(),
          next :: atomics:atomics_ref(),
          workers :: tuple(),
-         opts :: [wpool:option()],
+         opts :: wpool:options(),
          qmanager :: wpool_queue_manager:queue_mgr(),
          born = erlang:system_time(second) :: integer()}).
 
@@ -53,8 +53,7 @@
 %% ===================================================================
 
 %% @doc Starts a supervisor with several `wpool_process'es as its children
--spec start_link(wpool:name(), [wpool:option()]) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link(wpool:name(), wpool:options()) -> supervisor:startlink_ret().
 start_link(Name, Options) ->
     supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
 
@@ -115,7 +114,7 @@ next_available_worker(Name) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
--spec call_available_worker(wpool:name(), any(), timeout()) -> atom().
+-spec call_available_worker(wpool:name(), any(), timeout()) -> any().
 call_available_worker(Name, Call, Timeout) ->
     case wpool_queue_manager:call_available_worker(queue_manager_name(Name), Call, Timeout) of
         noproc ->
@@ -190,7 +189,10 @@ broadcall(Name, Call, Timeout) ->
 
 -spec all() -> [wpool:name()].
 all() ->
-    [Name || {{?MODULE, Name}, _} <- persistent_term:get(), find_wpool(Name) /= undefined].
+    [Name
+     || {{?MODULE, Name}, _} <- persistent_term:get(),
+        is_atom(Name),
+        find_wpool(Name) /= undefined].
 
 %% @doc Retrieves the list of worker registered names.
 %% This can be useful to manually inspect the workers or do custom work on them.
@@ -243,7 +245,7 @@ stats(Wpool, Name) ->
     PendingTasks = wpool_queue_manager:pending_task_count(Wpool#wpool.qmanager),
     [{pool, Name},
      {supervisor, erlang:whereis(Name)},
-     {options, lists:ukeysort(1, proplists:unfold(Wpool#wpool.opts))},
+     {options, maps:to_list(Wpool#wpool.opts)},
      {size, Wpool#wpool.size},
      {next_worker, atomics:get(Wpool#wpool.next, 1)},
      {total_message_queue_len, Total + PendingTasks},
@@ -322,48 +324,54 @@ time_checker_name(Name) ->
 %% Supervisor callbacks
 %% ===================================================================
 %% @private
--spec init({wpool:name(), [wpool:option()]}) ->
+-spec init({wpool:name(), wpool:options()}) ->
               {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
-    Size = proplists:get_value(workers, Options, 100),
-    QueueType = proplists:get_value(queue_type, Options),
-    OverrunHandler =
-        proplists:get_value(overrun_handler, Options, {error_logger, warning_report}),
-    TimeChecker = time_checker_name(Name),
-    QueueManager = queue_manager_name(Name),
-    ProcessSup = process_sup_name(Name),
+    Size = maps:get(workers, Options, 100),
+    QueueType = maps:get(queue_type, Options),
+    OverrunHandler = maps:get(overrun_handler, Options, {error_logger, warning_report}),
+    SupShutdown = maps:get(pool_sup_shutdown, Options, brutal_kill),
+    TimeCheckerName = time_checker_name(Name),
+    QueueManagerName = queue_manager_name(Name),
+    ProcessSupName = process_sup_name(Name),
     EventManagerName = event_manager_name(Name),
     _Wpool = store_wpool(Name, Size, Options),
-    TimeCheckerSpec =
-        {TimeChecker,
-         {wpool_time_checker, start_link, [Name, TimeChecker, OverrunHandler]},
-         permanent,
-         brutal_kill,
-         worker,
-         [wpool_time_checker]},
-    QueueManagerSpec =
-        {QueueManager,
-         {wpool_queue_manager, start_link, [Name, QueueManager, [{queue_type, QueueType}]]},
-         permanent,
-         brutal_kill,
-         worker,
-         [wpool_queue_manager]},
 
-    EventManagerSpec =
-        {EventManagerName,
-         {gen_event, start_link, [{local, EventManagerName}]},
-         permanent,
-         brutal_kill,
-         worker,
-         dynamic},
-
-    SupShutdown = proplists:get_value(pool_sup_shutdown, Options, brutal_kill),
+    WorkerOpts0 =
+        [{queue_manager, QueueManagerName}, {time_checker, TimeCheckerName}
+         | maybe_event_manager(Options, {event_manager, EventManagerName})],
     WorkerOpts =
-        [{queue_manager, QueueManager}, {time_checker, TimeChecker} | Options]
-        ++ maybe_event_manager(Options, {event_manager, EventManagerName}),
+        maps:merge(
+            maps:from_list(WorkerOpts0), Options),
+
+    TimeCheckerSpec =
+        #{id => TimeCheckerName,
+          start => {wpool_time_checker, start_link, [Name, TimeCheckerName, OverrunHandler]},
+          restart => permanent,
+          shutdown => brutal_kill,
+          type => worker,
+          modules => [wpool_time_checker]},
+    QueueManagerSpec =
+        #{id => QueueManagerName,
+          start =>
+              {wpool_queue_manager,
+               start_link,
+               [Name, QueueManagerName, [{queue_type, QueueType}]]},
+          restart => permanent,
+          shutdown => brutal_kill,
+          type => worker,
+          modules => [wpool_queue_manager]},
+    EventManagerSpec =
+        #{id => EventManagerName,
+          start => {gen_event, start_link, [{local, EventManagerName}]},
+          restart => permanent,
+          shutdown => brutal_kill,
+          type => worker,
+          modules => dynamic},
+
     ProcessSupSpec =
-        {ProcessSup,
-         {wpool_process_sup, start_link, [Name, ProcessSup, WorkerOpts]},
+        {ProcessSupName,
+         {wpool_process_sup, start_link, [Name, ProcessSupName, WorkerOpts]},
          permanent,
          SupShutdown,
          supervisor,
@@ -374,8 +382,8 @@ init({Name, Options}) ->
         ++ maybe_event_manager(Options, EventManagerSpec)
         ++ [ProcessSupSpec],
 
-    SupIntensity = proplists:get_value(pool_sup_intensity, Options, 5),
-    SupPeriod = proplists:get_value(pool_sup_period, Options, 60),
+    SupIntensity = maps:get(pool_sup_intensity, Options, 5),
+    SupPeriod = maps:get(pool_sup_period, Options, 60),
     SupStrategy =
         #{strategy => one_for_all,
           intensity => SupIntensity,
@@ -519,18 +527,14 @@ build_wpool(Name) ->
     try supervisor:count_children(process_sup_name(Name)) of
         Children ->
             Size = proplists:get_value(active, Children, 0),
-            store_wpool(Name, Size, [])
+            store_wpool(Name, Size, #{})
     catch
         _:Error ->
             error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
             undefined
     end.
 
-maybe_event_manager(Options, Item) ->
-    EnableEventManager = proplists:get_value(enable_callbacks, Options, false),
-    case EnableEventManager of
-        true ->
-            [Item];
-        _ ->
-            []
-    end.
+maybe_event_manager(#{enable_callbacks := true}, Item) ->
+    [Item];
+maybe_event_manager(_, _) ->
+    [].

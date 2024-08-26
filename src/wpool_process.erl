@@ -64,10 +64,6 @@
 
 -export_type([next_step/0]).
 
--type options() :: [{time_checker | queue_manager, atom()} | wpool:option()].
-
--export_type([options/0]).
-
 %% api
 -export([start_link/4, call/3, cast/2, send_request/2]).
 
@@ -85,11 +81,11 @@
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
--spec start_link(wpool:name(), module(), term(), options()) ->
+-spec start_link(wpool:name(), module(), term(), wpool:options()) ->
                     {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
     FullOpts = wpool_utils:add_defaults(Options),
-    WorkerOpt = proplists:get_value(worker_opt, FullOpts, []),
+    WorkerOpt = maps:get(worker_opt, FullOpts, []),
     gen_server:start_link({local, Name},
                           ?MODULE,
                           {Name, Module, InitArgs, FullOpts},
@@ -106,7 +102,7 @@ cast(Process, Cast) ->
     gen_server:cast(Process, Cast).
 
 %% @equiv gen_server:send_request(Process, Request)
--spec send_request(wpool:name() | pid(), term()) -> term().
+-spec send_request(wpool:name() | pid(), term()) -> gen_server:request_id().
 send_request(Name, Request) ->
     gen_server:send_request(Name, Request).
 
@@ -122,10 +118,9 @@ get_state(#state{state = State}) ->
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), atom(), term(), options()}) ->
+-spec init({atom(), atom(), term(), wpool:options()}) ->
               {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
-init({Name, Mod, InitArgs, LOptions}) ->
-    Options = maps:from_list(LOptions),
+init({Name, Mod, InitArgs, Options}) ->
     wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
     CbCache = create_callback_cache(Mod),
     case Mod:init(InitArgs) of

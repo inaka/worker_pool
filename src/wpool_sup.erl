@@ -23,13 +23,12 @@
 %% PUBLIC API
 %%-------------------------------------------------------------------
 %% @doc Starts the supervisor
--spec start_link() -> {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_link() -> supervisor:startlink_ret().
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @doc Starts a new pool
--spec start_pool(wpool:name(), [wpool:option()]) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+-spec start_pool(wpool:name(), wpool:options()) -> supervisor:startchild_ret().
 start_pool(Name, Options) ->
     supervisor:start_child(?MODULE, [Name, Options]).
 

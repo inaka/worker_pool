@@ -155,6 +155,9 @@ best_worker(_Config) ->
             ok
     end,
 
+    Req = wpool:send_request(Pool, {erlang, self, []}, best_worker),
+    {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
+
     %% Fill up their message queues...
     [wpool:cast(Pool, {timer, sleep, [60000]}, next_worker) || _ <- lists:seq(1, ?WORKERS)],
     [0] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
@@ -208,6 +211,9 @@ next_available_worker(_Config) ->
     ct:log("Wait until the first frees up..."),
     1 = ktn_task:wait_for(AvailableWorkers, 1),
 
+    Req = wpool:send_request(Pool, {erlang, self, []}, next_available_worker),
+    {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
+
     ok = wpool:cast(Pool, {timer, sleep, [60000]}, next_available_worker),
 
     ct:log("No more available workers..."),
@@ -243,6 +249,7 @@ next_worker(_Config) ->
     ?WORKERS =
         sets:size(
             sets:from_list(Res0)),
+
     Res0 =
         [begin
              Stats = wpool:stats(Pool),
@@ -250,6 +257,9 @@ next_worker(_Config) ->
              wpool:call(Pool, {erlang, self, []}, next_worker)
          end
          || I <- lists:seq(1, ?WORKERS)],
+
+    Req = wpool:send_request(Pool, {erlang, self, []}, next_worker),
+    {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
     {comment, []}.
 
@@ -272,6 +282,21 @@ random_worker(_Config) ->
     ?WORKERS =
         sets:size(
             sets:from_list(Serial)),
+
+    %% Randomly ask a lot of workers to send ourselves the atom true
+    [wpool:cast(Pool, {erlang, send, [self(), true]}, random_worker)
+     || _ <- lists:seq(1, 20 * ?WORKERS)],
+    Results =
+        [receive
+             true ->
+                 true
+         end
+         || _ <- lists:seq(1, 20 * ?WORKERS)],
+    true = lists:all(fun(Value) -> true =:= Value end, Results),
+
+    %% do a gen_server:send_request/3
+    Req = wpool:send_request(Pool, {erlang, self, []}, random_worker),
+    {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
     %% Now do the same with a freshly spawned process for each request to ensure
     %% randomness isn't reset with each spawn of the process_dictionary
@@ -364,6 +389,9 @@ custom_worker(_Config) ->
              wpool:call(Pool, {erlang, self, []}, Strategy)
          end
          || I <- lists:seq(1, ?WORKERS)],
+
+    Req = wpool:send_request(Pool, {erlang, self, []}, Strategy),
+    {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
     {comment, []}.
 
@@ -526,7 +554,7 @@ mess_up_with_store(_Config) ->
     true = process_flag(trap_exit, Flag),
 
     ct:comment("And now delete the ets table altogether"),
-    true = persistent_term:erase({wpool_pool, Pool}),
+    store_mess_up(Pool),
     _ = wpool_pool:find_wpool(Pool),
 
     wpool:stop(),
