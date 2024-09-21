@@ -65,7 +65,7 @@
 -export_type([next_step/0]).
 
 %% api
--export([start_link/4, call/3, cast/2, send_request/2]).
+-export([start_link/4, run/2, call/3, cast/2, send_request/2]).
 
 -ifdef(TEST).
 
@@ -90,6 +90,11 @@ start_link(Name, Module, InitArgs, Options) ->
                           ?MODULE,
                           {Name, Module, InitArgs, FullOpts},
                           WorkerOpt).
+
+%% @doc Runs a function that takes as a parameter the given process
+-spec run(wpool:name() | pid(), wpool:run(Result)) -> Result.
+run(Process, Run) ->
+    Run(Process).
 
 %% @equiv gen_server:call(Process, Call, Timeout)
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().

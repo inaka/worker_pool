@@ -77,13 +77,24 @@ stop_worker(_Config) ->
 -spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
     Pool = available_worker,
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
     try wpool:call(not_a_pool, x) of
-        Result ->
-            no_result = Result
+        no_result ->
+            no_result
     catch
         _:no_workers ->
             ok
     end,
+
+    try wpool:run(not_a_pool, Run) of
+        no_result ->
+            no_result
+    catch
+        _:no_workers ->
+            ok
+    end,
+
+    {ok, _} = wpool:run(Pool, Run, available_worker),
 
     ct:log("Put them all to work, each request should go to a different worker"),
     [wpool:cast(Pool, {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
@@ -107,11 +118,19 @@ available_worker(_Config) ->
 
     ct:log("If we can't wait we get no workers"),
     try wpool:call(Pool, {erlang, self, []}, available_worker, 100) of
-        R ->
-            should_fail = R
+        should_fail ->
+            should_fail
     catch
-        _:Error ->
-            timeout = Error
+        _:timeout ->
+            timeout
+    end,
+
+    try wpool:run(Pool, Run, available_worker, 100) of
+        should_fail ->
+            should_fail
+    catch
+        _:timeout ->
+            timeout
     end,
 
     ct:log("Let's wait until all workers are free"),
@@ -155,6 +174,9 @@ best_worker(_Config) ->
             ok
     end,
 
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    {ok, _} = wpool:run(Pool, Run, best_worker),
+
     Req = wpool:send_request(Pool, {erlang, self, []}, best_worker),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
@@ -184,6 +206,9 @@ next_available_worker(_Config) ->
         _:no_workers ->
             ok
     end,
+
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    {ok, _} = wpool:run(Pool, Run, next_available_worker),
 
     ct:log("Put them all to work..."),
     [wpool:cast(Pool, {timer, sleep, [1500 + I]}, next_available_worker)
@@ -261,6 +286,9 @@ next_worker(_Config) ->
     Req = wpool:send_request(Pool, {erlang, self, []}, next_worker),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    {ok, _} = wpool:run(Pool, Run, next_worker),
+
     {comment, []}.
 
 -spec random_worker(config()) -> {comment, []}.
@@ -274,6 +302,9 @@ random_worker(_Config) ->
         _:no_workers ->
             ok
     end,
+
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    {ok, _} = wpool:run(Pool, Run, random_worker),
 
     %% Ask for a random worker's identity 20x more than the number of workers
     %% and expect to get an answer from every worker at least once.
@@ -342,6 +373,9 @@ hash_worker(_Config) ->
         sets:size(
             sets:from_list(Spread)),
 
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    [{ok, _} = wpool:run(Pool, Run, {hash_worker, I}) || I <- lists:seq(1, 20 * ?WORKERS)],
+
     %% Fill up their message queues...
     [wpool:cast(Pool, {timer, sleep, [60000]}, {hash_worker, I})
      || I <- lists:seq(1, 20 * ?WORKERS)],
@@ -392,6 +426,9 @@ custom_worker(_Config) ->
 
     Req = wpool:send_request(Pool, {erlang, self, []}, Strategy),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
+
+    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    {ok, _} = wpool:run(Pool, Run, Strategy),
 
     {comment, []}.
 

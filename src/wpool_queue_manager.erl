@@ -18,8 +18,9 @@
 
 %% api
 -export([start_link/2, start_link/3]).
--export([call_available_worker/3, cast_to_available_worker/2, new_worker/2, worker_dead/2,
-         send_request_available_worker/3, worker_ready/2, worker_busy/2, pending_task_count/1]).
+-export([run_with_available_worker/3, call_available_worker/3, cast_to_available_worker/2,
+         new_worker/2, worker_dead/2, send_request_available_worker/3, worker_ready/2,
+         worker_busy/2, pending_task_count/1]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
@@ -69,6 +70,20 @@ start_link(WPool, Name) ->
 -spec start_link(wpool:name(), queue_mgr(), options()) -> gen_server:start_ret().
 start_link(WPool, Name, Options) ->
     gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options], []).
+
+%% @doc returns the first available worker in the pool
+-spec run_with_available_worker(queue_mgr(), wpool:run(Result), timeout()) ->
+                                   noproc | timeout | Result.
+run_with_available_worker(QueueManager, Call, Timeout) ->
+    case get_available_worker(QueueManager, Call, Timeout) of
+        {ok, TimeLeft, Worker} when TimeLeft > 0 ->
+            wpool_process:run(Worker, Call);
+        {ok, _, Worker} ->
+            worker_ready(QueueManager, Worker),
+            timeout;
+        Other ->
+            Other
+    end.
 
 %% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
