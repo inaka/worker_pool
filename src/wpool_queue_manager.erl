@@ -28,7 +28,7 @@
          clients :: queue:queue({cast | {pid(), _}, term()}),
          workers :: gb_sets:set(atom()),
          monitors :: #{atom() := monitored_from()},
-         queue_type :: queue_type()}).
+         queue_type :: wpool:queue_type()}).
 
 -opaque state() :: #state{}.
 
@@ -50,7 +50,6 @@
 
 -type arg() :: option() | pool.
 -type queue_mgr() :: atom().
--type queue_type() :: fifo | lifo.
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 
 -export_type([worker_event/0]).
@@ -58,7 +57,7 @@
 -type call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
 
 -export_type([call_request/0]).
--export_type([queue_mgr/0, queue_type/0]).
+-export_type([queue_mgr/0]).
 
 %%%===================================================================
 %%% API

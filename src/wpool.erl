@@ -146,7 +146,7 @@
 %%
 %% Defaults to `5'. See {@link wpool_pool} for more details.
 
--type queue_type() :: wpool_queue_manager:queue_type().
+-type queue_type() :: fifo | lifo.
 %% Order in which requests will be stored and handled by workers.
 %%
 %% This option can take values `lifo' or `fifo'. Defaults to `fifo'.
@@ -273,7 +273,8 @@
      {workers, [{pos_integer(), worker_stats()}]}].
 %% Statistics about a given live pool.
 
--export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0, worker_stats/0, stats/0]).
+-export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0,
+              queue_type/0, worker_stats/0, stats/0]).
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([child_spec/2, start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
@@ -380,10 +381,11 @@ call(Sup, Call, Strategy) ->
     call(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
-%%      For all strategies except available_worker, Timeout applies only to the
-%%      time spent on the actual call to the worker, because time spent finding
-%%      the worker in other strategies is negligible.
-%%      For available_worker the time used choosing a worker is also considered
+%%
+%% For all strategies except available_worker, Timeout applies only to the
+%% time spent on the actual call to the worker, because time spent finding
+%% the worker in other strategies is negligible.
+%% For available_worker the time used choosing a worker is also considered
 -spec call(name(), term(), strategy(), timeout()) -> term().
 call(Sup, Call, available_worker, Timeout) ->
     wpool_pool:call_available_worker(Sup, Call, Timeout);
@@ -434,7 +436,8 @@ send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
-%%      Timeout applies only for the time used choosing a worker in the available_worker strategy
+%%
+%% Timeout applies only for the time used choosing a worker in the available_worker strategy
 -spec send_request(name(), term(), strategy(), timeout()) ->
                       noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
@@ -486,6 +489,7 @@ stats(Sup) ->
     wpool_pool:stats(Sup).
 
 %% @doc Retrieves the list of worker registered names.
+%%
 %% This can be useful to manually inspect the workers or do custom work on them.
 -spec get_workers(name()) -> [atom()].
 get_workers(Sup) ->
