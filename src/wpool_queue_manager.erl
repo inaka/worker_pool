@@ -239,8 +239,7 @@ handle_info(_Info, State) ->
 -spec get_available_worker(queue_mgr(), any(), timeout()) ->
                               noproc | timeout | {ok, timeout(), any()}.
 get_available_worker(QueueManager, Call, Timeout) ->
-    Start = now_in_milliseconds(),
-    ExpiresAt = expires(Timeout, Start),
+    ExpiresAt = expires(Timeout),
     try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
         {'EXIT', _, noproc} ->
             noproc;
@@ -268,11 +267,11 @@ inc(Key) ->
 dec(Key) ->
     put(Key, get(Key) - 1).
 
--spec expires(timeout(), integer()) -> timeout().
-expires(infinity, _) ->
+-spec expires(timeout()) -> timeout().
+expires(infinity) ->
     infinity;
-expires(Timeout, NowMs) ->
-    NowMs + Timeout.
+expires(Timeout) ->
+    now_in_milliseconds() + Timeout.
 
 -spec time_left(timeout()) -> timeout().
 time_left(infinity) ->
