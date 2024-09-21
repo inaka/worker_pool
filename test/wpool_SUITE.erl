@@ -292,7 +292,7 @@ stats(_Config) ->
     PoolPid = Get(supervisor, InitStats),
     Options = Get(options, InitStats),
     infinity = Get(overrun_warning, Options),
-    {error_logger, warning_report} = Get(overrun_handler, Options),
+    {logger, warning} = Get(overrun_handler, Options),
     10 = Get(workers, Options),
     10 = Get(size, InitStats),
     1 = Get(next_worker, InitStats),

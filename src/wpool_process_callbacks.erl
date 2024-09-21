@@ -1,5 +1,7 @@
 -module(wpool_process_callbacks).
 
+-include_lib("kernel/include/logger.hrl").
+
 -behaviour(gen_event).
 
 %% The callbacks are called in an extremely dynamic from call/3.
@@ -71,7 +73,10 @@ call(Module, Event, Args) ->
         end
     catch
         E:R ->
-            error_logger:warning_msg("Could not call callback module, error:~p, reason:~p", [E, R])
+            logger:warning(#{what => "Could not call callback module",
+                             error => E,
+                             reason => R},
+                           ?LOCATION)
     end.
 
 ensure_loaded(Module) ->

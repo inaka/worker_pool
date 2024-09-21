@@ -16,6 +16,8 @@
 %%% It is a module that implements a very simple RPC-like interface.
 -module(wpool_worker).
 
+-include_lib("kernel/include/logger.hrl").
+
 -behaviour(gen_server).
 
 %% api
@@ -70,12 +72,15 @@ handle_cast({M, F, A}, State) ->
         _ ->
             {noreply, State, hibernate}
     catch
-        _:Error:Stacktrace ->
-            log_error(M, F, A, Error, Stacktrace),
+        Class:Reason:Stacktrace ->
+            log_error(M, F, A, Class, Reason, Stacktrace),
             {noreply, State, hibernate}
     end;
 handle_cast(Cast, State) ->
-    error_logger:error_msg("Invalid cast:~p", [Cast]),
+    logger:error(#{what => "Invalid cast",
+                   cast => Cast,
+                   worker => self()},
+                 ?LOCATION),
     {noreply, State, hibernate}.
 
 %% @private
@@ -86,17 +91,25 @@ handle_call({M, F, A}, _From, State) ->
         R ->
             {reply, {ok, R}, State, hibernate}
     catch
-        _:Error:Stacktrace ->
-            log_error(M, F, A, Error, Stacktrace),
-            {reply, {error, Error}, State, hibernate}
+        Class:Reason:Stacktrace ->
+            log_error(M, F, A, Class, Reason, Stacktrace),
+            {reply, {error, Reason}, State, hibernate}
     end;
-handle_call(Call, _From, State) ->
-    error_logger:error_msg("Invalid call:~p", [Call]),
+handle_call(Call, From, State) ->
+    logger:error(#{what => "Invalid call",
+                   call => Call,
+                   from => From,
+                   worker => self()},
+                 ?LOCATION),
     {reply, {error, invalid_request}, State, hibernate}.
 
 %%%===================================================================
 %%% not exported functions
 %%%===================================================================
-log_error(M, F, A, Error, Stacktrace) ->
-    error_logger:error_msg("Error on ~p:~p~p >> ~p Backtrace ~p",
-                           [M, F, A, Error, Stacktrace]).
+log_error(M, F, A, Class, Reason, Stacktrace) ->
+    logger:error(#{what => "Reason on ~p:~p~p >> ~p Backtrace ~p",
+                   mfa => {M, F, A},
+                   class => Class,
+                   reason => Reason,
+                   stacktrace => Stacktrace},
+                 ?LOCATION).

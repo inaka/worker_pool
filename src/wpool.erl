@@ -89,7 +89,7 @@
 -type overrun_handler() :: {Module :: module(), Fun :: atom()}.
 %% The module and function to call when a task is <i>overrun</i>
 %%
-%% The default value for this setting is `{error_logger, warning_report}'. The function must be of
+%% The default value for this setting is `{logger, warning}'. The function must be of
 %% arity 1, and it will be called as`Module:Fun(Args)' where `Args' is a proplist with the following
 %% reported values:
 %% <ul>
@@ -173,7 +173,7 @@
     {worker_opt, [worker_opt()]} |
     {strategy, supervisor_strategy()} |
     {worker_shutdown, worker_shutdown()} |
-    {overrun_handler, overrun_handler()} |
+    {overrun_handler, overrun_handler() | [overrun_handler()]} |
     {overrun_warning, overrun_warning()} |
     {max_overrun_warnings, max_overrun_warnings()} |
     {pool_sup_intensity, pool_sup_intensity()} |
@@ -192,7 +192,7 @@
                      worker_opt => [worker_opt()],
                      strategy => supervisor_strategy(),
                      worker_shutdown => worker_shutdown(),
-                     overrun_handler => overrun_handler(),
+                     overrun_handler => overrun_handler() | [overrun_handler()],
                      overrun_warning => overrun_warning(),
                      max_overrun_warnings => max_overrun_warnings(),
                      pool_sup_intensity => pool_sup_intensity(),

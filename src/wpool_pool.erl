@@ -21,6 +21,8 @@
 %%% `t:wpool:pool_sup_intensity()' options respectively.
 -module(wpool_pool).
 
+-include_lib("kernel/include/logger.hrl").
+
 -behaviour(supervisor).
 
 %% API
@@ -329,7 +331,7 @@ time_checker_name(Name) ->
 init({Name, Options}) ->
     Size = maps:get(workers, Options, 100),
     QueueType = maps:get(queue_type, Options),
-    OverrunHandler = maps:get(overrun_handler, Options, {error_logger, warning_report}),
+    OverrunHandler = maps:get(overrun_handler, Options, {logger, warning}),
     SupShutdown = maps:get(pool_sup_shutdown, Options, brutal_kill),
     TimeCheckerName = time_checker_name(Name),
     QueueManagerName = queue_manager_name(Name),
@@ -522,15 +524,19 @@ find_wpool(Name) ->
 %% @doc We use this function not to report an error if for some reason we've
 %% lost the record on the persistent_term table. This SHOULDN'T be called too much.
 build_wpool(Name) ->
-    error_logger:warning_msg("Building a #wpool record for ~p. Something must have failed.",
-                             [Name]),
+    logger:warning(#{what => "Building a #wpool record. Something must have failed.",
+                     pool => Name},
+                   ?LOCATION),
     try supervisor:count_children(process_sup_name(Name)) of
         Children ->
             Size = proplists:get_value(active, Children, 0),
             store_wpool(Name, Size, #{})
     catch
         _:Error ->
-            error_logger:warning_msg("Wpool ~p not found: ~p", [Name, Error]),
+            logger:warning(#{what => "Wpool not found",
+                             pool => Name,
+                             reason => Error},
+                           ?LOCATION),
             undefined
     end.
 

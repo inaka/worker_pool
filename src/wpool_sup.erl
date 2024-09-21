@@ -14,6 +14,8 @@
 %%% @private
 -module(wpool_sup).
 
+-include_lib("kernel/include/logger.hrl").
+
 -behaviour(supervisor).
 
 -export([start_link/0, init/1]).
@@ -37,7 +39,10 @@ start_pool(Name, Options) ->
 stop_pool(Name) ->
     case erlang:whereis(Name) of
         undefined ->
-            error_logger:warning_msg("Couldn't stop ~p. It was not running", [Name]),
+            logger:warning(#{what => "Could not stop pool",
+                             reason => "It was not running",
+                             pool => Name},
+                           ?LOCATION),
             ok;
         Pid ->
             ok = supervisor:terminate_child(?MODULE, Pid)
