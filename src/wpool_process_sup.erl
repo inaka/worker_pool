@@ -14,6 +14,8 @@
 %%% @doc This is the supervisor that supervises the `gen_server' workers specifically.
 -module(wpool_process_sup).
 
+-include_lib("kernel/include/logger.hrl").
+
 -behaviour(supervisor).
 
 %% API
@@ -62,6 +64,8 @@ add_initial_callback(EventManager, Module) ->
         ok ->
             ok;
         Other ->
-            error_logger:warning_msg("The callback module:~p could not be loaded, reason:~p",
-                                     [Module, Other])
+            logger:warning(#{what => "The callback module could not be loaded",
+                             module => Module,
+                             reason => Other},
+                           ?LOCATION)
     end.

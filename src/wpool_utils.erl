@@ -56,7 +56,7 @@ add_defaults(Opts) when is_list(Opts) ->
 
 defaults() ->
     #{max_overrun_warnings => infinity,
-      overrun_handler => {error_logger, warning_report},
+      overrun_handler => {logger, warning},
       overrun_warning => infinity,
       queue_type => fifo,
       worker_opt => [],
