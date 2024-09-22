@@ -28,7 +28,8 @@
 -export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
          kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
          overrun_handler2/1, default_options/1, complete_coverage/1, child_spec/1, broadcall/1,
-         broadcast/1, send_request/1, worker_killed_stats/1, accepts_maps_and_lists_as_opts/1]).
+         broadcast/1, send_request/1, worker_killed_stats/1, accepts_maps_and_lists_as_opts/1,
+         pool_of_supervisors/1]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
@@ -51,7 +52,8 @@ all() ->
      send_request,
      kill_on_overrun,
      worker_killed_stats,
-     accepts_maps_and_lists_as_opts].
+     accepts_maps_and_lists_as_opts,
+     pool_of_supervisors].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -514,6 +516,29 @@ accepts_maps_and_lists_as_opts(_Config) ->
     ct:comment("accepts lists as opts"),
 
     {comment, []}.
+
+-spec pool_of_supervisors(config()) -> {comment, string()}.
+pool_of_supervisors(_Config) ->
+    Opts =
+        #{workers => 3,
+          worker_shutdown => infinity,
+          worker => {supervisor, {echo_supervisor, echo_supervisor, noargs}}},
+
+    {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
+    true = erlang:is_process_alive(Pid),
+
+    [begin
+         Run = fun(Sup) -> supervisor:start_child(Sup, [{ok, #{}}]) end,
+         {ok, EchoServer} = wpool:run(pool_of_supervisors, Run, next_worker),
+         true = erlang:is_process_alive(EchoServer)
+     end
+     || _N <- lists:seq(1, 9)],
+
+    Supervisors = wpool:get_workers(pool_of_supervisors),
+    [3 = proplists:get_value(active, supervisor:count_children(Supervisor))
+     || Supervisor <- Supervisors],
+
+    {comment, "Nicely load-balanced childrens across supervisors"}.
 
 %% =============================================================================
 %% Helpers
