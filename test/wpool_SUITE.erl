@@ -527,12 +527,13 @@ pool_of_supervisors(_Config) ->
     {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
     true = erlang:is_process_alive(Pid),
 
-    [begin
-         Run = fun(Sup) -> supervisor:start_child(Sup, [{ok, #{}}]) end,
-         {ok, EchoServer} = wpool:run(pool_of_supervisors, Run, next_worker),
-         true = erlang:is_process_alive(EchoServer)
-     end
-     || _N <- lists:seq(1, 9)],
+    Run = fun(Sup, _) -> supervisor:start_child(Sup, [{ok, #{}}]) end,
+    ForEach =
+        fun(_) ->
+           {ok, EchoServer} = wpool:run(pool_of_supervisors, Run, next_worker),
+           true = erlang:is_process_alive(EchoServer)
+        end,
+    lists:foreach(ForEach, lists:seq(1, 9)),
 
     Supervisors = wpool:get_workers(pool_of_supervisors),
     [3 = proplists:get_value(active, supervisor:count_children(Supervisor))
