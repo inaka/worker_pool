@@ -77,7 +77,7 @@ stop_worker(_Config) ->
 -spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
     Pool = available_worker,
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     try wpool:call(not_a_pool, x) of
         no_result ->
             no_result
@@ -174,7 +174,7 @@ best_worker(_Config) ->
             ok
     end,
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     {ok, _} = wpool:run(Pool, Run, best_worker),
 
     Req = wpool:send_request(Pool, {erlang, self, []}, best_worker),
@@ -207,7 +207,7 @@ next_available_worker(_Config) ->
             ok
     end,
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     {ok, _} = wpool:run(Pool, Run, next_available_worker),
 
     ct:log("Put them all to work..."),
@@ -286,7 +286,7 @@ next_worker(_Config) ->
     Req = wpool:send_request(Pool, {erlang, self, []}, next_worker),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     {ok, _} = wpool:run(Pool, Run, next_worker),
 
     {comment, []}.
@@ -303,7 +303,7 @@ random_worker(_Config) ->
             ok
     end,
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     {ok, _} = wpool:run(Pool, Run, random_worker),
 
     %% Ask for a random worker's identity 20x more than the number of workers
@@ -373,7 +373,7 @@ hash_worker(_Config) ->
         sets:size(
             sets:from_list(Spread)),
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     [{ok, _} = wpool:run(Pool, Run, {hash_worker, I}) || I <- lists:seq(1, 20 * ?WORKERS)],
 
     %% Fill up their message queues...
@@ -427,7 +427,7 @@ custom_worker(_Config) ->
     Req = wpool:send_request(Pool, {erlang, self, []}, Strategy),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
-    Run = fun(Worker) -> gen_server:call(Worker, {erlang, self, []}) end,
+    Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     {ok, _} = wpool:run(Pool, Run, Strategy),
 
     {comment, []}.

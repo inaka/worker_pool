@@ -164,7 +164,7 @@
 %% Callbacks can be added and removed later by `wpool_pool:add_callback_module/2' and
 %% `wpool_pool:remove_callback_module/2'.
 
--type run(Result) :: fun((wpool:name() | pid()) -> Result).
+-type run(Result) :: fun((name() | pid(), timeout()) -> Result).
 %% A function to run with a given worker.
 %%
 %% It can be used to enable APIs that hide the gen_server behind a complex logic
@@ -181,7 +181,7 @@
 %%
 %% ...
 %%
-%% Run = fun(Sup) -> supervisor:start_child(Sup, Params) end,
+%% Run = fun(Sup, _) -> supervisor:start_child(Sup, Params) end,
 %% {ok, Pid} = wpool:run(pool_of_supervisors, Run, next_worker),
 %% '''
 
@@ -411,18 +411,18 @@ run(Sup, Run, Strategy) ->
 -spec run(name(), run(Result), strategy(), timeout()) -> Result.
 run(Sup, Run, available_worker, Timeout) ->
     wpool_pool:run_with_available_worker(Sup, Run, Timeout);
-run(Sup, Run, next_available_worker, _Timeout) ->
-    wpool_process:run(wpool_pool:next_available_worker(Sup), Run);
-run(Sup, Run, next_worker, _Timeout) ->
-    wpool_process:run(wpool_pool:next_worker(Sup), Run);
-run(Sup, Run, random_worker, _Timeout) ->
-    wpool_process:run(wpool_pool:random_worker(Sup), Run);
-run(Sup, Run, best_worker, _Timeout) ->
-    wpool_process:run(wpool_pool:best_worker(Sup), Run);
-run(Sup, Run, {hash_worker, HashKey}, _Timeout) ->
-    wpool_process:run(wpool_pool:hash_worker(Sup, HashKey), Run);
-run(Sup, Run, Fun, _Timeout) when is_function(Fun, 1) ->
-    wpool_process:run(Fun(Sup), Run).
+run(Sup, Run, next_available_worker, Timeout) ->
+    wpool_process:run(wpool_pool:next_available_worker(Sup), Run, Timeout);
+run(Sup, Run, next_worker, Timeout) ->
+    wpool_process:run(wpool_pool:next_worker(Sup), Run, Timeout);
+run(Sup, Run, random_worker, Timeout) ->
+    wpool_process:run(wpool_pool:random_worker(Sup), Run, Timeout);
+run(Sup, Run, best_worker, Timeout) ->
+    wpool_process:run(wpool_pool:best_worker(Sup), Run, Timeout);
+run(Sup, Run, {hash_worker, HashKey}, Timeout) ->
+    wpool_process:run(wpool_pool:hash_worker(Sup, HashKey), Run, Timeout);
+run(Sup, Run, Fun, Timeout) when is_function(Fun, 1) ->
+    wpool_process:run(Fun(Sup), Run, Timeout).
 
 %% @equiv call(Sup, Call, default_strategy())
 -spec call(name(), term()) -> term().
