@@ -18,8 +18,9 @@
 
 %% api
 -export([start_link/2, start_link/3]).
--export([call_available_worker/3, cast_to_available_worker/2, new_worker/2, worker_dead/2,
-         send_request_available_worker/3, worker_ready/2, worker_busy/2, pending_task_count/1]).
+-export([run_with_available_worker/3, call_available_worker/3, cast_to_available_worker/2,
+         new_worker/2, worker_dead/2, send_request_available_worker/3, worker_ready/2,
+         worker_busy/2, pending_task_count/1]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
@@ -28,7 +29,7 @@
          clients :: queue:queue({cast | {pid(), _}, term()}),
          workers :: gb_sets:set(atom()),
          monitors :: #{atom() := monitored_from()},
-         queue_type :: queue_type()}).
+         queue_type :: wpool:queue_type()}).
 
 -opaque state() :: #state{}.
 
@@ -50,7 +51,6 @@
 
 -type arg() :: option() | pool.
 -type queue_mgr() :: atom().
--type queue_type() :: fifo | lifo.
 -type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 
 -export_type([worker_event/0]).
@@ -58,7 +58,7 @@
 -type call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
 
 -export_type([call_request/0]).
--export_type([queue_mgr/0, queue_type/0]).
+-export_type([queue_mgr/0]).
 
 %%%===================================================================
 %%% API
@@ -72,12 +72,26 @@ start_link(WPool, Name, Options) ->
     gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options], []).
 
 %% @doc returns the first available worker in the pool
+-spec run_with_available_worker(queue_mgr(), wpool:run(Result), timeout()) ->
+                                   noproc | timeout | Result.
+run_with_available_worker(QueueManager, Call, Timeout) ->
+    case get_available_worker(QueueManager, Call, Timeout) of
+        {ok, Worker, TimeLeft} when TimeLeft > 0 ->
+            wpool_process:run(Worker, Call, TimeLeft);
+        {ok, Worker, _} ->
+            worker_ready(QueueManager, Worker),
+            timeout;
+        Other ->
+            Other
+    end.
+
+%% @doc returns the first available worker in the pool
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, TimeLeft, Worker} when TimeLeft > 0 ->
+        {ok, Worker, TimeLeft} when TimeLeft > 0 ->
             wpool_process:call(Worker, Call, TimeLeft);
-        {ok, _, Worker} ->
+        {ok, Worker, _} ->
             worker_ready(QueueManager, Worker),
             timeout;
         Other ->
@@ -97,7 +111,7 @@ cast_to_available_worker(QueueManager, Cast) ->
                                        noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, _TimeLeft, Worker} ->
+        {ok, Worker, _} ->
             wpool_process:send_request(Worker, Call);
         Other ->
             Other
@@ -237,10 +251,9 @@ handle_info(_Info, State) ->
 %%% private
 %%%===================================================================
 -spec get_available_worker(queue_mgr(), any(), timeout()) ->
-                              noproc | timeout | {ok, timeout(), any()}.
+                              noproc | timeout | {ok, atom(), timeout()}.
 get_available_worker(QueueManager, Call, Timeout) ->
-    Start = now_in_milliseconds(),
-    ExpiresAt = expires(Timeout, Start),
+    ExpiresAt = expires(Timeout),
     try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
         {'EXIT', _, noproc} ->
             noproc;
@@ -248,7 +261,7 @@ get_available_worker(QueueManager, Call, Timeout) ->
             exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
         {ok, Worker} ->
             TimeLeft = time_left(ExpiresAt),
-            {ok, TimeLeft, Worker}
+            {ok, Worker, TimeLeft}
     catch
         _:{noproc, {gen_server, call, _}} ->
             noproc;
@@ -268,11 +281,11 @@ inc(Key) ->
 dec(Key) ->
     put(Key, get(Key) - 1).
 
--spec expires(timeout(), integer()) -> timeout().
-expires(infinity, _) ->
+-spec expires(timeout()) -> timeout().
+expires(infinity) ->
     infinity;
-expires(Timeout, NowMs) ->
-    NowMs + Timeout.
+expires(Timeout) ->
+    now_in_milliseconds() + Timeout.
 
 -spec time_left(timeout()) -> timeout().
 time_left(infinity) ->
@@ -280,7 +293,7 @@ time_left(infinity) ->
 time_left(ExpiresAt) ->
     ExpiresAt - now_in_milliseconds().
 
--spec is_expired(integer()) -> boolean().
+-spec is_expired(timeout()) -> boolean().
 is_expired(ExpiresAt) ->
     ExpiresAt > now_in_milliseconds().
 

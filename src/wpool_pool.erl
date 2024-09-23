@@ -28,7 +28,8 @@
 %% API
 -export([start_link/2]).
 -export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
-         next_available_worker/1, send_request_available_worker/3, call_available_worker/3]).
+         next_available_worker/1, send_request_available_worker/3, call_available_worker/3,
+         run_with_available_worker/3]).
 -export([cast_to_available_worker/2, broadcast/2, broadcall/3]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([worker_name/2, find_wpool/1]).
@@ -116,15 +117,40 @@ next_available_worker(Name) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
+-spec run_with_available_worker(wpool:name(), wpool:run(Result), timeout()) -> Result.
+run_with_available_worker(Name, Run, Timeout) ->
+    case find_wpool(Name) of
+        undefined ->
+            exit(no_workers);
+        #wpool{qmanager = QManager} ->
+            case wpool_queue_manager:run_with_available_worker(QManager, Run, Timeout) of
+                noproc ->
+                    exit(no_workers);
+                timeout ->
+                    exit(timeout);
+                Result ->
+                    Result
+            end
+    end.
+
+%% @doc Picks the first available worker and sends the call to it.
+%%      The timeout provided includes the time it takes to get a worker
+%%      and for it to process the call.
+%% @throws no_workers | timeout
 -spec call_available_worker(wpool:name(), any(), timeout()) -> any().
 call_available_worker(Name, Call, Timeout) ->
-    case wpool_queue_manager:call_available_worker(queue_manager_name(Name), Call, Timeout) of
-        noproc ->
+    case find_wpool(Name) of
+        undefined ->
             exit(no_workers);
-        timeout ->
-            exit(timeout);
-        Result ->
-            Result
+        #wpool{qmanager = QManager} ->
+            case wpool_queue_manager:call_available_worker(QManager, Call, Timeout) of
+                noproc ->
+                    exit(no_workers);
+                timeout ->
+                    exit(timeout);
+                Result ->
+                    Result
+            end
     end.
 
 %% @doc Picks the first available worker and sends the request to it.

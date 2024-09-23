@@ -146,7 +146,7 @@
 %%
 %% Defaults to `5'. See {@link wpool_pool} for more details.
 
--type queue_type() :: wpool_queue_manager:queue_type().
+-type queue_type() :: fifo | lifo.
 %% Order in which requests will be stored and handled by workers.
 %%
 %% This option can take values `lifo' or `fifo'. Defaults to `fifo'.
@@ -163,6 +163,27 @@
 %% This options will only work if the {@link enable_callbacks()} is set to <b>true</b>.
 %% Callbacks can be added and removed later by `wpool_pool:add_callback_module/2' and
 %% `wpool_pool:remove_callback_module/2'.
+
+-type run(Result) :: fun((name() | pid(), timeout()) -> Result).
+%% A function to run with a given worker.
+%%
+%% It can be used to enable APIs that hide the gen_server behind a complex logic
+%% that might for example curate parameters or run side-effects, for example, `supervisor'.
+%%
+%% For example:
+%% ```
+%%  Opts =
+%%      #{workers => 3,
+%%        worker_shutdown => infinity,
+%%        worker => {supervisor, {Name, ModuleCallback, Args}}},
+%%        %% Note that the supervisor's `init/1' callback takes such 3-tuple.
+%% {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
+%%
+%% ...
+%%
+%% Run = fun(Sup, _) -> supervisor:start_child(Sup, Params) end,
+%% {ok, Pid} = wpool:run(pool_of_supervisors, Run, next_worker),
+%% '''
 
 -type name() :: atom().
 %% Name of the pool
@@ -273,13 +294,15 @@
      {workers, [{pos_integer(), worker_stats()}]}].
 %% Statistics about a given live pool.
 
--export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0, worker_stats/0, stats/0]).
+-export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0,
+              queue_type/0, run/1, worker_stats/0, stats/0]).
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([child_spec/2, start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1, stop_sup_pool/1]).
--export([call/2, cast/2, call/3, cast/3, call/4, broadcall/3, broadcast/2]).
--export([send_request/2, send_request/3, send_request/4]).
+-export([call/2, call/3, call/4, cast/2, cast/3,
+         run/2, run/3, run/4, broadcall/3, broadcast/2,
+         send_request/2, send_request/3, send_request/4]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
@@ -369,6 +392,38 @@ default_strategy() ->
             Strategy
     end.
 
+%% @equiv run(Sup, Run, default_strategy())
+-spec run(name(), run(Result)) -> Result.
+run(Sup, Run) ->
+    run(Sup, Run, default_strategy()).
+
+%% @equiv run(Sup, Run, Strategy, 5000)
+-spec run(name(), run(Result), strategy()) -> Result.
+run(Sup, Run, Strategy) ->
+    run(Sup, Run, Strategy, 5000).
+
+%% @doc Picks a server and issues the run to it.
+%%
+%% For all strategies except available_worker, Timeout applies only to the
+%% time spent on the actual run to the worker, because time spent finding
+%% the worker in other strategies is negligible.
+%% For available_worker the time used choosing a worker is also considered
+-spec run(name(), run(Result), strategy(), timeout()) -> Result.
+run(Sup, Run, available_worker, Timeout) ->
+    wpool_pool:run_with_available_worker(Sup, Run, Timeout);
+run(Sup, Run, next_available_worker, Timeout) ->
+    wpool_process:run(wpool_pool:next_available_worker(Sup), Run, Timeout);
+run(Sup, Run, next_worker, Timeout) ->
+    wpool_process:run(wpool_pool:next_worker(Sup), Run, Timeout);
+run(Sup, Run, random_worker, Timeout) ->
+    wpool_process:run(wpool_pool:random_worker(Sup), Run, Timeout);
+run(Sup, Run, best_worker, Timeout) ->
+    wpool_process:run(wpool_pool:best_worker(Sup), Run, Timeout);
+run(Sup, Run, {hash_worker, HashKey}, Timeout) ->
+    wpool_process:run(wpool_pool:hash_worker(Sup, HashKey), Run, Timeout);
+run(Sup, Run, Fun, Timeout) when is_function(Fun, 1) ->
+    wpool_process:run(Fun(Sup), Run, Timeout).
+
 %% @equiv call(Sup, Call, default_strategy())
 -spec call(name(), term()) -> term().
 call(Sup, Call) ->
@@ -380,10 +435,11 @@ call(Sup, Call, Strategy) ->
     call(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
-%%      For all strategies except available_worker, Timeout applies only to the
-%%      time spent on the actual call to the worker, because time spent finding
-%%      the worker in other strategies is negligible.
-%%      For available_worker the time used choosing a worker is also considered
+%%
+%% For all strategies except available_worker, Timeout applies only to the
+%% time spent on the actual call to the worker, because time spent finding
+%% the worker in other strategies is negligible.
+%% For available_worker the time used choosing a worker is also considered
 -spec call(name(), term(), strategy(), timeout()) -> term().
 call(Sup, Call, available_worker, Timeout) ->
     wpool_pool:call_available_worker(Sup, Call, Timeout);
@@ -434,7 +490,8 @@ send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
 %% @doc Picks a server and issues the call to it.
-%%      Timeout applies only for the time used choosing a worker in the available_worker strategy
+%%
+%% Timeout applies only for the time used choosing a worker in the available_worker strategy
 -spec send_request(name(), term(), strategy(), timeout()) ->
                       noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
@@ -486,6 +543,7 @@ stats(Sup) ->
     wpool_pool:stats(Sup).
 
 %% @doc Retrieves the list of worker registered names.
+%%
 %% This can be useful to manually inspect the workers or do custom work on them.
 -spec get_workers(name()) -> [atom()].
 get_workers(Sup) ->
