@@ -76,9 +76,9 @@ start_link(WPool, Name, Options) ->
                                    noproc | timeout | Result.
 run_with_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, TimeLeft, Worker} when TimeLeft > 0 ->
-            wpool_process:run(Worker, Call);
-        {ok, _, Worker} ->
+        {ok, Worker, TimeLeft} when TimeLeft > 0 ->
+            wpool_process:run(Worker, Call, TimeLeft);
+        {ok, Worker, _} ->
             worker_ready(QueueManager, Worker),
             timeout;
         Other ->
@@ -89,9 +89,9 @@ run_with_available_worker(QueueManager, Call, Timeout) ->
 -spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
 call_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, TimeLeft, Worker} when TimeLeft > 0 ->
+        {ok, Worker, TimeLeft} when TimeLeft > 0 ->
             wpool_process:call(Worker, Call, TimeLeft);
-        {ok, _, Worker} ->
+        {ok, Worker, _} ->
             worker_ready(QueueManager, Worker),
             timeout;
         Other ->
@@ -111,7 +111,7 @@ cast_to_available_worker(QueueManager, Cast) ->
                                        noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
-        {ok, _TimeLeft, Worker} ->
+        {ok, Worker, _} ->
             wpool_process:send_request(Worker, Call);
         Other ->
             Other
@@ -251,7 +251,7 @@ handle_info(_Info, State) ->
 %%% private
 %%%===================================================================
 -spec get_available_worker(queue_mgr(), any(), timeout()) ->
-                              noproc | timeout | {ok, timeout(), any()}.
+                              noproc | timeout | {ok, atom(), timeout()}.
 get_available_worker(QueueManager, Call, Timeout) ->
     ExpiresAt = expires(Timeout),
     try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of
@@ -261,7 +261,7 @@ get_available_worker(QueueManager, Call, Timeout) ->
             exit({Exit, {gen_server, call, [Worker, Call, Timeout]}});
         {ok, Worker} ->
             TimeLeft = time_left(ExpiresAt),
-            {ok, TimeLeft, Worker}
+            {ok, Worker, TimeLeft}
     catch
         _:{noproc, {gen_server, call, _}} ->
             noproc;
@@ -293,7 +293,7 @@ time_left(infinity) ->
 time_left(ExpiresAt) ->
     ExpiresAt - now_in_milliseconds().
 
--spec is_expired(integer()) -> boolean().
+-spec is_expired(timeout()) -> boolean().
 is_expired(ExpiresAt) ->
     ExpiresAt > now_in_milliseconds().
 
