@@ -42,3 +42,4 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: "_build/test/covertool/worker_pool.covertool.xml"
+          verbose: true
