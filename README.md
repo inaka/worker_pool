@@ -1,4 +1,4 @@
-# Worker Pool [![Build Status](https://github.com/inaka/worker_pool/actions/workflows/erlang.yml/badge.svg)](https://github.com/inaka/worker_pool/actions/workflows/erlang.yml)
+# Worker Pool [![Build Status](https://github.com/inaka/worker_pool/actions/workflows/erlang.yml/badge.svg)](https://github.com/inaka/worker_pool/actions/workflows/erlang.yml)[![codecov](https://codecov.io/gh/inaka/worker_pool/branch/main/graph/badge.svg)](https://codecov.io/gh/inaka/worker_pool)
 
 <img src="https://img3.wikia.nocookie.net/__cb20140705120849/clubpenguin/images/thumb/f/ff/MINIONS.jpg/481px-MINIONS.jpg" align="right" style="float:right" height="400" />
 
