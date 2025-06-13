@@ -151,6 +151,12 @@
 %%
 %% This option can take values `lifo' or `fifo'. Defaults to `fifo'.
 
+-type enable_queues() :: boolean().
+%% A boolean value determining if `queue_manager' should be started for queueing requests.
+%%
+%% Defaults to `true'.
+%% Note that disabling this will disable `available_worker' and `next_available_worker' strategies.
+
 -type enable_callbacks() :: boolean().
 %% A boolean value determining if `event_manager' should be started for callback modules.
 %%
@@ -202,6 +208,7 @@
     {pool_sup_period, pool_sup_period()} |
     {queue_type, queue_type()} |
     {enable_callbacks, enable_callbacks()} |
+    {enable_queues, enable_queues()} |
     {callbacks, callbacks()}.
 %% Options that can be provided to a new pool.
 %%
@@ -221,6 +228,7 @@
                      pool_sup_period => pool_sup_period(),
                      queue_type => queue_type(),
                      enable_callbacks => enable_callbacks(),
+                     enable_queues => enable_queues(),
                      callbacks => callbacks(),
                      _ => _}.
 %% Options that can be provided to a new pool.

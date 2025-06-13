@@ -27,7 +27,7 @@
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 -export([stop_worker/1, best_worker/1, next_worker/1, random_worker/1, available_worker/1,
          hash_worker/1, custom_worker/1, next_available_worker/1, wpool_record/1,
-         queue_type_fifo/1, queue_type_lifo/1, get_workers/1]).
+         queue_type_fifo/1, queue_type_lifo/1, get_workers/1, no_queue_manager/1]).
 -export([manager_crash/1, super_fast/1, mess_up_with_store/1]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
@@ -50,6 +50,9 @@ end_per_suite(Config) ->
     Config.
 
 -spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(no_queue_manager = TestCase, Config) ->
+    {ok, _} = wpool:start_pool(TestCase, [{workers, 1}, {enable_queues, false}]),
+    Config;
 init_per_testcase(queue_type_lifo = TestCase, Config) ->
     {ok, _} = wpool:start_pool(TestCase, [{workers, 1}, {queue_type, lifo}]),
     Config;
@@ -451,6 +454,37 @@ manager_crash(_Config) ->
 
     ct:log("Check that the pool is working again"),
     {ok, ok} = send_io_format(Pool),
+
+    {comment, []}.
+
+-spec no_queue_manager(config()) -> {comment, []}.
+no_queue_manager(_Config) ->
+    Pool = no_queue_manager,
+
+    ct:log("Check that the pool is working"),
+    {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, random_worker),
+    {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, next_worker),
+    {ok, ok} = wpool:call(Pool, {io, format, ["ok!~n"]}, {hash_worker, self()}),
+
+    ct:log("Impossible task"),
+    Self = self(),
+    try wpool:call(Pool, {erlang, send, [Self, something]}, available_worker, 0) of
+        R ->
+            ct:fail("Unexpected ~p", [R])
+    catch
+        _:no_workers ->
+            ok
+    end,
+
+    0 = proplists:get_value(total_message_queue_len, wpool:stats(Pool)),
+
+    ct:log("Wait a second and nothing gets here"),
+    receive
+        X ->
+            ct:fail("Unexpected ~p", [X])
+    after 1000 ->
+        ok
+    end,
 
     {comment, []}.
 
