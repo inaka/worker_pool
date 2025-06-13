@@ -366,8 +366,9 @@ init({Name, Options}) ->
     _Wpool = store_wpool(Name, Size, Options),
 
     WorkerOpts0 =
-        [{queue_manager, QueueManagerName}, {time_checker, TimeCheckerName}
-         | maybe_event_manager(Options, {event_manager, EventManagerName})],
+        [{time_checker, TimeCheckerName}]
+        ++ maybe_queue_manager(Options, {queue_manager, QueueManagerName})
+        ++ maybe_event_manager(Options, {event_manager, EventManagerName}),
     WorkerOpts =
         maps:merge(
             maps:from_list(WorkerOpts0), Options),
@@ -406,7 +407,8 @@ init({Name, Options}) ->
          [wpool_process_sup]},
 
     Children =
-        [TimeCheckerSpec, QueueManagerSpec]
+        [TimeCheckerSpec]
+        ++ maybe_queue_manager(Options, QueueManagerSpec)
         ++ maybe_event_manager(Options, EventManagerSpec)
         ++ [ProcessSupSpec],
 
@@ -565,6 +567,11 @@ build_wpool(Name) ->
                            ?LOCATION),
             undefined
     end.
+
+maybe_queue_manager(#{enable_queues := false}, _) ->
+    [];
+maybe_queue_manager(_, Item) ->
+    [Item].
 
 maybe_event_manager(#{enable_callbacks := true}, Item) ->
     [Item];

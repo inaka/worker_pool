@@ -141,7 +141,12 @@ worker_dead(QueueManager, Worker) ->
 %% @see wpool_pool:stats/1
 -spec pending_task_count(queue_mgr()) -> non_neg_integer().
 pending_task_count(QueueManager) ->
-    gen_server:call(QueueManager, pending_task_count).
+    try
+        gen_server:call(QueueManager, pending_task_count)
+    catch
+        _:{noproc, _} ->
+            0
+    end.
 
 %%%===================================================================
 %%% gen_server callbacks
