@@ -324,9 +324,11 @@ random_worker(_Config) ->
         [receive
              true ->
                  true
+         after 5000 ->
+             ct:fail("Didn't receive 'true' in time")
          end
          || _ <- lists:seq(1, 20 * ?WORKERS)],
-    true = lists:all(fun(Value) -> true =:= Value end, Results),
+    true = lists:all(fun(Value) -> Value end, Results),
 
     %% do a gen_server:send_request/3
     Req = wpool:send_request(Pool, {erlang, self, []}, random_worker),
@@ -642,6 +644,8 @@ collect_tasks(TasksNumber) ->
                  receive
                      {task, N} ->
                          N
+                 after 5000 ->
+                     ct:fail("Didn't receive {'task', N} in time")
                  end
               end,
               lists:seq(1, TasksNumber)).
