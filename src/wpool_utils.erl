@@ -44,7 +44,7 @@ task_init(Task,
 task_end(undefined) ->
     erlang:erase(wpool_task);
 task_end(TimerRef) ->
-    _ = erlang:cancel_timer(TimerRef),
+    _ = erlang:cancel_timer(TimerRef, [{async, true}, {info, false}]),
     erlang:erase(wpool_task).
 
 %% @doc Adds default parameters to a pool configuration

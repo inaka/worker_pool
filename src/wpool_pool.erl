@@ -297,9 +297,7 @@ function_location(Function, Location) ->
 task(undefined) ->
     [];
 task({_TaskId, Started, Task}) ->
-    Time =
-        calendar:datetime_to_gregorian_seconds(
-            calendar:universal_time()),
+    Time = erlang:system_time(second),
     [{task, Task}, {runtime, Time - Started}].
 
 %% @doc Set next within the worker pool record. Useful when using
