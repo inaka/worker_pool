@@ -45,11 +45,11 @@ handle_call(Msg, State) ->
     {ok, {error, {unexpected_call, Msg}}, State}.
 
 %% @doc Sends a notification to all registered callback modules.
--spec notify(event(), #{event_manager := any(), _ => _}, [any()]) -> ok.
-notify(Event, #{event_manager := EventMgr}, Args) ->
-    gen_event:notify(EventMgr, {Event, Args});
-notify(_, _, _) ->
-    ok.
+-spec notify(event(), undefined | atom(), [any()]) -> ok.
+notify(_, undefined, _) ->
+    ok;
+notify(Event, EventMgr, Args) ->
+    gen_event:notify(EventMgr, {Event, Args}).
 
 %% @doc Adds a callback module.
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, any()}.

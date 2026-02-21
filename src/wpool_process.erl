@@ -51,14 +51,16 @@
     name :: atom(),
     mod :: #callback_cache{},
     state :: term(),
-    options ::
-        #{
-            time_checker := atom(),
-            queue_manager := atom(),
-            overrun_warning := timeout(),
-            _ => _
-        }
+    options :: opts()
 }).
+
+-type opts() :: #{
+    time_checker := atom(),
+    queue_manager := atom(),
+    event_manager := atom(),
+    overrun_warning := timeout(),
+    _ => _
+}.
 
 -opaque state() :: #state{}.
 
@@ -137,15 +139,16 @@ get_state(#state{state = State}) ->
 %%% init, terminate, code_change, info callbacks
 %%%===================================================================
 %% @private
--spec init({atom(), atom(), term(), wpool:options()}) ->
+-spec init({atom(), atom(), term(), opts()}) ->
     {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
 init({Name, Mod, InitArgs, Options}) ->
-    wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
+    #{event_manager := EventManager, queue_manager := QueueManager} = Options,
+    wpool_process_callbacks:notify(handle_init_start, EventManager, [Name]),
     CbCache = create_callback_cache(Mod),
     case Mod:init(InitArgs) of
         {ok, ModState} ->
-            ok = notify_queue_manager(new_worker, Name, Options),
-            wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
+            ok = notify_queue_manager(new_worker, Name, QueueManager),
+            wpool_process_callbacks:notify(handle_worker_creation, EventManager, [Name]),
             {ok, #state{
                 name = Name,
                 mod = CbCache,
@@ -153,8 +156,8 @@ init({Name, Mod, InitArgs, Options}) ->
                 options = Options
             }};
         {ok, ModState, NextStep} ->
-            ok = notify_queue_manager(new_worker, Name, Options),
-            wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
+            ok = notify_queue_manager(new_worker, Name, QueueManager),
+            wpool_process_callbacks:notify(handle_worker_creation, EventManager, [Name]),
             {ok,
                 #state{
                     name = Name,
@@ -176,11 +179,10 @@ terminate(Reason, State) ->
         mod = #callback_cache{module = Mod},
         state = ModState,
         name = Name,
-        options = Options
-    } =
-        State,
-    ok = notify_queue_manager(worker_dead, Name, Options),
-    wpool_process_callbacks:notify(handle_worker_death, Options, [Name, Reason]),
+        options = #{event_manager := EventManager, queue_manager := QueueManager}
+    } = State,
+    ok = notify_queue_manager(worker_dead, Name, QueueManager),
+    wpool_process_callbacks:notify(handle_worker_death, EventManager, [Name, Reason]),
     case erlang:function_exported(Mod, terminate, 2) of
         true ->
             Mod:terminate(Reason, ModState);
@@ -246,6 +248,13 @@ handle_continue(Continue, #state{mod = #callback_cache{module = Mod}} = State) -
         {stop, Reason, NewState} ->
             {stop, Reason, State#state{state = NewState}}
     catch
+        error:undef:Stacktrace ->
+            case erlang:function_exported(Mod, handle_continue, 2) of
+                false ->
+                    {noreply, State};
+                true ->
+                    erlang:raise(error, undef, Stacktrace)
+            end;
         _:{noreply, NewState} ->
             {noreply, State#state{state = NewState}};
         _:{noreply, NewState, NextStep} ->
@@ -272,8 +281,9 @@ format_status(#{state := #state{mod = #callback_cache{module = Mod}}} = Status) 
     {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     #callback_cache{handle_cast = HandleCast} = CbCache,
-    Task = wpool_utils:task_init({cast, Cast}, Options),
-    ok = notify_queue_manager(worker_busy, State#state.name, Options),
+    #{overrun_warning := OverrunWarning, queue_manager := QueueManager} = Options,
+    Task = task_init(OverrunWarning, {cast, Cast}, Options),
+    ok = notify_queue_manager(worker_busy, State#state.name, QueueManager),
     Reply =
         try HandleCast(Cast, State#state.state) of
             {noreply, NewState} ->
@@ -290,8 +300,8 @@ handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
             _:{stop, Reason, NewState} ->
                 {stop, Reason, State#state{state = NewState}}
         end,
-    wpool_utils:task_end(Task),
-    ok = notify_queue_manager(worker_ready, State#state.name, Options),
+    task_end(Task),
+    ok = notify_queue_manager(worker_ready, State#state.name, QueueManager),
     Reply.
 
 %% @private
@@ -304,8 +314,9 @@ handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     | {stop, term(), state()}.
 handle_call(Call, From, #state{mod = CbCache, options = Options} = State) ->
     #callback_cache{handle_call = HandleCall} = CbCache,
-    Task = wpool_utils:task_init({call, Call}, Options),
-    ok = notify_queue_manager(worker_busy, State#state.name, Options),
+    #{overrun_warning := OverrunWarning, queue_manager := QueueManager} = Options,
+    Task = task_init(OverrunWarning, {call, Call}, Options),
+    ok = notify_queue_manager(worker_busy, State#state.name, QueueManager),
     Reply =
         try HandleCall(Call, From, State#state.state) of
             {noreply, NewState} ->
@@ -334,14 +345,40 @@ handle_call(Call, From, #state{mod = CbCache, options = Options} = State) ->
             _:{stop, Reason, Response, NewState} ->
                 {stop, Reason, Response, State#state{state = NewState}}
         end,
-    wpool_utils:task_end(Task),
-    ok = notify_queue_manager(worker_ready, State#state.name, Options),
+    task_end(Task),
+    ok = notify_queue_manager(worker_ready, State#state.name, QueueManager),
     Reply.
 
-notify_queue_manager(Function, Name, #{queue_manager := QueueManager}) ->
-    wpool_queue_manager:Function(QueueManager, Name);
-notify_queue_manager(_, _, _) ->
-    ok.
+notify_queue_manager(_, _, undefined) ->
+    ok;
+notify_queue_manager(worker_busy, Name, QueueManager) ->
+    wpool_queue_manager:worker_busy(QueueManager, Name);
+notify_queue_manager(worker_ready, Name, QueueManager) ->
+    wpool_queue_manager:worker_ready(QueueManager, Name);
+notify_queue_manager(worker_dead, Name, QueueManager) ->
+    wpool_queue_manager:worker_dead(QueueManager, Name);
+notify_queue_manager(new_worker, Name, QueueManager) ->
+    wpool_queue_manager:new_worker(QueueManager, Name).
+
+task_init(infinity, Task, _) ->
+    Time = erlang:system_time(),
+    erlang:put(wpool_task, {undefined, Time, Task}),
+    undefined;
+task_init(OverrunTime, Task, #{time_checker := TimeChecker, max_overrun_warnings := MaxWarnings}) ->
+    TaskId = erlang:make_ref(),
+    Time = erlang:system_time(),
+    erlang:put(wpool_task, {TaskId, Time, Task}),
+    erlang:send_after(
+        OverrunTime,
+        TimeChecker,
+        {check, self(), TaskId, OverrunTime, MaxWarnings}
+    ).
+
+task_end(undefined) ->
+    erlang:put(wpool_task, undefined);
+task_end(TimerRef) ->
+    _ = erlang:cancel_timer(TimerRef, [{async, true}, {info, false}]),
+    erlang:put(wpool_task, undefined).
 
 create_callback_cache(Mod) ->
     #callback_cache{
