@@ -18,28 +18,33 @@
 
 %% api
 -export([start_link/2, start_link/3]).
--export([run_with_available_worker/3, call_available_worker/3, cast_to_available_worker/2,
-         new_worker/2, worker_dead/2, send_request_available_worker/3, worker_ready/2,
-         worker_busy/2, pending_task_count/1]).
+-export([
+    run_with_available_worker/3,
+    call_available_worker/3,
+    cast_to_available_worker/2,
+    new_worker/2,
+    worker_dead/2,
+    send_request_available_worker/3,
+    worker_ready/2,
+    worker_busy/2,
+    pending_task_count/1
+]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
--record(state,
-        {wpool :: wpool:name(),
-         clients :: queue:queue({cast | {pid(), _}, term()}),
-         workers :: gb_sets:set(atom()),
-         monitors :: #{atom() := monitored_from()},
-         queue_type :: wpool:queue_type()}).
+-record(state, {
+    wpool :: wpool:name(),
+    clients :: queue:queue({cast | {pid(), _}, term()}),
+    workers :: gb_sets:set(atom()),
+    monitors :: #{atom() := monitored_from()},
+    queue_type :: wpool:queue_type()
+}).
 
 -opaque state() :: #state{}.
 
 -export_type([state/0]).
 
--type from() :: {pid(), gen_server:reply_tag()}.
-
--export_type([from/0]).
-
--type monitored_from() :: {reference(), from()}.
+-type monitored_from() :: {reference(), gen_server:from()}.
 -type options() :: [{option(), term()}].
 
 -export_type([options/0]).
@@ -73,7 +78,7 @@ start_link(WPool, Name, Options) ->
 
 %% @doc returns the first available worker in the pool
 -spec run_with_available_worker(queue_mgr(), wpool:run(Result), timeout()) ->
-                                   noproc | timeout | Result.
+    noproc | timeout | Result.
 run_with_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
         {ok, Worker, TimeLeft} when TimeLeft > 0 ->
@@ -108,7 +113,7 @@ cast_to_available_worker(QueueManager, Cast) ->
 
 %% @doc returns the first available worker in the pool
 -spec send_request_available_worker(queue_mgr(), any(), timeout()) ->
-                                       noproc | timeout | gen_server:request_id().
+    noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
         {ok, Worker, _} ->
@@ -156,12 +161,13 @@ init(Args) ->
     WPool = proplists:get_value(pool, Args),
     QueueType = proplists:get_value(queue_type, Args),
     put(pending_tasks, 0),
-    {ok,
-     #state{wpool = WPool,
-            clients = queue:new(),
-            workers = gb_sets:new(),
-            monitors = #{},
-            queue_type = QueueType}}.
+    {ok, #state{
+        wpool = WPool,
+        clients = queue:new(),
+        workers = gb_sets:new(),
+        monitors = #{},
+        queue_type = QueueType
+    }}.
 
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
@@ -172,10 +178,12 @@ handle_cast({worker_dead, Worker}, #state{workers = Workers} = State) ->
 handle_cast({worker_busy, Worker}, #state{workers = Workers} = State) ->
     {noreply, State#state{workers = gb_sets:delete_any(Worker, Workers)}};
 handle_cast({worker_ready, Worker}, State0) ->
-    #state{workers = Workers,
-           clients = Clients,
-           monitors = Mons,
-           queue_type = QueueType} =
+    #state{
+        workers = Workers,
+        clients = Clients,
+        monitors = Mons,
+        queue_type = QueueType
+    } =
         State0,
     State =
         case Mons of
@@ -216,8 +224,8 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
             {noreply, State#state{workers = NewWorkers}}
     end.
 
--spec handle_call(call_request(), from(), state()) ->
-                     {reply, {ok, atom()}, state()} | {noreply, state()}.
+-spec handle_call(call_request(), gen_server:from(), state()) ->
+    {reply, {ok, atom()}, state()} | {noreply, state()}.
 handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
     #state{workers = Workers, clients = Clients} = State,
     case gb_sets:is_empty(Workers) of
@@ -256,7 +264,7 @@ handle_info(_Info, State) ->
 %%% private
 %%%===================================================================
 -spec get_available_worker(queue_mgr(), any(), timeout()) ->
-                              noproc | timeout | {ok, atom(), timeout()}.
+    noproc | timeout | {ok, atom(), timeout()}.
 get_available_worker(QueueManager, Call, Timeout) ->
     ExpiresAt = expires(Timeout),
     try gen_server:call(QueueManager, {available_worker, ExpiresAt}, Timeout) of

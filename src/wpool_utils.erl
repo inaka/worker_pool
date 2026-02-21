@@ -23,21 +23,27 @@
 
 %% @doc Marks Task as started in this worker
 -spec task_init(term(), #{overrun_warning := timeout(), _ => _}) ->
-                   undefined | reference().
+    undefined | reference().
 task_init(Task, #{overrun_warning := infinity}) ->
     Time = erlang:system_time(second),
     erlang:put(wpool_task, {undefined, Time, Task}),
     undefined;
-task_init(Task,
-          #{overrun_warning := OverrunTime,
-            time_checker := TimeChecker,
-            max_overrun_warnings := MaxWarnings}) ->
+task_init(
+    Task,
+    #{
+        overrun_warning := OverrunTime,
+        time_checker := TimeChecker,
+        max_overrun_warnings := MaxWarnings
+    }
+) ->
     TaskId = erlang:make_ref(),
     Time = erlang:system_time(second),
     erlang:put(wpool_task, {TaskId, Time, Task}),
-    erlang:send_after(OverrunTime,
-                      TimeChecker,
-                      {check, self(), TaskId, OverrunTime, MaxWarnings}).
+    erlang:send_after(
+        OverrunTime,
+        TimeChecker,
+        {check, self(), TaskId, OverrunTime, MaxWarnings}
+    ).
 
 %% @doc Removes the current task from the worker
 -spec task_end(undefined | reference()) -> ok.
@@ -55,9 +61,11 @@ add_defaults(Opts) when is_list(Opts) ->
     maps:merge(defaults(), maps:from_list(Opts)).
 
 defaults() ->
-    #{max_overrun_warnings => infinity,
-      overrun_handler => {logger, warning},
-      overrun_warning => infinity,
-      queue_type => fifo,
-      worker_opt => [],
-      workers => 100}.
+    #{
+        max_overrun_warnings => infinity,
+        overrun_handler => {logger, warning},
+        overrun_warning => infinity,
+        queue_type => fifo,
+        worker_opt => [],
+        workers => 100
+    }.

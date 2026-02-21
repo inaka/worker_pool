@@ -37,7 +37,7 @@ jobs:
       - name: Compile
         run: rebar3 compile
       - name: Format check
-        run: rebar3 format --verify
+        run: rebar3 fmt --check
       - name: Run tests and verifications
         run: rebar3 test
       - name: Upload code coverage

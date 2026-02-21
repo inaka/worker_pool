@@ -27,9 +27,16 @@
 
 %% API
 -export([start_link/2]).
--export([best_worker/1, random_worker/1, next_worker/1, hash_worker/2,
-         next_available_worker/1, send_request_available_worker/3, call_available_worker/3,
-         run_with_available_worker/3]).
+-export([
+    best_worker/1,
+    random_worker/1,
+    next_worker/1,
+    hash_worker/2,
+    next_available_worker/1,
+    send_request_available_worker/3,
+    call_available_worker/3,
+    run_with_available_worker/3
+]).
 -export([cast_to_available_worker/2, broadcast/2, broadcall/3]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([worker_name/2, find_wpool/1]).
@@ -38,14 +45,15 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--record(wpool,
-        {name :: wpool:name(),
-         size :: pos_integer(),
-         next :: atomics:atomics_ref(),
-         workers :: tuple(),
-         opts :: wpool:options(),
-         qmanager :: wpool_queue_manager:queue_mgr(),
-         born = erlang:system_time(second) :: integer()}).
+-record(wpool, {
+    name :: wpool:name(),
+    size :: pos_integer(),
+    next :: atomics:atomics_ref(),
+    workers :: tuple(),
+    opts :: wpool:options(),
+    qmanager :: wpool_queue_manager:queue_mgr(),
+    born = erlang:system_time(second) :: integer()
+}).
 
 -opaque wpool() :: #wpool{}.
 
@@ -156,11 +164,13 @@ call_available_worker(Name, Call, Timeout) ->
 %% @doc Picks the first available worker and sends the request to it.
 %%      The timeout provided considers only the time it takes to get a worker
 -spec send_request_available_worker(wpool:name(), any(), timeout()) ->
-                                       noproc | timeout | gen_server:request_id().
+    noproc | timeout | gen_server:request_id().
 send_request_available_worker(Name, Call, Timeout) ->
-    wpool_queue_manager:send_request_available_worker(queue_manager_name(Name),
-                                                      Call,
-                                                      Timeout).
+    wpool_queue_manager:send_request_available_worker(
+        queue_manager_name(Name),
+        Call,
+        Timeout
+    ).
 
 %% @doc Picks a worker base on a hash result.
 %%      <pre>phash2(Term, Range)</pre> returns hash = integer,
@@ -187,15 +197,17 @@ cast_to_available_worker(Name, Cast) ->
 %% @doc Casts a message to all the workers within the given pool.
 -spec broadcast(wpool:name(), term()) -> ok.
 broadcast(Name, Cast) ->
-    lists:foreach(fun(Worker) -> ok = wpool_process:cast(Worker, Cast) end,
-                  all_workers(Name)).
+    lists:foreach(
+        fun(Worker) -> ok = wpool_process:cast(Worker, Cast) end,
+        all_workers(Name)
+    ).
 
 %% @doc Calls all workers in the pool in parallel
 %%
 %% Waits for responses in parallel too, and it assumes that if any response times out,
 %% all of them did too and therefore exits with reason timeout like a regular `gen_server' does.
 -spec broadcall(wpool:name(), term(), timeout()) ->
-                   {[Replies :: term()], [Errors :: term()]}.
+    {[Replies :: term()], [Errors :: term()]}.
 broadcall(Name, Call, Timeout) ->
     Workers = all_workers(Name),
     ReqId0 = gen_server:reqids_new(),
@@ -203,24 +215,26 @@ broadcall(Name, Call, Timeout) ->
     ReqId1 = lists:foldl(RequestFold, ReqId0, Workers),
     WaitFold =
         fun(_, {Coll, Replies, Errors}) ->
-           case gen_server:receive_response(Coll, Timeout, true) of
-               {{reply, Reply}, _, Coll1} ->
-                   {Coll1, [Reply | Replies], Errors};
-               {{error, Error}, _, Coll1} ->
-                   {Coll1, Replies, [Error | Errors]};
-               timeout ->
-                   exit({timeout, {?MODULE, broadcall, [Name, Call, Timeout]}})
-           end
+            case gen_server:receive_response(Coll, Timeout, true) of
+                {{reply, Reply}, _, Coll1} ->
+                    {Coll1, [Reply | Replies], Errors};
+                {{error, Error}, _, Coll1} ->
+                    {Coll1, Replies, [Error | Errors]};
+                timeout ->
+                    exit({timeout, {?MODULE, broadcall, [Name, Call, Timeout]}})
+            end
         end,
     {_, Replies, Errors} = lists:foldl(WaitFold, {ReqId1, [], []}, Workers),
     {Replies, Errors}.
 
 -spec all() -> [wpool:name()].
 all() ->
-    [Name
+    [
+        Name
      || {{?MODULE, Name}, _} <- persistent_term:get(),
         is_atom(Name),
-        find_wpool(Name) /= undefined].
+        find_wpool(Name) /= undefined
+    ].
 
 %% @doc Retrieves the list of worker registered names.
 %% This can be useful to manually inspect the workers or do custom work on them.
@@ -246,38 +260,50 @@ stats(Name) ->
 
 stats(Wpool, Name) ->
     {Total, WorkerStats} =
-        lists:foldl(fun(N, {T, L}) ->
-                       case worker_info(Wpool,
-                                        N,
-                                        [message_queue_len,
-                                         memory,
-                                         current_function,
-                                         current_location,
-                                         dictionary])
-                       of
-                           undefined ->
-                               {T, L};
-                           [{message_queue_len, MQL} = MQLT,
-                            Memory,
-                            Function,
-                            Location,
-                            {dictionary, Dictionary}] ->
-                               WS = [MQLT, Memory]
-                                    ++ function_location(Function, Location)
-                                    ++ task(proplists:get_value(wpool_task, Dictionary)),
-                               {T + MQL, [{N, WS} | L]}
-                       end
-                    end,
-                    {0, []},
-                    lists:seq(1, Wpool#wpool.size)),
+        lists:foldl(
+            fun(N, {T, L}) ->
+                case
+                    worker_info(
+                        Wpool,
+                        N,
+                        [
+                            message_queue_len,
+                            memory,
+                            current_function,
+                            current_location,
+                            dictionary
+                        ]
+                    )
+                of
+                    undefined ->
+                        {T, L};
+                    [
+                        {message_queue_len, MQL} = MQLT,
+                        Memory,
+                        Function,
+                        Location,
+                        {dictionary, Dictionary}
+                    ] ->
+                        WS =
+                            [MQLT, Memory] ++
+                                function_location(Function, Location) ++
+                                task(proplists:get_value(wpool_task, Dictionary)),
+                        {T + MQL, [{N, WS} | L]}
+                end
+            end,
+            {0, []},
+            lists:seq(1, Wpool#wpool.size)
+        ),
     PendingTasks = wpool_queue_manager:pending_task_count(Wpool#wpool.qmanager),
-    [{pool, Name},
-     {supervisor, erlang:whereis(Name)},
-     {options, maps:to_list(Wpool#wpool.opts)},
-     {size, Wpool#wpool.size},
-     {next_worker, atomics:get(Wpool#wpool.next, 1)},
-     {total_message_queue_len, Total + PendingTasks},
-     {workers, WorkerStats}].
+    [
+        {pool, Name},
+        {supervisor, erlang:whereis(Name)},
+        {options, maps:to_list(Wpool#wpool.opts)},
+        {size, Wpool#wpool.size},
+        {next_worker, atomics:get(Wpool#wpool.next, 1)},
+        {total_message_queue_len, Total + PendingTasks},
+        {workers, WorkerStats}
+    ].
 
 worker_info(Wpool, N, Info) ->
     case erlang:whereis(nth_worker_name(Wpool, N)) of
@@ -322,8 +348,9 @@ remove_callback_module(Pool, Module) ->
 
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
--spec wpool_get(atom(), wpool()) -> any();
-               ([atom()], wpool()) -> any().
+-spec wpool_get
+    (atom(), wpool()) -> any();
+    ([atom()], wpool()) -> any().
 wpool_get(List, Wpool) when is_list(List) ->
     [g(Atom, Wpool) || Atom <- List];
 wpool_get(Atom, Wpool) when is_atom(Atom) ->
@@ -351,7 +378,7 @@ time_checker_name(Name) ->
 %% ===================================================================
 %% @private
 -spec init({wpool:name(), wpool:options()}) ->
-              {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
+    {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
     Size = maps:get(workers, Options, 100),
     QueueType = maps:get(queue_type, Options),
@@ -364,58 +391,63 @@ init({Name, Options}) ->
     _Wpool = store_wpool(Name, Size, Options),
 
     WorkerOpts0 =
-        [{time_checker, TimeCheckerName}]
-        ++ maybe_queue_manager(Options, {queue_manager, QueueManagerName})
-        ++ maybe_event_manager(Options, {event_manager, EventManagerName}),
+        [{time_checker, TimeCheckerName}] ++
+            maybe_queue_manager(Options, {queue_manager, QueueManagerName}) ++
+            maybe_event_manager(Options, {event_manager, EventManagerName}),
     WorkerOpts =
         maps:merge(
-            maps:from_list(WorkerOpts0), Options),
+            maps:from_list(WorkerOpts0), Options
+        ),
 
     TimeCheckerSpec =
-        #{id => TimeCheckerName,
-          start => {wpool_time_checker, start_link, [Name, TimeCheckerName, OverrunHandler]},
-          restart => permanent,
-          shutdown => brutal_kill,
-          type => worker,
-          modules => [wpool_time_checker]},
+        #{
+            id => TimeCheckerName,
+            start => {wpool_time_checker, start_link, [Name, TimeCheckerName, OverrunHandler]},
+            restart => permanent,
+            shutdown => brutal_kill,
+            type => worker,
+            modules => [wpool_time_checker]
+        },
     QueueManagerSpec =
-        #{id => QueueManagerName,
-          start =>
-              {wpool_queue_manager,
-               start_link,
-               [Name, QueueManagerName, [{queue_type, QueueType}]]},
-          restart => permanent,
-          shutdown => brutal_kill,
-          type => worker,
-          modules => [wpool_queue_manager]},
+        #{
+            id => QueueManagerName,
+            start =>
+                {wpool_queue_manager, start_link, [
+                    Name, QueueManagerName, [{queue_type, QueueType}]
+                ]},
+            restart => permanent,
+            shutdown => brutal_kill,
+            type => worker,
+            modules => [wpool_queue_manager]
+        },
     EventManagerSpec =
-        #{id => EventManagerName,
-          start => {gen_event, start_link, [{local, EventManagerName}]},
-          restart => permanent,
-          shutdown => brutal_kill,
-          type => worker,
-          modules => dynamic},
+        #{
+            id => EventManagerName,
+            start => {gen_event, start_link, [{local, EventManagerName}]},
+            restart => permanent,
+            shutdown => brutal_kill,
+            type => worker,
+            modules => dynamic
+        },
 
     ProcessSupSpec =
-        {ProcessSupName,
-         {wpool_process_sup, start_link, [Name, ProcessSupName, WorkerOpts]},
-         permanent,
-         SupShutdown,
-         supervisor,
-         [wpool_process_sup]},
+        {ProcessSupName, {wpool_process_sup, start_link, [Name, ProcessSupName, WorkerOpts]},
+            permanent, SupShutdown, supervisor, [wpool_process_sup]},
 
     Children =
-        [TimeCheckerSpec]
-        ++ maybe_queue_manager(Options, QueueManagerSpec)
-        ++ maybe_event_manager(Options, EventManagerSpec)
-        ++ [ProcessSupSpec],
+        [TimeCheckerSpec] ++
+            maybe_queue_manager(Options, QueueManagerSpec) ++
+            maybe_event_manager(Options, EventManagerSpec) ++
+            [ProcessSupSpec],
 
     SupIntensity = maps:get(pool_sup_intensity, Options, 5),
     SupPeriod = maps:get(pool_sup_period, Options, 60),
     SupStrategy =
-        #{strategy => one_for_all,
-          intensity => SupIntensity,
-          period => SupPeriod},
+        #{
+            strategy => one_for_all,
+            intensity => SupIntensity,
+            period => SupPeriod
+        },
     {ok, {SupStrategy, Children}}.
 
 %% @private
@@ -525,12 +557,14 @@ store_wpool(Name, Size, Options) ->
     atomics:put(Atomic, 1, 1),
     WorkerNames = list_to_tuple([worker_name(Name, I) || I <- lists:seq(1, Size)]),
     Wpool =
-        #wpool{name = Name,
-               size = Size,
-               next = Atomic,
-               workers = WorkerNames,
-               opts = Options,
-               qmanager = queue_manager_name(Name)},
+        #wpool{
+            name = Name,
+            size = Size,
+            next = Atomic,
+            workers = WorkerNames,
+            opts = Options,
+            qmanager = queue_manager_name(Name)
+        },
     persistent_term:put({?MODULE, Name}, Wpool),
     Wpool.
 
@@ -550,19 +584,27 @@ find_wpool(Name) ->
 %% @doc We use this function not to report an error if for some reason we've
 %% lost the record on the persistent_term table. This SHOULDN'T be called too much.
 build_wpool(Name) ->
-    logger:warning(#{what => "Building a #wpool record. Something must have failed.",
-                     pool => Name},
-                   ?LOCATION),
+    logger:warning(
+        #{
+            what => "Building a #wpool record. Something must have failed.",
+            pool => Name
+        },
+        ?LOCATION
+    ),
     try supervisor:count_children(process_sup_name(Name)) of
         Children ->
             Size = proplists:get_value(active, Children, 0),
             store_wpool(Name, Size, #{})
     catch
         _:Error ->
-            logger:warning(#{what => "Wpool not found",
-                             pool => Name,
-                             reason => Error},
-                           ?LOCATION),
+            logger:warning(
+                #{
+                    what => "Wpool not found",
+                    pool => Name,
+                    reason => Error
+                },
+                ?LOCATION
+            ),
             undefined
     end.
 

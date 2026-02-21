@@ -30,7 +30,7 @@ start_link(Parent, Name, Options) ->
 
 %% @private
 -spec init({wpool:name(), wpool:options()}) ->
-              {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
+    {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
     Workers = maps:get(workers, Options, 100),
     Strategy = maps:get(strategy, Options, {one_for_one, 5, 60}),
@@ -38,16 +38,20 @@ init({Name, Options}) ->
     {Worker, InitArgs} = maps:get(worker, Options, {wpool_worker, undefined}),
     maybe_add_event_handler(Options),
     WorkerSpecs =
-        [#{id => wpool_pool:worker_name(Name, I),
-           start =>
-               {wpool_process,
-                start_link,
-                [wpool_pool:worker_name(Name, I), Worker, InitArgs, Options]},
-           restart => permanent,
-           shutdown => WorkerShutdown,
-           type => worker,
-           modules => [Worker]}
-         || I <- lists:seq(1, Workers)],
+        [
+            #{
+                id => wpool_pool:worker_name(Name, I),
+                start =>
+                    {wpool_process, start_link, [
+                        wpool_pool:worker_name(Name, I), Worker, InitArgs, Options
+                    ]},
+                restart => permanent,
+                shutdown => WorkerShutdown,
+                type => worker,
+                modules => [Worker]
+            }
+         || I <- lists:seq(1, Workers)
+        ],
     {ok, {Strategy, WorkerSpecs}}.
 
 maybe_add_event_handler(Options) ->
@@ -55,8 +59,10 @@ maybe_add_event_handler(Options) ->
         undefined ->
             ok;
         EventMgr ->
-            lists:foreach(fun(M) -> add_initial_callback(EventMgr, M) end,
-                          maps:get(callbacks, Options, []))
+            lists:foreach(
+                fun(M) -> add_initial_callback(EventMgr, M) end,
+                maps:get(callbacks, Options, [])
+            )
     end.
 
 add_initial_callback(EventManager, Module) ->
@@ -64,8 +70,12 @@ add_initial_callback(EventManager, Module) ->
         ok ->
             ok;
         Other ->
-            logger:warning(#{what => "The callback module could not be loaded",
-                             module => Module,
-                             reason => Other},
-                           ?LOCATION)
+            logger:warning(
+                #{
+                    what => "The callback module could not be loaded",
+                    module => Module,
+                    reason => Other
+                },
+                ?LOCATION
+            )
     end.

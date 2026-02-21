@@ -10,14 +10,18 @@ start_link() ->
 
 init(noargs) ->
     Children =
-        #{id => undefined,
-          start => {echo_server, start_link, []},
-          restart => transient,
-          shutdown => 5000,
-          type => worker,
-          modules => [echo_server]},
+        #{
+            id => undefined,
+            start => {echo_server, start_link, []},
+            restart => transient,
+            shutdown => 5000,
+            type => worker,
+            modules => [echo_server]
+        },
     Strategy =
-        #{strategy => simple_one_for_one,
-          intensity => 5,
-          period => 60},
+        #{
+            strategy => simple_one_for_one,
+            intensity => 5,
+            period => 60
+        },
     {ok, {Strategy, [Children]}}.

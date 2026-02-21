@@ -18,14 +18,18 @@
 
 %% gen_server callbacks
 -export([start_link/1]).
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2,
-         handle_continue/2, format_status/1]).
+-export([
+    init/1,
+    terminate/2,
+    code_change/3,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    handle_continue/2,
+    format_status/1
+]).
 
 -dialyzer([no_behaviours]).
-
--type from() :: {pid(), reference()}.
-
--export_type([from/0]).
 
 -spec start_link(term()) -> gen_server:start_ret().
 start_link(Something) ->
@@ -56,7 +60,7 @@ handle_info(Info, _State) ->
 handle_cast(Cast, _State) ->
     Cast.
 
--spec handle_call(Call, from(), term()) -> Call.
+-spec handle_call(Call, gen_server:from(), term()) -> Call.
 handle_call(Call, _From, _State) ->
     Call.
 

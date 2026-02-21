@@ -28,9 +28,11 @@
 
 -spec all() -> [atom()].
 all() ->
-    [Fun
+    [
+        Fun
      || {Fun, 1} <- module_info(exports),
-        not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+        not lists:member(Fun, [init_per_suite, end_per_suite, module_info])
+    ].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->

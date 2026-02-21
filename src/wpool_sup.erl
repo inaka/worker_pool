@@ -39,10 +39,14 @@ start_pool(Name, Options) ->
 stop_pool(Name) ->
     case erlang:whereis(Name) of
         undefined ->
-            logger:warning(#{what => "Could not stop pool",
-                             reason => "It was not running",
-                             pool => Name},
-                           ?LOCATION),
+            logger:warning(
+                #{
+                    what => "Could not stop pool",
+                    reason => "It was not running",
+                    pool => Name
+                },
+                ?LOCATION
+            ),
             ok;
         Pid ->
             ok = supervisor:terminate_child(?MODULE, Pid)
@@ -54,5 +58,6 @@ stop_pool(Name) ->
 -spec init([]) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
 init([]) ->
     {ok,
-     {{simple_one_for_one, 5, 60},
-      [{wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}]}}.
+        {{simple_one_for_one, 5, 60}, [
+            {wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}
+        ]}}.

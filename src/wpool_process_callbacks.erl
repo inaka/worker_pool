@@ -22,8 +22,11 @@
 -callback handle_worker_creation(wpool:name()) -> any().
 -callback handle_worker_death(wpool:name(), term()) -> any().
 
--optional_callbacks([handle_init_start/1, handle_worker_creation/1,
-                     handle_worker_death/2]).
+-optional_callbacks([
+    handle_init_start/1,
+    handle_worker_creation/1,
+    handle_worker_death/2
+]).
 
 %% @private
 -spec init(module()) -> {ok, state()}.
@@ -73,17 +76,22 @@ call(Module, Event, Args) ->
         end
     catch
         E:R ->
-            logger:warning(#{what => "Could not call callback module",
-                             error => E,
-                             reason => R},
-                           ?LOCATION)
+            logger:warning(
+                #{
+                    what => "Could not call callback module",
+                    error => E,
+                    reason => R
+                },
+                ?LOCATION
+            )
     end.
 
 ensure_loaded(Module) ->
     case code:ensure_loaded(Module) of
         {module, Module} ->
             ok;
-        {error, embedded} -> %% We are in embedded mode so the module was loaded if exists
+        %% We are in embedded mode so the module was loaded if exists
+        {error, embedded} ->
             ok;
         Other ->
             Other
