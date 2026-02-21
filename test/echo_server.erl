@@ -31,10 +31,6 @@
 
 -dialyzer([no_behaviours]).
 
--type from() :: {pid(), reference()}.
-
--export_type([from/0]).
-
 -spec start_link(term()) -> gen_server:start_ret().
 start_link(Something) ->
     gen_server:start_link(?MODULE, Something, []).
@@ -64,7 +60,7 @@ handle_info(Info, _State) ->
 handle_cast(Cast, _State) ->
     Cast.
 
--spec handle_call(Call, from(), term()) -> Call.
+-spec handle_call(Call, gen_server:from(), term()) -> Call.
 handle_call(Call, _From, _State) ->
     Call.
 

@@ -28,10 +28,6 @@
 
 -dialyzer([no_behaviours]).
 
--type from() :: {pid(), reference()}.
-
--export_type([from/0]).
-
 %%%===================================================================
 %%% callbacks
 %%%===================================================================
@@ -61,7 +57,7 @@ handle_cast(crash, _State) ->
 handle_cast(Cast, _State) ->
     Cast.
 
--spec handle_call(state | Call, from(), State) -> {reply, State, State} | Call.
+-spec handle_call(state | Call, gen_server:from(), State) -> {reply, State, State} | Call.
 handle_call(state, _From, State) ->
     {reply, State, State};
 handle_call(crash, _From, _State) ->

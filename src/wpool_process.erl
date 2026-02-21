@@ -23,7 +23,7 @@
     module :: module(),
     handle_call ::
         fun(
-            (Request :: term(), From :: from(), State :: term()) ->
+            (Request :: term(), From :: gen_server:from(), State :: term()) ->
                 {reply, Reply :: term(), NewState :: term()}
                 | {reply, Reply :: term(), NewState :: term(),
                     timeout() | hibernate | {continue, term()}}
@@ -63,10 +63,6 @@
 -opaque state() :: #state{}.
 
 -export_type([state/0]).
-
--type from() :: {pid(), reference()}.
-
--export_type([from/0]).
 
 -type next_step() :: timeout() | hibernate | {continue, term()}.
 
@@ -299,7 +295,7 @@ handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     Reply.
 
 %% @private
--spec handle_call(term(), from(), state()) ->
+-spec handle_call(term(), gen_server:from(), state()) ->
     {reply, term(), state()}
     | {reply, term(), state(), next_step()}
     | {noreply, state()}

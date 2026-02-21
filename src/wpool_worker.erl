@@ -31,10 +31,6 @@
 
 -export_type([state/0]).
 
--type from() :: {pid(), reference()}.
-
--export_type([from/0]).
-
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -88,7 +84,7 @@ handle_cast(Cast, State) ->
     {noreply, State, hibernate}.
 
 %% @private
--spec handle_call(term(), from(), state()) ->
+-spec handle_call(term(), gen_server:from(), state()) ->
     {reply, {ok, term()} | {error, term()}, state(), hibernate}.
 handle_call({M, F, A}, _From, State) ->
     try erlang:apply(M, F, A) of
