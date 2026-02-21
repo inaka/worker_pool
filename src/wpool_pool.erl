@@ -393,8 +393,8 @@ init({Name, Options}) ->
 
     WorkerOpts0 =
         [{time_checker, TimeCheckerName}] ++
-            maybe_queue_manager(Options, {queue_manager, QueueManagerName}) ++
-            maybe_event_manager(Options, {event_manager, EventManagerName}),
+            maybe_queue_manager(Options, QueueManagerName) ++
+            maybe_event_manager(Options, EventManagerName),
     WorkerOpts =
         maps:merge(
             maps:from_list(WorkerOpts0), Options
@@ -437,8 +437,8 @@ init({Name, Options}) ->
 
     Children =
         [TimeCheckerSpec] ++
-            maybe_queue_manager(Options, QueueManagerSpec) ++
-            maybe_event_manager(Options, EventManagerSpec) ++
+            maybe_queue_manager_child(Options, QueueManagerSpec) ++
+            maybe_event_manager_child(Options, EventManagerSpec) ++
             [ProcessSupSpec],
 
     SupIntensity = maps:get(pool_sup_intensity, Options, 5),
@@ -610,11 +610,21 @@ build_wpool(Name) ->
     end.
 
 maybe_queue_manager(#{enable_queues := false}, _) ->
-    [];
+    [{queue_manager, undefined}];
 maybe_queue_manager(_, Item) ->
-    [Item].
+    [{queue_manager, Item}].
 
 maybe_event_manager(#{enable_callbacks := true}, Item) ->
-    [Item];
+    [{event_manager, Item}];
 maybe_event_manager(_, _) ->
+    [{event_manager, undefined}].
+
+maybe_queue_manager_child(#{enable_queues := false}, _) ->
+    [];
+maybe_queue_manager_child(_, Item) ->
+    [Item].
+
+maybe_event_manager_child(#{enable_callbacks := true}, Item) ->
+    [Item];
+maybe_event_manager_child(_, _) ->
     [].
