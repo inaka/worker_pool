@@ -52,7 +52,7 @@
     workers :: tuple(),
     opts :: wpool:options(),
     qmanager :: wpool_queue_manager:queue_mgr(),
-    born = erlang:system_time(second) :: integer()
+    born = erlang:system_time() :: integer()
 }).
 
 -opaque wpool() :: #wpool{}.
@@ -323,8 +323,9 @@ function_location(Function, Location) ->
 task(undefined) ->
     [];
 task({_TaskId, Started, Task}) ->
-    Time = erlang:system_time(second),
-    [{task, Task}, {runtime, Time - Started}].
+    Time = erlang:system_time(),
+    Runtime = erlang:convert_time_unit(Time - Started, native, second),
+    [{task, Task}, {runtime, Runtime}].
 
 %% @doc Set next within the worker pool record. Useful when using
 %% a custom strategy function.
