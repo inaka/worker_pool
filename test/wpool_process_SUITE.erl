@@ -23,15 +23,29 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
--export([init/1, init_timeout/1, info/1, cast/1, send_request/1, call/1, continue/1,
-         handle_info_missing/1, handle_info_fails/1, format_status/1, no_format_status/1, stop/1]).
+-export([
+    init/1,
+    init_timeout/1,
+    info/1,
+    cast/1,
+    send_request/1,
+    call/1,
+    continue/1,
+    handle_info_missing/1,
+    handle_info_fails/1,
+    format_status/1,
+    no_format_status/1,
+    stop/1
+]).
 -export([pool_restart_crash/1, pool_norestart_crash/1, complete_coverage/1]).
 
 -spec all() -> [atom()].
 all() ->
-    [Fun
+    [
+        Fun
      || {Fun, 1} <- module_info(exports),
-        not lists:member(Fun, [init_per_suite, end_per_suite, module_info])].
+        not lists:member(Fun, [init_per_suite, end_per_suite, module_info])
+    ].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -51,7 +65,8 @@ init_per_testcase(_TestCase, Config) ->
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(_TestCase, Config) ->
     process_flag(trap_exit, false),
-    receive after 0 ->
+    receive
+    after 0 ->
         ok
     end,
     Config.
@@ -124,10 +139,12 @@ continue(_Config) ->
     C = fun(ContinueState) -> {noreply, ContinueState} end,
     %% init/1 returns {continue, continue_state}
     {ok, Pid} =
-        wpool_process:start_link(?MODULE,
-                                 echo_server,
-                                 {ok, state, {continue, C(continue_state)}},
-                                 #{}),
+        wpool_process:start_link(
+            ?MODULE,
+            echo_server,
+            {ok, state, {continue, C(continue_state)}},
+            #{}
+        ),
     continue_state = get_state(Pid),
 
     %% handle_call/3 returns {continue, ...}
@@ -243,11 +260,13 @@ pool_restart_crash(_Config) ->
 pool_norestart_crash(_Config) ->
     Pool = pool_norestart_crash,
     PoolOptions =
-        [{workers, 2},
-         {worker, {crashy_server, []}},
-         {strategy, {one_for_all, 0, 10}},
-         {pool_sup_intensity, 0},
-         {pool_sup_period, 10}],
+        [
+            {workers, 2},
+            {worker, {crashy_server, []}},
+            {strategy, {one_for_all, 0, 10}},
+            {pool_sup_intensity, 0},
+            {pool_sup_period, 10}
+        ],
     {ok, Pid} = wpool:start_pool(Pool, PoolOptions),
 
     ct:log("Check that the pool is working"),
@@ -349,10 +368,13 @@ get_state(Pid) ->
     {status, Pid, {module, gen_server}, [_PDict, _SysState, _Parent, _Dbg, Misc]} =
         sys:get_status(Pid),
     [State] =
-        lists:filtermap(fun ({data, [{"State", State}]}) ->
-                                {true, State};
-                            (_) ->
-                                false
-                        end,
-                        Misc),
+        lists:filtermap(
+            fun
+                ({data, [{"State", State}]}) ->
+                    {true, State};
+                (_) ->
+                    false
+            end,
+            Misc
+        ),
     wpool_process:get_state(State).

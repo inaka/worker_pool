@@ -25,11 +25,27 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
--export([stats/1, stop_pool/1, non_brutal_shutdown/1, brutal_worker_shutdown/1, overrun/1,
-         kill_on_overrun/1, too_much_overrun/1, default_strategy/1, overrun_handler1/1,
-         overrun_handler2/1, default_options/1, complete_coverage/1, child_spec/1, broadcall/1,
-         broadcast/1, send_request/1, worker_killed_stats/1, accepts_maps_and_lists_as_opts/1,
-         pool_of_supervisors/1]).
+-export([
+    stats/1,
+    stop_pool/1,
+    non_brutal_shutdown/1,
+    brutal_worker_shutdown/1,
+    overrun/1,
+    kill_on_overrun/1,
+    too_much_overrun/1,
+    default_strategy/1,
+    overrun_handler1/1,
+    overrun_handler2/1,
+    default_options/1,
+    complete_coverage/1,
+    child_spec/1,
+    broadcall/1,
+    broadcast/1,
+    send_request/1,
+    worker_killed_stats/1,
+    accepts_maps_and_lists_as_opts/1,
+    pool_of_supervisors/1
+]).
 
 -elvis([{elvis_style, no_block_expressions, disable}]).
 
@@ -37,23 +53,25 @@
 
 -spec all() -> [atom()].
 all() ->
-    [too_much_overrun,
-     overrun,
-     stop_pool,
-     non_brutal_shutdown,
-     brutal_worker_shutdown,
-     stats,
-     default_strategy,
-     default_options,
-     complete_coverage,
-     child_spec,
-     broadcast,
-     broadcall,
-     send_request,
-     kill_on_overrun,
-     worker_killed_stats,
-     accepts_maps_and_lists_as_opts,
-     pool_of_supervisors].
+    [
+        too_much_overrun,
+        overrun,
+        stop_pool,
+        non_brutal_shutdown,
+        brutal_worker_shutdown,
+        stats,
+        default_strategy,
+        default_options,
+        complete_coverage,
+        child_spec,
+        broadcast,
+        broadcall,
+        send_request,
+        kill_on_overrun,
+        worker_killed_stats,
+        accepts_maps_and_lists_as_opts,
+        pool_of_supervisors
+    ].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -78,10 +96,14 @@ too_much_overrun(_Config) ->
     ct:comment("Receiving overruns here..."),
     true = register(overrun_handler, self()),
     {ok, PoolPid} =
-        wpool:start_sup_pool(wpool_SUITE_too_much_overrun,
-                             [{workers, 1},
-                              {overrun_warning, 999},
-                              {overrun_handler, {?MODULE, overrun_handler1}}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_too_much_overrun,
+            [
+                {workers, 1},
+                {overrun_warning, 999},
+                {overrun_handler, {?MODULE, overrun_handler1}}
+            ]
+        ),
 
     %% Sadly, the function that autogenerates this name is private.
     CheckerName = 'wpool_pool-wpool_SUITE_too_much_overrun-time-checker',
@@ -96,17 +118,18 @@ too_much_overrun(_Config) ->
     ok = wpool:cast(wpool_SUITE_too_much_overrun, {timer, sleep, [5000]}),
     TaskId =
         ktn_task:wait_for_success(fun() ->
-                                     {dictionary, Dict} = erlang:process_info(Worker, dictionary),
-                                     {TId, _, _} = proplists:get_value(wpool_task, Dict),
-                                     TId
-                                  end),
+            {dictionary, Dict} = erlang:process_info(Worker, dictionary),
+            {TId, _, _} = proplists:get_value(wpool_task, Dict),
+            TId
+        end),
 
     ct:comment("Simulate overrun warning..."),
     % huge runtime => no more overruns
     TCPid ! {check, Worker, TaskId, 9999999999, infinity},
 
     ct:comment("Get overrun message..."),
-    _ = receive
+    _ =
+        receive
             {overrun1, Message1} ->
                 overrun = proplists:get_value(alert, Message1),
                 wpool_SUITE_too_much_overrun = proplists:get_value(pool, Message1),
@@ -118,7 +141,8 @@ too_much_overrun(_Config) ->
         end,
 
     ct:comment("Get overrun message..."),
-    _ = receive
+    _ =
+        receive
             {overrun2, Message2} ->
                 overrun = proplists:get_value(alert, Message2),
                 wpool_SUITE_too_much_overrun = proplists:get_value(pool, Message2),
@@ -130,7 +154,8 @@ too_much_overrun(_Config) ->
         end,
 
     ct:comment("No more overruns..."),
-    _ = case get_messages(100) of
+    _ =
+        case get_messages(100) of
             [] ->
                 ok;
             Msgs1 ->
@@ -141,7 +166,8 @@ too_much_overrun(_Config) ->
     exit(Worker, kill),
 
     ct:comment("Simulate overrun warning..."),
-    TCPid ! {check, Worker, TaskId, 100}, % tiny runtime, to check
+    % tiny runtime, to check
+    TCPid ! {check, Worker, TaskId, 100},
 
     ct:comment("Nothing happens..."),
     ok = no_messages(),
@@ -155,12 +181,17 @@ too_much_overrun(_Config) ->
 overrun(_Config) ->
     true = register(overrun_handler, self()),
     {ok, _Pid} =
-        wpool:start_sup_pool(wpool_SUITE_overrun_pool,
-                             [{workers, 1},
-                              {overrun_warning, 1000},
-                              {overrun_handler, {?MODULE, overrun_handler1}}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_overrun_pool,
+            [
+                {workers, 1},
+                {overrun_warning, 1000},
+                {overrun_handler, {?MODULE, overrun_handler1}}
+            ]
+        ),
     ok = wpool:cast(wpool_SUITE_overrun_pool, {timer, sleep, [1500]}),
-    _ = receive
+    _ =
+        receive
             {overrun1, Message} ->
                 overrun = proplists:get_value(alert, Message),
                 wpool_SUITE_overrun_pool = proplists:get_value(pool, Message),
@@ -183,16 +214,22 @@ overrun(_Config) ->
 kill_on_overrun(_Config) ->
     true = register(overrun_handler, self()),
     {ok, _Pid} =
-        wpool:start_sup_pool(wpool_SUITE_kill_on_overrun_pool,
-                             [{workers, 1},
-                              {overrun_warning, 500},
-                              {max_overrun_warnings,
-                               2}, %% The worker must be killed after 2 overrun
-                                   %% warnings, which is after 1 secs with this
-                                   %% configuration
-                              {overrun_handler, {?MODULE, overrun_handler1}}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_kill_on_overrun_pool,
+            [
+                {workers, 1},
+                {overrun_warning, 500},
+                {max_overrun_warnings,
+                    %% The worker must be killed after 2 overrun
+                    2},
+                %% warnings, which is after 1 secs with this
+                %% configuration
+                {overrun_handler, {?MODULE, overrun_handler1}}
+            ]
+        ),
     ok = wpool:cast(wpool_SUITE_kill_on_overrun_pool, {timer, sleep, [2000]}),
-    _ = receive
+    _ =
+        receive
             {overrun1, Message} ->
                 overrun = proplists:get_value(alert, Message),
                 wpool_SUITE_kill_on_overrun_pool = proplists:get_value(pool, Message),
@@ -203,7 +240,8 @@ kill_on_overrun(_Config) ->
             ct:fail(no_overrun)
         end,
 
-    _ = receive
+    _ =
+        receive
             {overrun1, Message2} ->
                 max_overrun_limit = proplists:get_value(alert, Message2),
                 wpool_SUITE_kill_on_overrun_pool = proplists:get_value(pool, Message2),
@@ -232,8 +270,10 @@ stop_pool(_Config) ->
 -spec non_brutal_shutdown(config()) -> {comment, []}.
 non_brutal_shutdown(_Config) ->
     {ok, PoolPid} =
-        wpool:start_sup_pool(wpool_SUITE_non_brutal_shutdown,
-                             [{workers, 1}, {pool_sup_shutdown, 100}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_non_brutal_shutdown,
+            [{workers, 1}, {pool_sup_shutdown, 100}]
+        ),
     true = erlang:is_process_alive(PoolPid),
     Stats = wpool:stats(wpool_SUITE_non_brutal_shutdown),
     {workers, [{WorkerId, _}]} = lists:keyfind(workers, 1, Stats),
@@ -252,10 +292,14 @@ non_brutal_shutdown(_Config) ->
 -spec brutal_worker_shutdown(config()) -> {comment, []}.
 brutal_worker_shutdown(_Config) ->
     {ok, PoolPid} =
-        wpool:start_sup_pool(wpool_SUITE_non_brutal_shutdown,
-                             [{workers, 1},
-                              {pool_sup_shutdown, 100},
-                              {worker_shutdown, brutal_kill}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_non_brutal_shutdown,
+            [
+                {workers, 1},
+                {pool_sup_shutdown, 100},
+                {worker_shutdown, brutal_kill}
+            ]
+        ),
     true = erlang:is_process_alive(PoolPid),
     Stats = wpool:stats(wpool_SUITE_non_brutal_shutdown),
     {workers, [{WorkerId, _}]} = lists:keyfind(workers, 1, Stats),
@@ -300,12 +344,14 @@ stats(_Config) ->
     1 = Get(next_worker, InitStats),
     InitWorkers = Get(workers, InitStats),
     10 = length(InitWorkers),
-    _ = [begin
-             WorkerStats = Get(I, InitWorkers),
-             0 = Get(message_queue_len, WorkerStats),
-             [] = lists:keydelete(message_queue_len, 1, lists:keydelete(memory, 1, WorkerStats))
-         end
-         || I <- lists:seq(1, 10)],
+    _ = [
+        begin
+            WorkerStats = Get(I, InitWorkers),
+            0 = Get(message_queue_len, WorkerStats),
+            [] = lists:keydelete(message_queue_len, 1, lists:keydelete(memory, 1, WorkerStats))
+        end
+     || I <- lists:seq(1, 10)
+    ],
 
     % Start a long task on every worker
     Sleep = {timer, sleep, [2000]},
@@ -313,40 +359,44 @@ stats(_Config) ->
 
     ok =
         ktn_task:wait_for_success(fun() ->
-                                     WorkingStats = wpool:stats(wpool_SUITE_stats_pool),
-                                     wpool_SUITE_stats_pool = Get(pool, WorkingStats),
-                                     PoolPid = Get(supervisor, WorkingStats),
-                                     Options = Get(options, WorkingStats),
-                                     10 = Get(size, WorkingStats),
-                                     1 = Get(next_worker, WorkingStats),
-                                     WorkingWorkers = Get(workers, WorkingStats),
-                                     10 = length(WorkingWorkers),
-                                     [begin
-                                          WorkerStats = Get(I, WorkingWorkers),
-                                          0 = Get(message_queue_len, WorkerStats),
-                                          {timer, sleep, 1} = Get(current_function, WorkerStats),
-                                          {timer, sleep, 1, _} = Get(current_location, WorkerStats),
-                                          {cast, Sleep} = Get(task, WorkerStats),
-                                          true = is_number(Get(runtime, WorkerStats))
-                                      end
-                                      || I <- lists:seq(1, 10)],
-                                     ok
-                                  end),
+            WorkingStats = wpool:stats(wpool_SUITE_stats_pool),
+            wpool_SUITE_stats_pool = Get(pool, WorkingStats),
+            PoolPid = Get(supervisor, WorkingStats),
+            Options = Get(options, WorkingStats),
+            10 = Get(size, WorkingStats),
+            1 = Get(next_worker, WorkingStats),
+            WorkingWorkers = Get(workers, WorkingStats),
+            10 = length(WorkingWorkers),
+            [
+                begin
+                    WorkerStats = Get(I, WorkingWorkers),
+                    0 = Get(message_queue_len, WorkerStats),
+                    {timer, sleep, 1} = Get(current_function, WorkerStats),
+                    {timer, sleep, 1, _} = Get(current_location, WorkerStats),
+                    {cast, Sleep} = Get(task, WorkerStats),
+                    true = is_number(Get(runtime, WorkerStats))
+                end
+             || I <- lists:seq(1, 10)
+            ],
+            ok
+        end),
 
     wpool:stop_sup_pool(wpool_SUITE_stats_pool),
 
     no_workers =
-        ktn_task:wait_for(fun() ->
-                             try
-                                 wpool:stats(wpool_SUITE_stats_pool)
-                             catch
-                                 _:E ->
-                                     E
-                             end
-                          end,
-                          no_workers,
-                          100,
-                          50),
+        ktn_task:wait_for(
+            fun() ->
+                try
+                    wpool:stats(wpool_SUITE_stats_pool)
+                catch
+                    _:E ->
+                        E
+                end
+            end,
+            no_workers,
+            100,
+            50
+        ),
 
     {comment, []}.
 
@@ -479,8 +529,10 @@ send_request(_Config) ->
 worker_killed_stats(_Config) ->
     %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
     {ok, PoolPid} =
-        wpool:start_sup_pool(wpool_SUITE_worker_killed_stats,
-                             [{workers, 3}, {worker, {sleepy_server, 500}}]),
+        wpool:start_sup_pool(
+            wpool_SUITE_worker_killed_stats,
+            [{workers, 3}, {worker, {sleepy_server, 500}}]
+        ),
     true = erlang:is_process_alive(PoolPid),
 
     Workers =
@@ -504,14 +556,18 @@ worker_killed_stats(_Config) ->
 accepts_maps_and_lists_as_opts(_Config) ->
     %% Each server will take 100ms to start, but the start_sup_pool/2 call is synchronous anyway
     {ok, PoolPidList} =
-        wpool:start_sup_pool(accepts_maps_and_lists_as_opts_list,
-                             [{workers, 3}, {worker, {sleepy_server, 500}}]),
+        wpool:start_sup_pool(
+            accepts_maps_and_lists_as_opts_list,
+            [{workers, 3}, {worker, {sleepy_server, 500}}]
+        ),
     true = erlang:is_process_alive(PoolPidList),
     ct:comment("accepts lists as opts"),
 
     {ok, PoolPidMap} =
-        wpool:start_sup_pool(accepts_maps_and_lists_as_opts_map,
-                             #{workers => 3, worker => {sleepy_server, 500}}),
+        wpool:start_sup_pool(
+            accepts_maps_and_lists_as_opts_map,
+            #{workers => 3, worker => {sleepy_server, 500}}
+        ),
     true = erlang:is_process_alive(PoolPidMap),
     ct:comment("accepts lists as opts"),
 
@@ -520,9 +576,11 @@ accepts_maps_and_lists_as_opts(_Config) ->
 -spec pool_of_supervisors(config()) -> {comment, string()}.
 pool_of_supervisors(_Config) ->
     Opts =
-        #{workers => 3,
-          worker_shutdown => infinity,
-          worker => {supervisor, {echo_supervisor, echo_supervisor, noargs}}},
+        #{
+            workers => 3,
+            worker_shutdown => infinity,
+            worker => {supervisor, {echo_supervisor, echo_supervisor, noargs}}
+        },
 
     {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
     true = erlang:is_process_alive(Pid),
@@ -530,14 +588,16 @@ pool_of_supervisors(_Config) ->
     Run = fun(Sup, _) -> supervisor:start_child(Sup, [{ok, #{}}]) end,
     ForEach =
         fun(_) ->
-           {ok, EchoServer} = wpool:run(pool_of_supervisors, Run, next_worker),
-           true = erlang:is_process_alive(EchoServer)
+            {ok, EchoServer} = wpool:run(pool_of_supervisors, Run, next_worker),
+            true = erlang:is_process_alive(EchoServer)
         end,
     lists:foreach(ForEach, lists:seq(1, 9)),
 
     Supervisors = wpool:get_workers(pool_of_supervisors),
-    [3 = proplists:get_value(active, supervisor:count_children(Supervisor))
-     || Supervisor <- Supervisors],
+    [
+        3 = proplists:get_value(active, supervisor:count_children(Supervisor))
+     || Supervisor <- Supervisors
+    ],
 
     {comment, "Nicely load-balanced childrens across supervisors"}.
 

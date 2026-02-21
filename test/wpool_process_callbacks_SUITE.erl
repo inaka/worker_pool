@@ -8,21 +8,26 @@
 
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1]).
--export([complete_callback_passed_when_starting_pool/1,
-         partial_callback_passed_when_starting_pool/1,
-         callback_can_be_added_and_removed_after_pool_is_started/1,
-         crashing_callback_does_not_affect_others/1, non_existsing_module_does_not_affect_others/1,
-         complete_coverage/1]).
+-export([
+    complete_callback_passed_when_starting_pool/1,
+    partial_callback_passed_when_starting_pool/1,
+    callback_can_be_added_and_removed_after_pool_is_started/1,
+    crashing_callback_does_not_affect_others/1,
+    non_existsing_module_does_not_affect_others/1,
+    complete_coverage/1
+]).
 
 -dialyzer({no_underspecs, all/0}).
 
 -spec all() -> [atom()].
 all() ->
-    [complete_callback_passed_when_starting_pool,
-     partial_callback_passed_when_starting_pool,
-     callback_can_be_added_and_removed_after_pool_is_started,
-     crashing_callback_does_not_affect_others,
-     non_existsing_module_does_not_affect_others].
+    [
+        complete_callback_passed_when_starting_pool,
+        partial_callback_passed_when_starting_pool,
+        callback_can_be_added_and_removed_after_pool_is_started,
+        crashing_callback_does_not_affect_others,
+        non_existsing_module_does_not_affect_others
+    ].
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(Config) ->
@@ -43,11 +48,15 @@ complete_callback_passed_when_starting_pool(_Config) ->
     meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
     meck:expect(callbacks, handle_worker_death, fun(_AWName, _Reason) -> ok end),
     {ok, _Pid} =
-        wpool:start_pool(Pool,
-                         [{workers, WorkersCount},
-                          {enable_callbacks, true},
-                          {worker, {crashy_server, []}},
-                          {callbacks, [callbacks]}]),
+        wpool:start_pool(
+            Pool,
+            [
+                {workers, WorkersCount},
+                {enable_callbacks, true},
+                {worker, {crashy_server, []}},
+                {callbacks, [callbacks]}
+            ]
+        ),
 
     WorkersCount =
         ktn_task:wait_for(function_calls(callbacks, handle_init_start, ['_']), WorkersCount),
@@ -69,10 +78,14 @@ partial_callback_passed_when_starting_pool(_Config) ->
     meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
     meck:expect(callbacks, handle_worker_death, fun(_AWName, _Reason) -> ok end),
     {ok, _Pid} =
-        wpool:start_pool(Pool,
-                         [{workers, WorkersCount},
-                          {enable_callbacks, true},
-                          {callbacks, [callbacks]}]),
+        wpool:start_pool(
+            Pool,
+            [
+                {workers, WorkersCount},
+                {enable_callbacks, true},
+                {callbacks, [callbacks]}
+            ]
+        ),
     WorkersCount =
         ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
     wpool:stop_pool(Pool),
@@ -89,10 +102,14 @@ callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
     meck:new(callbacks2, [non_strict]),
     meck:expect(callbacks2, handle_worker_death, fun(_AWName, _Reason) -> ok end),
     {ok, _Pid} =
-        wpool:start_pool(Pool,
-                         [{workers, WorkersCount},
-                          {worker, {crashy_server, []}},
-                          {enable_callbacks, true}]),
+        wpool:start_pool(
+            Pool,
+            [
+                {workers, WorkersCount},
+                {worker, {crashy_server, []}},
+                {enable_callbacks, true}
+            ]
+        ),
     %% Now we are adding 2 callback modules
     _ = wpool_pool:add_callback_module(Pool, callbacks),
     _ = wpool_pool:add_callback_module(Pool, callbacks2),
@@ -125,21 +142,29 @@ crashing_callback_does_not_affect_others(_Config) ->
     meck:new(callbacks, [non_strict]),
     meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
     meck:new(callbacks2, [non_strict]),
-    meck:expect(callbacks2,
-                handle_worker_creation,
-                fun(AWorkerName) -> {not_going_to_work} = AWorkerName end),
+    meck:expect(
+        callbacks2,
+        handle_worker_creation,
+        fun(AWorkerName) -> {not_going_to_work} = AWorkerName end
+    ),
     {ok, _Pid} =
-        wpool:start_pool(Pool,
-                         [{workers, WorkersCount},
-                          {worker, {crashy_server, []}},
-                          {enable_callbacks, true},
-                          {callbacks, [callbacks, callbacks2]}]),
+        wpool:start_pool(
+            Pool,
+            [
+                {workers, WorkersCount},
+                {worker, {crashy_server, []}},
+                {enable_callbacks, true},
+                {callbacks, [callbacks, callbacks2]}
+            ]
+        ),
 
     WorkersCount =
         ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks2, handle_worker_creation, ['_']),
-                          WorkersCount),
+        ktn_task:wait_for(
+            function_calls(callbacks2, handle_worker_creation, ['_']),
+            WorkersCount
+        ),
 
     wpool:stop_pool(Pool),
     meck:unload(callbacks),
@@ -154,11 +179,15 @@ non_existsing_module_does_not_affect_others(_Config) ->
     meck:new(callbacks, [non_strict]),
     meck:expect(callbacks, handle_worker_creation, fun(_AWorkerName) -> ok end),
     {ok, _Pid} =
-        wpool:start_pool(Pool,
-                         [{workers, WorkersCount},
-                          {worker, {crashy_server, []}},
-                          {enable_callbacks, true},
-                          {callbacks, [callbacks, non_existing_m]}]),
+        wpool:start_pool(
+            Pool,
+            [
+                {workers, WorkersCount},
+                {worker, {crashy_server, []}},
+                {enable_callbacks, true},
+                {callbacks, [callbacks, non_existing_m]}
+            ]
+        ),
 
     {error, nofile} = wpool_pool:add_callback_module(Pool, non_existing_m2),
 

@@ -3,10 +3,12 @@
 -export([run_tasks/3]).
 
 %% @doc Returns the average time involved in processing the small tasks
--spec run_tasks([{small | large, pos_integer()}, ...],
-                wpool:strategy(),
-                [wpool:option()]) ->
-                   float().
+-spec run_tasks(
+    [{small | large, pos_integer()}, ...],
+    wpool:strategy(),
+    [wpool:option()]
+) ->
+    float().
 run_tasks(TaskGroups, Strategy, Options) ->
     Tasks = lists:flatten([lists:duplicate(N, Type) || {Type, N} <- TaskGroups]),
     {ok, _Pool} = wpool:start_sup_pool(?MODULE, Options),

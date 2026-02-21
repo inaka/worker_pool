@@ -56,7 +56,7 @@
 -module(wpool).
 
 %% @todo remove this line when https://github.com/AdRoll/rebar3_format/issues/356 is fixed
--format ignore.
+-format(ignore).
 
 -behaviour(application).
 
@@ -195,42 +195,44 @@
 %% Name of the pool
 
 -type option() ::
-    {workers, workers()} |
-    {worker, worker()} |
-    {worker_opt, [worker_opt()]} |
-    {strategy, supervisor_strategy()} |
-    {worker_shutdown, worker_shutdown()} |
-    {overrun_handler, overrun_handler() | [overrun_handler()]} |
-    {overrun_warning, overrun_warning()} |
-    {max_overrun_warnings, max_overrun_warnings()} |
-    {pool_sup_intensity, pool_sup_intensity()} |
-    {pool_sup_shutdown, pool_sup_shutdown()} |
-    {pool_sup_period, pool_sup_period()} |
-    {queue_type, queue_type()} |
-    {enable_callbacks, enable_callbacks()} |
-    {enable_queues, enable_queues()} |
-    {callbacks, callbacks()}.
+    {workers, workers()}
+    | {worker, worker()}
+    | {worker_opt, [worker_opt()]}
+    | {strategy, supervisor_strategy()}
+    | {worker_shutdown, worker_shutdown()}
+    | {overrun_handler, overrun_handler() | [overrun_handler()]}
+    | {overrun_warning, overrun_warning()}
+    | {max_overrun_warnings, max_overrun_warnings()}
+    | {pool_sup_intensity, pool_sup_intensity()}
+    | {pool_sup_shutdown, pool_sup_shutdown()}
+    | {pool_sup_period, pool_sup_period()}
+    | {queue_type, queue_type()}
+    | {enable_callbacks, enable_callbacks()}
+    | {enable_queues, enable_queues()}
+    | {callbacks, callbacks()}.
 %% Options that can be provided to a new pool.
 %%
 %% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
 %% that take a list of these options as a parameter.
 
--type options() :: #{workers => workers(),
-                     worker => worker(),
-                     worker_opt => [worker_opt()],
-                     strategy => supervisor_strategy(),
-                     worker_shutdown => worker_shutdown(),
-                     overrun_handler => overrun_handler() | [overrun_handler()],
-                     overrun_warning => overrun_warning(),
-                     max_overrun_warnings => max_overrun_warnings(),
-                     pool_sup_intensity => pool_sup_intensity(),
-                     pool_sup_shutdown => pool_sup_shutdown(),
-                     pool_sup_period => pool_sup_period(),
-                     queue_type => queue_type(),
-                     enable_callbacks => enable_callbacks(),
-                     enable_queues => enable_queues(),
-                     callbacks => callbacks(),
-                     _ => _}.
+-type options() :: #{
+    workers => workers(),
+    worker => worker(),
+    worker_opt => [worker_opt()],
+    strategy => supervisor_strategy(),
+    worker_shutdown => worker_shutdown(),
+    overrun_handler => overrun_handler() | [overrun_handler()],
+    overrun_warning => overrun_warning(),
+    max_overrun_warnings => max_overrun_warnings(),
+    pool_sup_intensity => pool_sup_intensity(),
+    pool_sup_shutdown => pool_sup_shutdown(),
+    pool_sup_period => pool_sup_period(),
+    queue_type => queue_type(),
+    enable_callbacks => enable_callbacks(),
+    enable_queues => enable_queues(),
+    callbacks => callbacks(),
+    _ => _
+}.
 %% Options that can be provided to a new pool.
 %%
 %% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
@@ -240,13 +242,13 @@
 %% A callback that gets the pool name and returns a worker's name.
 
 -type strategy() ::
-    best_worker |
-    random_worker |
-    next_worker |
-    available_worker |
-    next_available_worker |
-    {hash_worker, term()} |
-    custom_strategy().
+    best_worker
+    | random_worker
+    | next_worker
+    | available_worker
+    | next_available_worker
+    | {hash_worker, term()}
+    | custom_strategy().
 %% Strategy to use when choosing a worker.
 %%
 %% <h2>`best_worker'</h2>
@@ -293,24 +295,40 @@
 %% Statistics about a worker in a pool.
 
 -type stats() ::
-    [{pool, name()} |
-     {supervisor, pid()} |
-     {options, [option()] | options()} |
-     {size, non_neg_integer()} |
-     {next_worker, pos_integer()} |
-     {total_message_queue_len, non_neg_integer()} |
-     {workers, [{pos_integer(), worker_stats()}]}].
+    [
+        {pool, name()}
+        | {supervisor, pid()}
+        | {options, [option()] | options()}
+        | {size, non_neg_integer()}
+        | {next_worker, pos_integer()}
+        | {total_message_queue_len, non_neg_integer()}
+        | {workers, [{pos_integer(), worker_stats()}]}
+    ].
 %% Statistics about a given live pool.
 
--export_type([name/0, option/0, options/0, custom_strategy/0, strategy/0,
-              queue_type/0, run/1, worker_stats/0, stats/0]).
+-export_type([
+    name/0,
+    option/0,
+    options/0,
+    custom_strategy/0,
+    strategy/0,
+    queue_type/0,
+    run/1,
+    worker_stats/0,
+    stats/0
+]).
 
 -export([start/0, start/2, stop/0, stop/1]).
 -export([child_spec/2, start_pool/1, start_pool/2, start_sup_pool/1, start_sup_pool/2]).
 -export([stop_pool/1, stop_sup_pool/1]).
--export([call/2, call/3, call/4, cast/2, cast/3,
-         run/2, run/3, run/4, broadcall/3, broadcast/2,
-         send_request/2, send_request/3, send_request/4]).
+-export([
+    call/2, call/3, call/4,
+    cast/2, cast/3,
+    run/2, run/3, run/4,
+    broadcall/3,
+    broadcast/2,
+    send_request/2, send_request/3, send_request/4
+]).
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
@@ -359,11 +377,13 @@ start_pool(Name, Options) ->
 -spec child_spec(name(), [option()] | options()) -> supervisor:child_spec().
 child_spec(Name, Options) ->
     FullOptions = wpool_utils:add_defaults(Options),
-    #{id => Name,
-      start => {wpool, start_pool, [Name, FullOptions]},
-      restart => permanent,
-      shutdown => infinity,
-      type => supervisor}.
+    #{
+        id => Name,
+        start => {wpool, start_pool, [Name, FullOptions]},
+        restart => permanent,
+        shutdown => infinity,
+        type => supervisor
+    }.
 
 %% @doc Stops a pool that doesn't belong to `wpool_sup'.
 -spec stop_pool(name()) -> true.
@@ -493,7 +513,7 @@ send_request(Sup, Call) ->
 
 %% @equiv send_request(Sup, Call, Strategy, 5000)
 -spec send_request(name(), term(), strategy()) ->
-                      noproc | timeout | gen_server:request_id().
+    noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
@@ -501,7 +521,7 @@ send_request(Sup, Call, Strategy) ->
 %%
 %% Timeout applies only for the time used choosing a worker in the available_worker strategy
 -spec send_request(name(), term(), strategy(), timeout()) ->
-                      noproc | timeout | gen_server:request_id().
+    noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
     wpool_pool:send_request_available_worker(Sup, Call, Timeout);
 send_request(Sup, Call, next_available_worker, _Timeout) ->
@@ -517,7 +537,6 @@ send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->
 send_request(Sup, Call, Fun, _Timeout) when is_function(Fun, 1) ->
     wpool_process:send_request(Fun(Sup), Call).
 
-
 %% @doc Casts a message to all the workers within the given pool.
 %%
 %% <b>NOTE:</b> These messages don't get queued, they go straight to the worker's message queues, so
@@ -532,7 +551,7 @@ broadcast(Sup, Cast) ->
 %%
 %% If one worker times out, the entire call is considered timed-out.
 -spec broadcall(wpool:name(), term(), timeout()) ->
-                   {[Replies :: term()], [Errors :: term()]}.
+    {[Replies :: term()], [Errors :: term()]}.
 broadcall(Sup, Call, Timeout) ->
     wpool_pool:broadcall(Sup, Call, Timeout).
 

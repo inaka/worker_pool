@@ -42,7 +42,7 @@
 %%%===================================================================
 %% @private
 -spec start_link(wpool:name(), atom(), handler() | [handler()]) ->
-                    {ok, pid()} | {error, {already_started, pid()} | term()}.
+    {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Handlers) when is_list(Handlers) ->
     gen_server:start_link({local, Name}, ?MODULE, {WPool, Handlers}, []);
 start_link(WPool, Name, Handler) when is_tuple(Handler) ->
@@ -78,13 +78,15 @@ handle_call({add_handler, Handler}, _, #state{handlers = Handlers} = State) ->
 handle_info({check, Pid, TaskId, Runtime, WarningsLeft}, State) ->
     case erlang:process_info(Pid, dictionary) of
         {dictionary, Values} ->
-            run_task(TaskId,
-                     proplists:get_value(wpool_task, Values),
-                     Pid,
-                     State#state.wpool,
-                     State#state.handlers,
-                     Runtime,
-                     WarningsLeft);
+            run_task(
+                TaskId,
+                proplists:get_value(wpool_task, Values),
+                Pid,
+                State#state.wpool,
+                State#state.handlers,
+                Runtime,
+                WarningsLeft
+            );
         _ ->
             ok
     end,
@@ -100,13 +102,11 @@ run_task(TaskId, {TaskId, _, Task}, Pid, Pool, Handlers, Runtime, WarningsLeft) 
     send_reports(Handlers, overrun, Pool, Pid, Task, Runtime),
     case new_overrun_time(Runtime, WarningsLeft) of
         NewOverrunTime when NewOverrunTime =< 4294967295 ->
-            erlang:send_after(Runtime,
-                              self(),
-                              {check,
-                               Pid,
-                               TaskId,
-                               NewOverrunTime,
-                               decrease_warnings(WarningsLeft)}),
+            erlang:send_after(
+                Runtime,
+                self(),
+                {check, Pid, TaskId, NewOverrunTime, decrease_warnings(WarningsLeft)}
+            ),
             ok;
         _ ->
             ok
@@ -126,13 +126,15 @@ decrease_warnings(infinity) ->
 decrease_warnings(N) ->
     N - 1.
 
--spec send_reports([{atom(), atom()}],
-                   atom(),
-                   atom(),
-                   pid(),
-                   term(),
-                   infinity | pos_integer()) ->
-                      ok.
+-spec send_reports(
+    [{atom(), atom()}],
+    atom(),
+    atom(),
+    pid(),
+    term(),
+    infinity | pos_integer()
+) ->
+    ok.
 send_reports(Handlers, Alert, Pool, Pid, Task, Runtime) ->
     Args = [{alert, Alert}, {pool, Pool}, {worker, Pid}, {task, Task}, {runtime, Runtime}],
     _ = [catch Mod:Fun(Args) || {Mod, Fun} <- Handlers],

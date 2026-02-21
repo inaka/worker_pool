@@ -19,38 +19,46 @@
 -behaviour(gen_server).
 
 %% Taken from gen_server OTP
--record(callback_cache,
-        {module :: module(),
-         handle_call ::
-             fun((Request :: term(), From :: from(), State :: term()) ->
-                     {reply, Reply :: term(), NewState :: term()} |
-                     {reply,
-                      Reply :: term(),
-                      NewState :: term(),
-                      timeout() | hibernate | {continue, term()}} |
-                     {noreply, NewState :: term()} |
-                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
-                     {stop, Reason :: term(), Reply :: term(), NewState :: term()} |
-                     {stop, Reason :: term(), NewState :: term()}),
-         handle_cast ::
-             fun((Request :: term(), State :: term()) ->
-                     {noreply, NewState :: term()} |
-                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
-                     {stop, Reason :: term(), NewState :: term()}),
-         handle_info ::
-             fun((Info :: timeout | term(), State :: term()) ->
-                     {noreply, NewState :: term()} |
-                     {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}} |
-                     {stop, Reason :: term(), NewState :: term()})}).
--record(state,
-        {name :: atom(),
-         mod :: #callback_cache{},
-         state :: term(),
-         options ::
-             #{time_checker := atom(),
-               queue_manager := atom(),
-               overrun_warning := timeout(),
-               _ => _}}).
+-record(callback_cache, {
+    module :: module(),
+    handle_call ::
+        fun(
+            (Request :: term(), From :: from(), State :: term()) ->
+                {reply, Reply :: term(), NewState :: term()}
+                | {reply, Reply :: term(), NewState :: term(),
+                    timeout() | hibernate | {continue, term()}}
+                | {noreply, NewState :: term()}
+                | {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}}
+                | {stop, Reason :: term(), Reply :: term(), NewState :: term()}
+                | {stop, Reason :: term(), NewState :: term()}
+        ),
+    handle_cast ::
+        fun(
+            (Request :: term(), State :: term()) ->
+                {noreply, NewState :: term()}
+                | {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}}
+                | {stop, Reason :: term(), NewState :: term()}
+        ),
+    handle_info ::
+        fun(
+            (Info :: timeout | term(), State :: term()) ->
+                {noreply, NewState :: term()}
+                | {noreply, NewState :: term(), timeout() | hibernate | {continue, term()}}
+                | {stop, Reason :: term(), NewState :: term()}
+        )
+}).
+-record(state, {
+    name :: atom(),
+    mod :: #callback_cache{},
+    state :: term(),
+    options ::
+        #{
+            time_checker := atom(),
+            queue_manager := atom(),
+            overrun_warning := timeout(),
+            _ => _
+        }
+}).
 
 -opaque state() :: #state{}.
 
@@ -74,22 +82,32 @@
 -endif.
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_call/3, handle_cast/2, handle_info/2,
-         handle_continue/2, format_status/1]).
+-export([
+    init/1,
+    terminate/2,
+    code_change/3,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    handle_continue/2,
+    format_status/1
+]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 %% @doc Starts a named process
 -spec start_link(wpool:name(), module(), term(), wpool:options()) ->
-                    {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
+    {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
     FullOpts = wpool_utils:add_defaults(Options),
     WorkerOpt = maps:get(worker_opt, FullOpts, []),
-    gen_server:start_link({local, Name},
-                          ?MODULE,
-                          {Name, Module, InitArgs, FullOpts},
-                          WorkerOpt).
+    gen_server:start_link(
+        {local, Name},
+        ?MODULE,
+        {Name, Module, InitArgs, FullOpts},
+        WorkerOpt
+    ).
 
 %% @doc Runs a function that takes as a parameter the given process
 -spec run(wpool:name() | pid(), wpool:run(Result), timeout()) -> Result.
@@ -124,7 +142,7 @@ get_state(#state{state = State}) ->
 %%%===================================================================
 %% @private
 -spec init({atom(), atom(), term(), wpool:options()}) ->
-              {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
+    {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
 init({Name, Mod, InitArgs, Options}) ->
     wpool_process_callbacks:notify(handle_init_start, Options, [Name]),
     CbCache = create_callback_cache(Mod),
@@ -132,20 +150,23 @@ init({Name, Mod, InitArgs, Options}) ->
         {ok, ModState} ->
             ok = notify_queue_manager(new_worker, Name, Options),
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
-            {ok,
-             #state{name = Name,
-                    mod = CbCache,
-                    state = ModState,
-                    options = Options}};
+            {ok, #state{
+                name = Name,
+                mod = CbCache,
+                state = ModState,
+                options = Options
+            }};
         {ok, ModState, NextStep} ->
             ok = notify_queue_manager(new_worker, Name, Options),
             wpool_process_callbacks:notify(handle_worker_creation, Options, [Name]),
             {ok,
-             #state{name = Name,
+                #state{
+                    name = Name,
                     mod = CbCache,
                     state = ModState,
-                    options = Options},
-             NextStep};
+                    options = Options
+                },
+                NextStep};
         ignore ->
             {stop, can_not_ignore};
         Error ->
@@ -155,10 +176,12 @@ init({Name, Mod, InitArgs, Options}) ->
 %% @private
 -spec terminate(atom(), state()) -> term().
 terminate(Reason, State) ->
-    #state{mod = #callback_cache{module = Mod},
-           state = ModState,
-           name = Name,
-           options = Options} =
+    #state{
+        mod = #callback_cache{module = Mod},
+        state = ModState,
+        name = Name,
+        options = Options
+    } =
         State,
     ok = notify_queue_manager(worker_dead, Name, Options),
     wpool_process_callbacks:notify(handle_worker_death, Options, [Name, Reason]),
@@ -171,7 +194,7 @@ terminate(Reason, State) ->
 
 %% @private
 -spec code_change(string() | {down, string()}, state(), any()) ->
-                     {ok, state()} | {error, term()}.
+    {ok, state()} | {error, term()}.
 code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) ->
     case erlang:function_exported(Mod, code_change, 3) of
         true ->
@@ -187,7 +210,7 @@ code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) 
 
 %% @private
 -spec handle_info(any(), state()) ->
-                     {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
+    {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_info(Info, #state{mod = CbCache} = State) ->
     #callback_cache{module = Mod, handle_info = HandleInfo} = CbCache,
     try HandleInfo(Info, State#state.state) of
@@ -215,9 +238,9 @@ handle_info(Info, #state{mod = CbCache} = State) ->
 
 %% @private
 -spec handle_continue(any(), state()) ->
-                         {noreply, state()} |
-                         {noreply, state(), next_step()} |
-                         {stop, term(), state()}.
+    {noreply, state()}
+    | {noreply, state(), next_step()}
+    | {stop, term(), state()}.
 handle_continue(Continue, #state{mod = #callback_cache{module = Mod}} = State) ->
     try Mod:handle_continue(Continue, State#state.state) of
         {noreply, NewState} ->
@@ -250,7 +273,7 @@ format_status(#{state := #state{mod = #callback_cache{module = Mod}}} = Status) 
 %%%===================================================================
 %% @private
 -spec handle_cast(term(), state()) ->
-                     {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
+    {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     #callback_cache{handle_cast = HandleCast} = CbCache,
     Task = wpool_utils:task_init({cast, Cast}, Options),
@@ -277,12 +300,12 @@ handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
 
 %% @private
 -spec handle_call(term(), from(), state()) ->
-                     {reply, term(), state()} |
-                     {reply, term(), state(), next_step()} |
-                     {noreply, state()} |
-                     {noreply, state(), next_step()} |
-                     {stop, term(), term(), state()} |
-                     {stop, term(), state()}.
+    {reply, term(), state()}
+    | {reply, term(), state(), next_step()}
+    | {noreply, state()}
+    | {noreply, state(), next_step()}
+    | {stop, term(), term(), state()}
+    | {stop, term(), state()}.
 handle_call(Call, From, #state{mod = CbCache, options = Options} = State) ->
     #callback_cache{handle_call = HandleCall} = CbCache,
     Task = wpool_utils:task_init({call, Call}, Options),
@@ -325,7 +348,9 @@ notify_queue_manager(_, _, _) ->
     ok.
 
 create_callback_cache(Mod) ->
-    #callback_cache{module = Mod,
-                    handle_call = fun Mod:handle_call/3,
-                    handle_cast = fun Mod:handle_cast/2,
-                    handle_info = fun Mod:handle_info/2}.
+    #callback_cache{
+        module = Mod,
+        handle_call = fun Mod:handle_call/3,
+        handle_cast = fun Mod:handle_cast/2,
+        handle_info = fun Mod:handle_info/2
+    }.

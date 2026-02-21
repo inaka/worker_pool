@@ -77,15 +77,19 @@ handle_cast({M, F, A}, State) ->
             {noreply, State, hibernate}
     end;
 handle_cast(Cast, State) ->
-    logger:error(#{what => "Invalid cast",
-                   cast => Cast,
-                   worker => self()},
-                 ?LOCATION),
+    logger:error(
+        #{
+            what => "Invalid cast",
+            cast => Cast,
+            worker => self()
+        },
+        ?LOCATION
+    ),
     {noreply, State, hibernate}.
 
 %% @private
 -spec handle_call(term(), from(), state()) ->
-                     {reply, {ok, term()} | {error, term()}, state(), hibernate}.
+    {reply, {ok, term()} | {error, term()}, state(), hibernate}.
 handle_call({M, F, A}, _From, State) ->
     try erlang:apply(M, F, A) of
         R ->
@@ -96,20 +100,28 @@ handle_call({M, F, A}, _From, State) ->
             {reply, {error, Reason}, State, hibernate}
     end;
 handle_call(Call, From, State) ->
-    logger:error(#{what => "Invalid call",
-                   call => Call,
-                   from => From,
-                   worker => self()},
-                 ?LOCATION),
+    logger:error(
+        #{
+            what => "Invalid call",
+            call => Call,
+            from => From,
+            worker => self()
+        },
+        ?LOCATION
+    ),
     {reply, {error, invalid_request}, State, hibernate}.
 
 %%%===================================================================
 %%% not exported functions
 %%%===================================================================
 log_error(M, F, A, Class, Reason, Stacktrace) ->
-    logger:error(#{what => "Reason on ~p:~p~p >> ~p Backtrace ~p",
-                   mfa => {M, F, A},
-                   class => Class,
-                   reason => Reason,
-                   stacktrace => Stacktrace},
-                 ?LOCATION).
+    logger:error(
+        #{
+            what => "Reason on ~p:~p~p >> ~p Backtrace ~p",
+            mfa => {M, F, A},
+            class => Class,
+            reason => Reason,
+            stacktrace => Stacktrace
+        },
+        ?LOCATION
+    ).
