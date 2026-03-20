@@ -134,5 +134,12 @@ decrease_warnings(N) ->
     ok.
 send_reports(Handlers, Alert, Pool, Pid, Task, Runtime) ->
     Args = [{alert, Alert}, {pool, Pool}, {worker, Pid}, {task, Task}, {runtime, Runtime}],
-    _ = [catch Mod:Fun(Args) || {Mod, Fun} <- Handlers],
+    _ = [safe_apply(Mod, Fun, Args) || {Mod, Fun} <- Handlers],
     ok.
+
+safe_apply(Mod, Fun, Args) ->
+    try
+        Mod:Fun(Args)
+    catch
+        _:_ -> ok
+    end.
