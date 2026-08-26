@@ -50,7 +50,7 @@ init({Name, Options}) ->
                 type => worker,
                 modules => [Worker]
             }
-         || I <- lists:seq(1, Workers)
+         || I <:- lists:seq(1, Workers)
         ],
     {ok, {Strategy, WorkerSpecs}}.
 

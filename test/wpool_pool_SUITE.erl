@@ -21,8 +21,6 @@
 
 -export_type([config/0]).
 
--define(WORKERS, 6).
-
 -export([all/0]).
 -export([init_per_suite/1, end_per_suite/1, init_per_testcase/2, end_per_testcase/2]).
 -export([
@@ -49,7 +47,8 @@
 all() ->
     [
         Fun
-     || {Fun, 1} <- module_info(exports),
+     || {Fun, Arity} <:- module_info(exports),
+        Arity =:= 1,
         not lists:member(Fun, [init_per_suite, end_per_suite, module_info])
     ].
 
@@ -74,25 +73,32 @@ init_per_testcase(queue_type_fifo = TestCase, Config) ->
     {ok, _} = wpool:start_pool(TestCase, [{workers, 1}, {queue_type, fifo}]),
     Config;
 init_per_testcase(TestCase, Config) ->
-    {ok, _} = wpool:start_pool(TestCase, [{workers, ?WORKERS}]),
+    {ok, _} = wpool:start_pool(TestCase, [{workers, workers()}]),
     Config.
 
 -spec end_per_testcase(atom(), config()) -> config().
 end_per_testcase(TestCase, Config) ->
-    catch wpool:stop_sup_pool(TestCase),
+    try
+        wpool:stop_sup_pool(TestCase)
+    catch
+        _:_ -> no_problem
+    end,
     Config.
 
 -spec stop_worker(config()) -> {comment, []}.
 stop_worker(_Config) ->
-    true = undefined /= wpool_pool:find_wpool(stop_worker),
+    true = undefined =/= wpool_pool:find_wpool(stop_worker),
     true = wpool:stop_pool(stop_worker),
-    undefined = ktn_task:wait_for(fun() -> wpool_pool:find_wpool(stop_worker) end, undefined),
+    undefined = wpool_test_utils:wait_for(
+        fun() -> wpool_pool:find_wpool(stop_worker) end, undefined
+    ),
     true = wpool:stop_pool(stop_worker),
     undefined = wpool_pool:find_wpool(stop_worker),
     {comment, ""}.
 
 -spec available_worker(config()) -> {comment, []}.
 available_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = available_worker,
     Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
     try wpool:call(not_a_pool, x) of
@@ -114,29 +120,29 @@ available_worker(_Config) ->
     {ok, _} = wpool:run(Pool, Run, available_worker),
 
     ct:log("Put them all to work, each request should go to a different worker"),
-    [wpool:cast(Pool, {timer, sleep, [5000]}) || _ <- lists:seq(1, ?WORKERS)],
+    [wpool:cast(Pool, {timer, sleep, [5000]}) || _ <:- lists:seq(1, NumWorkers)],
 
-    [0] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
+    [0] = wpool_test_utils:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
 
     ct:log(
         "Now send another round of messages,\n"
         "     the workers queues should still be empty"
     ),
-    [wpool:cast(Pool, {timer, sleep, [100 * I]}) || I <- lists:seq(1, ?WORKERS)],
+    [wpool:cast(Pool, {timer, sleep, [100 * I]}) || I <:- lists:seq(1, NumWorkers)],
 
-    % Check that we have ?WORKERS pending tasks
-    ?WORKERS =
-        ktn_task:wait_for(
+    % Check that we have NumWorkers pending tasks
+    NumWorkers =
+        wpool_test_utils:wait_for(
             fun() ->
                 Stats1 = wpool:stats(Pool),
                 [0] =
                     lists:usort([
                         proplists:get_value(message_queue_len, WS)
-                     || {_, WS} <- proplists:get_value(workers, Stats1)
+                     || {_, WS} <:- proplists:get_value(workers, Stats1)
                     ]),
                 proplists:get_value(total_message_queue_len, Stats1)
             end,
-            ?WORKERS
+            NumWorkers
         ),
 
     ct:log("If we can't wait we get no workers"),
@@ -165,11 +171,11 @@ available_worker(_Config) ->
 
     ct:log("Now they all should be free"),
     ct:log("We get half of them working for a while"),
-    [wpool:cast(Pool, {timer, sleep, [60000]}) || _ <- lists:seq(1, ?WORKERS, 2)],
+    [wpool:cast(Pool, {timer, sleep, [60000]}) || _ <:- lists:seq(1, NumWorkers, 2)],
 
     % Check we have no pending tasks
     0 =
-        ktn_task:wait_for(
+        wpool_test_utils:wait_for(
             fun() -> proplists:get_value(total_message_queue_len, wpool:stats(Pool)) end,
             0
         ),
@@ -181,19 +187,17 @@ available_worker(_Config) ->
     Workers =
         [
             wpool:call(Pool, {erlang, self, []}, available_worker, 5000)
-         || _ <- lists:seq(1, 20 * ?WORKERS)
+         || _ <:- lists:seq(1, 20 * NumWorkers)
         ],
-    UniqueWorkers =
-        sets:to_list(
-            sets:from_list(Workers)
-        ),
-    {?WORKERS, UniqueWorkers, true} =
-        {?WORKERS, UniqueWorkers, ?WORKERS / 2 >= length(UniqueWorkers)},
+    UniqueWorkers = sets:to_list(sets:from_list(Workers)),
+    {Workers, UniqueWorkers, true} =
+        {Workers, UniqueWorkers, NumWorkers / 2 >= length(UniqueWorkers)},
 
     {comment, []}.
 
 -spec best_worker(config()) -> {comment, []}.
 best_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = best_worker,
     try wpool:call(not_a_pool, x, best_worker) of
         Result ->
@@ -210,17 +214,17 @@ best_worker(_Config) ->
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
 
     %% Fill up their message queues...
-    [wpool:cast(Pool, {timer, sleep, [60000]}, next_worker) || _ <- lists:seq(1, ?WORKERS)],
-    [0] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
+    [wpool:cast(Pool, {timer, sleep, [60000]}, next_worker) || _ <:- lists:seq(1, NumWorkers)],
+    [0] = wpool_test_utils:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [0]),
 
-    [wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <- lists:seq(1, ?WORKERS)],
+    [wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <:- lists:seq(1, NumWorkers)],
 
-    [1] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [1]),
+    [1] = wpool_test_utils:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [1]),
 
     %% Now try best worker once per worker
-    [wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <- lists:seq(1, ?WORKERS)],
+    [wpool:cast(Pool, {timer, sleep, [60000]}, best_worker) || _ <:- lists:seq(1, NumWorkers)],
     %% The load should be evenly distributed...
-    [2] = ktn_task:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [2]),
+    [2] = wpool_test_utils:wait_for(fun() -> worker_msg_queue_lengths(Pool) end, [2]),
 
     {comment, []}.
 
@@ -242,20 +246,20 @@ next_available_worker(_Config) ->
     ct:log("Put them all to work..."),
     [
         wpool:cast(Pool, {timer, sleep, [1500 + I]}, next_available_worker)
-     || I <- lists:seq(0, (?WORKERS - 1) * 60000, 60000)
+     || I <:- lists:seq(0, (workers() - 1) * 60000, 60000)
     ],
 
     AvailableWorkers =
         fun() ->
             length([
                 a_worker
-             || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool)),
-                proplists:get_value(task, WS) == undefined
+             || {_, WS} <:- proplists:get_value(workers, wpool:stats(Pool)),
+                proplists:get_value(task, WS) =:= undefined
             ])
         end,
 
     ct:log("All busy..."),
-    0 = ktn_task:wait_for(AvailableWorkers, 0),
+    0 = wpool_test_utils:wait_for(AvailableWorkers, 0),
 
     ct:log("No available workers..."),
     try wpool:cast(Pool, {timer, sleep, [60000]}, next_available_worker) of
@@ -267,7 +271,7 @@ next_available_worker(_Config) ->
     end,
 
     ct:log("Wait until the first frees up..."),
-    1 = ktn_task:wait_for(AvailableWorkers, 1),
+    1 = wpool_test_utils:wait_for(AvailableWorkers, 1),
 
     Req = wpool:send_request(Pool, {erlang, self, []}, next_available_worker),
     {reply, {ok, _}} = gen_server:wait_response(Req, 5000),
@@ -287,6 +291,7 @@ next_available_worker(_Config) ->
 
 -spec next_worker(config()) -> {comment, []}.
 next_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = next_worker,
 
     try wpool:call(not_a_pool, x, next_worker) of
@@ -304,12 +309,9 @@ next_worker(_Config) ->
                 I = proplists:get_value(next_worker, Stats),
                 wpool:call(Pool, {erlang, self, []}, next_worker, infinity)
             end
-         || I <- lists:seq(1, ?WORKERS)
+         || I <:- lists:seq(1, NumWorkers)
         ],
-    ?WORKERS =
-        sets:size(
-            sets:from_list(Res0)
-        ),
+    NumWorkers = sets:size(sets:from_list(Res0)),
 
     Res0 =
         [
@@ -318,7 +320,7 @@ next_worker(_Config) ->
                 I = proplists:get_value(next_worker, Stats),
                 wpool:call(Pool, {erlang, self, []}, next_worker)
             end
-         || I <- lists:seq(1, ?WORKERS)
+         || I <:- lists:seq(1, NumWorkers)
         ],
 
     Req = wpool:send_request(Pool, {erlang, self, []}, next_worker),
@@ -331,6 +333,7 @@ next_worker(_Config) ->
 
 -spec random_worker(config()) -> {comment, []}.
 random_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = random_worker,
 
     try wpool:call(not_a_pool, x, random_worker) of
@@ -347,16 +350,16 @@ random_worker(_Config) ->
     %% Ask for a random worker's identity 20x more than the number of workers
     %% and expect to get an answer from every worker at least once.
     Serial =
-        [wpool:call(Pool, {erlang, self, []}, random_worker) || _ <- lists:seq(1, 20 * ?WORKERS)],
-    ?WORKERS =
-        sets:size(
-            sets:from_list(Serial)
-        ),
+        [
+            wpool:call(Pool, {erlang, self, []}, random_worker)
+         || _ <:- lists:seq(1, 20 * NumWorkers)
+        ],
+    NumWorkers = sets:size(sets:from_list(Serial)),
 
     %% Randomly ask a lot of workers to send ourselves the atom true
     [
         wpool:cast(Pool, {erlang, send, [self(), true]}, random_worker)
-     || _ <- lists:seq(1, 20 * ?WORKERS)
+     || _ <:- lists:seq(1, 20 * NumWorkers)
     ],
     Results =
         [
@@ -366,7 +369,7 @@ random_worker(_Config) ->
             after 5000 ->
                 ct:fail("Didn't receive 'true' in time")
             end
-         || _ <- lists:seq(1, 20 * ?WORKERS)
+         || _ <:- lists:seq(1, 20 * NumWorkers)
         ],
     true = lists:all(fun(Value) -> Value end, Results),
 
@@ -382,18 +385,16 @@ random_worker(_Config) ->
             WorkerId = wpool:call(Pool, {erlang, self, []}, random_worker),
             Self ! {worker, WorkerId}
         end)
-     || _ <- lists:seq(1, 20 * ?WORKERS)
+     || _ <:- lists:seq(1, 20 * NumWorkers)
     ],
-    Concurrent = collect_results(20 * ?WORKERS, []),
-    ?WORKERS =
-        sets:size(
-            sets:from_list(Concurrent)
-        ),
+    Concurrent = collect_results(20 * NumWorkers, []),
+    NumWorkers = sets:size(sets:from_list(Concurrent)),
 
     {comment, []}.
 
 -spec hash_worker(config()) -> {comment, []}.
 hash_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = hash_worker,
 
     try wpool:call(not_a_pool, x, {hash_worker, 1}) of
@@ -409,40 +410,37 @@ hash_worker(_Config) ->
     Targeted =
         [
             wpool:call(Pool, {erlang, self, []}, {hash_worker, I rem 2})
-         || I <- lists:seq(1, 20 * ?WORKERS)
+         || I <:- lists:seq(1, 20 * NumWorkers)
         ],
-    2 =
-        sets:size(
-            sets:from_list(Targeted)
-        ),
+    2 = sets:size(sets:from_list(Targeted)),
 
     %% Now use many different hash keys. All workers should be hit.
     Spread =
         [
             wpool:call(Pool, {erlang, self, []}, {hash_worker, I})
-         || I <- lists:seq(1, 20 * ?WORKERS)
+         || I <:- lists:seq(1, 20 * NumWorkers)
         ],
-    ?WORKERS =
-        sets:size(
-            sets:from_list(Spread)
-        ),
+    NumWorkers = sets:size(sets:from_list(Spread)),
 
     Run = fun(Worker, Timeout) -> gen_server:call(Worker, {erlang, self, []}, Timeout) end,
-    [{ok, _} = wpool:run(Pool, Run, {hash_worker, I}) || I <- lists:seq(1, 20 * ?WORKERS)],
+    [{ok, _} = wpool:run(Pool, Run, {hash_worker, I}) || I <:- lists:seq(1, 20 * NumWorkers)],
 
     %% Fill up their message queues...
     [
         wpool:cast(Pool, {timer, sleep, [60000]}, {hash_worker, I})
-     || I <- lists:seq(1, 20 * ?WORKERS)
+     || I <:- lists:seq(1, 20 * NumWorkers)
     ],
 
     false =
-        ktn_task:wait_for(fun() -> lists:member(0, worker_msg_queue_lengths(Pool)) end, false),
+        wpool_test_utils:wait_for(
+            fun() -> lists:member(0, worker_msg_queue_lengths(Pool)) end, false
+        ),
 
     {comment, []}.
 
 -spec custom_worker(config()) -> {comment, []}.
 custom_worker(_Config) ->
+    NumWorkers = workers(),
     Pool = custom_worker,
 
     Strategy = fun wpool_pool:next_worker/1,
@@ -461,7 +459,7 @@ custom_worker(_Config) ->
             I = proplists:get_value(next_worker, Stats),
             wpool:cast(Pool, {io, format, ["ok!"]}, Strategy)
         end
-     || I <- lists:seq(1, ?WORKERS)
+     || I <:- lists:seq(1, NumWorkers)
     ],
 
     Res0 =
@@ -471,12 +469,9 @@ custom_worker(_Config) ->
                 I = proplists:get_value(next_worker, Stats),
                 wpool:call(Pool, {erlang, self, []}, Strategy, infinity)
             end
-         || I <- lists:seq(1, ?WORKERS)
+         || I <:- lists:seq(1, NumWorkers)
         ],
-    ?WORKERS =
-        sets:size(
-            sets:from_list(Res0)
-        ),
+    NumWorkers = sets:size(sets:from_list(Res0)),
     Res0 =
         [
             begin
@@ -484,7 +479,7 @@ custom_worker(_Config) ->
                 I = proplists:get_value(next_worker, Stats),
                 wpool:call(Pool, {erlang, self, []}, Strategy)
             end
-         || I <- lists:seq(1, ?WORKERS)
+         || I <:- lists:seq(1, NumWorkers)
         ],
 
     Req = wpool:send_request(Pool, {erlang, self, []}, Strategy),
@@ -509,7 +504,7 @@ manager_crash(_Config) ->
     exit(whereis(QueueManager), kill),
 
     false =
-        ktn_task:wait_for(
+        wpool_test_utils:wait_for(
             fun() -> lists:member(whereis(QueueManager), [OldPid, undefined]) end,
             false
         ),
@@ -625,7 +620,7 @@ get_workers(_Config) ->
 
     ct:log("Verify that there's the correct number of workers"),
     Workers = wpool:get_workers(Pool),
-    ?WORKERS = length(Workers),
+    true = workers() =:= length(Workers),
 
     ct:log("All workers are alive"),
     true = lists:all(fun(Whereis) -> Whereis =/= undefined end, Workers),
@@ -673,7 +668,7 @@ mess_up_with_store(_Config) ->
     Flag = process_flag(trap_exit, true),
     exit(whereis(Pool), kill),
     ok =
-        ktn_task:wait_for(
+        wpool_test_utils:wait_for(
             fun() ->
                 try wpool:call(Pool, {io, format, ["1!~n"]}, random_worker) of
                     X ->
@@ -732,8 +727,10 @@ send_io_format(Pool) ->
 worker_msg_queue_lengths(Pool) ->
     lists:usort([
         proplists:get_value(message_queue_len, WS)
-     || {_, WS} <- proplists:get_value(workers, wpool:stats(Pool))
+     || {_, WS} <:- proplists:get_value(workers, wpool:stats(Pool))
     ]).
 
 store_mess_up(Pool) ->
     true = persistent_term:erase({wpool_pool, Pool}).
+
+workers() -> 6.

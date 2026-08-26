@@ -191,7 +191,7 @@ terminate(Reason, State) ->
     end.
 
 %% @private
--spec code_change(string() | {down, string()}, state(), any()) ->
+-spec code_change(string() | {down, string()}, state(), term()) ->
     {ok, state()} | {error, term()}.
 code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) ->
     case erlang:function_exported(Mod, code_change, 3) of
@@ -207,7 +207,7 @@ code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) 
     end.
 
 %% @private
--spec handle_info(any(), state()) ->
+-spec handle_info(term(), state()) ->
     {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
 handle_info(Info, #state{mod = CbCache} = State) ->
     #callback_cache{module = Mod, handle_info = HandleInfo} = CbCache,
@@ -235,7 +235,7 @@ handle_info(Info, #state{mod = CbCache} = State) ->
     end.
 
 %% @private
--spec handle_continue(any(), state()) ->
+-spec handle_continue(term(), state()) ->
     {noreply, state()}
     | {noreply, state(), next_step()}
     | {stop, term(), state()}.

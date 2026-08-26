@@ -27,7 +27,7 @@
 %% @doc Starts the supervisor
 -spec start_link() -> supervisor:startlink_ret().
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, #{}).
 
 %% @doc Starts a new pool
 -spec start_pool(wpool:name(), wpool:options()) -> supervisor:startchild_ret().
@@ -55,8 +55,8 @@ stop_pool(Name) ->
 %%----------------------------------------------------------------------
 %% Supervisor behaviour callbacks
 %%----------------------------------------------------------------------
--spec init([]) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
-init([]) ->
+-spec init(#{}) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
+init(#{}) ->
     {ok,
         {{simple_one_for_one, 5, 60}, [
             {wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}

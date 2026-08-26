@@ -59,12 +59,16 @@ complete_callback_passed_when_starting_pool(_Config) ->
         ),
 
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks, handle_init_start, ['_']), WorkersCount),
+        wpool_test_utils:wait_for(
+            function_calls(callbacks, handle_init_start, ['_']), WorkersCount
+        ),
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
+        wpool_test_utils:wait_for(
+            function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount
+        ),
     Worker = wpool_pool:random_worker(Pool),
     Worker ! crash,
-    1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
+    1 = wpool_test_utils:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
     wpool:stop_pool(Pool),
     meck:unload(callbacks),
 
@@ -87,7 +91,9 @@ partial_callback_passed_when_starting_pool(_Config) ->
             ]
         ),
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
+        wpool_test_utils:wait_for(
+            function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount
+        ),
     wpool:stop_pool(Pool),
     meck:unload(callbacks),
 
@@ -117,8 +123,8 @@ callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
     Worker ! crash,
 
     %% they both are called
-    1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
-    1 = ktn_task:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 1),
+    1 = wpool_test_utils:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
+    1 = wpool_test_utils:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 1),
 
     %% then the first module is removed
     _ = wpool_pool:remove_callback_module(Pool, callbacks),
@@ -126,8 +132,8 @@ callback_can_be_added_and_removed_after_pool_is_started(_Config) ->
     Worker2 ! crash,
 
     %% and only the scond one is called
-    1 = ktn_task:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
-    2 = ktn_task:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 2),
+    1 = wpool_test_utils:wait_for(function_calls(callbacks, handle_worker_death, ['_', '_']), 1),
+    2 = wpool_test_utils:wait_for(function_calls(callbacks2, handle_worker_death, ['_', '_']), 2),
 
     wpool:stop_pool(Pool),
     meck:unload(callbacks),
@@ -159,9 +165,11 @@ crashing_callback_does_not_affect_others(_Config) ->
         ),
 
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
+        wpool_test_utils:wait_for(
+            function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount
+        ),
     WorkersCount =
-        ktn_task:wait_for(
+        wpool_test_utils:wait_for(
             function_calls(callbacks2, handle_worker_creation, ['_']),
             WorkersCount
         ),
@@ -192,7 +200,9 @@ non_existsing_module_does_not_affect_others(_Config) ->
     {error, nofile} = wpool_pool:add_callback_module(Pool, non_existing_m2),
 
     WorkersCount =
-        ktn_task:wait_for(function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount),
+        wpool_test_utils:wait_for(
+            function_calls(callbacks, handle_worker_creation, ['_']), WorkersCount
+        ),
 
     wpool:stop_pool(Pool),
     meck:unload(callbacks),
@@ -207,5 +217,5 @@ complete_coverage(_Config) ->
     {ok, EventManager} = gen_event:start_link(),
     gen_event:add_handler(EventManager, {wpool_process_callbacks, ?MODULE}, ?MODULE),
     {error, {unexpected_call, call}} =
-        gen_event:call(EventManager, {wpool_process_callbacks, ?MODULE}, call),
+        gen_event:call(EventManager, {wpool_process_callbacks, ?MODULE}, call, 5000),
     ok.

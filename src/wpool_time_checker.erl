@@ -48,7 +48,7 @@ start_link(WPool, Name, Handler) when is_tuple(Handler) ->
 %% @private
 -spec add_handler(atom(), handler()) -> ok.
 add_handler(Name, Handler) ->
-    gen_server:call(Name, {add_handler, Handler}).
+    gen_server:call(Name, {add_handler, Handler}, 5000).
 
 %%%===================================================================
 %%% simple callbacks
@@ -71,7 +71,7 @@ handle_call({add_handler, Handler}, _, #state{handlers = Handlers} = State) ->
 %%% real (i.e. interesting) callbacks
 %%%===================================================================
 %% @private
--spec handle_info(any(), state()) -> {noreply, state()}.
+-spec handle_info(term(), state()) -> {noreply, state()}.
 handle_info({check, Pid, TaskId, Runtime, WarningsLeft}, State) ->
     case erlang:process_info(Pid, dictionary) of
         {dictionary, Values} ->
@@ -124,7 +124,7 @@ decrease_warnings(N) ->
     N - 1.
 
 -spec send_reports(
-    [{atom(), atom()}],
+    [{module(), atom()}],
     atom(),
     atom(),
     pid(),
@@ -134,7 +134,7 @@ decrease_warnings(N) ->
     ok.
 send_reports(Handlers, Alert, Pool, Pid, Task, Runtime) ->
     Args = [{alert, Alert}, {pool, Pool}, {worker, Pid}, {task, Task}, {runtime, Runtime}],
-    _ = [safe_apply(Mod, Fun, Args) || {Mod, Fun} <- Handlers],
+    _ = [safe_apply(Mod, Fun, Args) || {Mod, Fun} <:- Handlers],
     ok.
 
 safe_apply(Mod, Fun, Args) ->

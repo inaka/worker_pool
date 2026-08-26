@@ -348,12 +348,12 @@ stop() ->
 %% BEHAVIOUR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @private
--spec start(any(), any()) -> supervisor:startlink_ret().
+-spec start(term(), term()) -> supervisor:startlink_ret().
 start(_StartType, _StartArgs) ->
     wpool_sup:start_link().
 
 %% @private
--spec stop(any()) -> ok.
+-spec stop(term()) -> ok.
 stop(_State) ->
     ok.
 

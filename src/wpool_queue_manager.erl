@@ -91,7 +91,7 @@ run_with_available_worker(QueueManager, Call, Timeout) ->
     end.
 
 %% @doc returns the first available worker in the pool
--spec call_available_worker(queue_mgr(), any(), timeout()) -> noproc | timeout | any().
+-spec call_available_worker(queue_mgr(), term(), timeout()) -> noproc | timeout | term().
 call_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
         {ok, Worker, TimeLeft} when TimeLeft > 0 ->
@@ -112,7 +112,7 @@ cast_to_available_worker(QueueManager, Cast) ->
     gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
 %% @doc returns the first available worker in the pool
--spec send_request_available_worker(queue_mgr(), any(), timeout()) ->
+-spec send_request_available_worker(queue_mgr(), term(), timeout()) ->
     noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
@@ -147,7 +147,7 @@ worker_dead(QueueManager, Worker) ->
 -spec pending_task_count(queue_mgr()) -> non_neg_integer().
 pending_task_count(QueueManager) ->
     try
-        gen_server:call(QueueManager, pending_task_count)
+        gen_server:call(QueueManager, pending_task_count, 5000)
     catch
         _:{noproc, _} ->
             0
@@ -246,7 +246,7 @@ handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
 handle_call(pending_task_count, _From, State) ->
     {reply, get(pending_tasks), State}.
 
--spec handle_info(any(), state()) -> {noreply, state()}.
+-spec handle_info(term(), state()) -> {noreply, state()}.
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
     handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
 handle_info({'DOWN', _, _, Worker, Exit}, #state{monitors = Mons} = State) ->
@@ -263,7 +263,7 @@ handle_info(_Info, State) ->
 %%%===================================================================
 %%% private
 %%%===================================================================
--spec get_available_worker(queue_mgr(), any(), timeout()) ->
+-spec get_available_worker(queue_mgr(), term(), timeout()) ->
     noproc | timeout | {ok, atom(), timeout()}.
 get_available_worker(QueueManager, Call, Timeout) ->
     ExpiresAt = expires(Timeout),

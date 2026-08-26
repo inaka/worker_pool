@@ -30,7 +30,8 @@
 all() ->
     [
         Fun
-     || {Fun, 1} <- module_info(exports),
+     || {Fun, Arity} <:- module_info(exports),
+        Arity =:= 1,
         not lists:member(Fun, [init_per_suite, end_per_suite, module_info])
     ].
 
