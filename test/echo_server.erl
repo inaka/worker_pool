@@ -46,7 +46,7 @@ init(Something) ->
 terminate(Reason, _State) ->
     Reason.
 
--spec code_change(string(), State, any()) -> any() | {ok, State}.
+-spec code_change(string(), State, term()) -> term() | {ok, State}.
 code_change(_OldVsn, _State, Extra) ->
     Extra.
 

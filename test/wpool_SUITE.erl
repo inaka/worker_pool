@@ -117,7 +117,7 @@ too_much_overrun(_Config) ->
     ct:comment("Start a long running task..."),
     ok = wpool:cast(wpool_SUITE_too_much_overrun, {timer, sleep, [5000]}),
     TaskId =
-        ktn_task:wait_for_success(fun() ->
+        wpool_test_utils:wait_for_success(fun() ->
             {dictionary, Dict} = erlang:process_info(Worker, dictionary),
             {TId, _, _} = proplists:get_value(wpool_task, Dict),
             TId
@@ -350,15 +350,15 @@ stats(_Config) ->
             0 = Get(message_queue_len, WorkerStats),
             [] = lists:keydelete(message_queue_len, 1, lists:keydelete(memory, 1, WorkerStats))
         end
-     || I <- lists:seq(1, 10)
+     || I <:- lists:seq(1, 10)
     ],
 
     % Start a long task on every worker
     Sleep = {timer, sleep, [2000]},
-    [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker) || _ <- lists:seq(1, 10)],
+    [wpool:cast(wpool_SUITE_stats_pool, Sleep, next_worker) || _ <:- lists:seq(1, 10)],
 
     ok =
-        ktn_task:wait_for_success(fun() ->
+        wpool_test_utils:wait_for_success(fun() ->
             WorkingStats = wpool:stats(wpool_SUITE_stats_pool),
             wpool_SUITE_stats_pool = Get(pool, WorkingStats),
             PoolPid = Get(supervisor, WorkingStats),
@@ -376,7 +376,7 @@ stats(_Config) ->
                     {cast, Sleep} = Get(task, WorkerStats),
                     true = is_number(Get(runtime, WorkerStats))
                 end
-             || I <- lists:seq(1, 10)
+             || I <:- lists:seq(1, 10)
             ],
             ok
         end),
@@ -384,7 +384,7 @@ stats(_Config) ->
     wpool:stop_sup_pool(wpool_SUITE_stats_pool),
 
     no_workers =
-        ktn_task:wait_for(
+        wpool_test_utils:wait_for(
             fun() ->
                 try
                     wpool:stats(wpool_SUITE_stats_pool)
@@ -460,7 +460,7 @@ broadcall(_Config) ->
     % Broadcall x:x() execution to workers.
     {[_ | _], _} = wpool:broadcall(Pool, {x, x, []}, infinity),
     % Give some time for the workers to perform the calls.
-    WorkersCount = ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
+    WorkersCount = wpool_test_utils:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
 
     ct:comment("Check they all are \"working\""),
     try
@@ -492,7 +492,7 @@ broadcast(_Config) ->
     % Broadcast x:x() execution to workers.
     wpool:broadcast(Pool, {x, x, []}),
     % Give some time for the workers to perform the calls.
-    WorkersCount = ktn_task:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
+    WorkersCount = wpool_test_utils:wait_for(fun() -> meck:num_calls(x, x, '_') end, WorkersCount),
 
     ct:comment("Check they all are \"working\""),
     % Make all the workers sleep for 1.5 seconds
@@ -547,7 +547,7 @@ worker_killed_stats(_Config) ->
     {workers, [_, _]} = Workers(),
 
     ct:comment("Once the process is alive again, we should see it at the stats"),
-    true = ktn_task:wait_for(fun() -> is_pid(whereis(WorkerName)) end, true, 10, 75),
+    true = wpool_test_utils:wait_for(fun() -> is_pid(whereis(WorkerName)) end, true, 10, 75),
     {workers, [_, _, _]} = Workers(),
 
     {comment, []}.
@@ -596,7 +596,7 @@ pool_of_supervisors(_Config) ->
     Supervisors = wpool:get_workers(pool_of_supervisors),
     [
         3 = proplists:get_value(active, supervisor:count_children(Supervisor))
-     || Supervisor <- Supervisors
+     || Supervisor <:- Supervisors
     ],
 
     {comment, "Nicely load-balanced childrens across supervisors"}.
@@ -605,13 +605,17 @@ pool_of_supervisors(_Config) ->
 %% Helpers
 %% =============================================================================
 get_time_checker(PoolPid) ->
-    [TCPid] =
-        [P || {_, P, worker, [wpool_time_checker]} <- supervisor:which_children(PoolPid)],
+    [TCPid] = [
+        P
+     || {_, P, _, [M]} <:- supervisor:which_children(PoolPid), M =:= wpool_time_checker
+    ],
     TCPid.
 
 get_queue_manager(PoolPid) ->
-    [QMPid] =
-        [P || {_, P, worker, [wpool_queue_manager]} <- supervisor:which_children(PoolPid)],
+    [QMPid] = [
+        P
+     || {_, P, _, [M]} <:- supervisor:which_children(PoolPid), M =:= wpool_queue_manager
+    ],
     QMPid.
 
 get_messages(MaxTimeout) ->

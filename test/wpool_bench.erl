@@ -10,7 +10,7 @@
 ) ->
     float().
 run_tasks(TaskGroups, Strategy, Options) ->
-    Tasks = lists:flatten([lists:duplicate(N, Type) || {Type, N} <- TaskGroups]),
+    Tasks = lists:flatten([lists:duplicate(N, Type) || {Type, N} <:- TaskGroups]),
     {ok, _Pool} = wpool:start_sup_pool(?MODULE, Options),
     try lists:foldl(fun(Task, Acc) -> run_task(Task, Strategy, Acc) end, [], Tasks) of
         [] ->

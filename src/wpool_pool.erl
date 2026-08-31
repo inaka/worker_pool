@@ -21,6 +21,27 @@
 %%% `t:wpool:pool_sup_intensity()' options respectively.
 -module(wpool_pool).
 
+%% We use <- to filter and we use list_to_atom/1 to build atoms from other atoms.
+-elvis(
+    [
+        {elvis_style, prefer_strict_generators, disable},
+        {elvis_style, no_common_caveats_call, #{
+            caveat_functions => [
+                {timer, send_after, 2},
+                {timer, send_after, 3},
+                {timer, send_interval, 2},
+                {timer, send_interval, 3},
+                {erlang, size, 1},
+                {gen_statem, call, 2},
+                {gen_server, call, 2},
+                {gen_event, call, 3},
+                {erlang, binary_to_atom, 1},
+                {erlang, binary_to_atom, 2}
+            ]
+        }}
+    ]
+).
+
 -include_lib("kernel/include/logger.hrl").
 
 -behaviour(supervisor).
@@ -145,7 +166,7 @@ run_with_available_worker(Name, Run, Timeout) ->
 %%      The timeout provided includes the time it takes to get a worker
 %%      and for it to process the call.
 %% @throws no_workers | timeout
--spec call_available_worker(wpool:name(), any(), timeout()) -> any().
+-spec call_available_worker(wpool:name(), term(), timeout()) -> term().
 call_available_worker(Name, Call, Timeout) ->
     case find_wpool(Name) of
         undefined ->
@@ -163,7 +184,7 @@ call_available_worker(Name, Call, Timeout) ->
 
 %% @doc Picks the first available worker and sends the request to it.
 %%      The timeout provided considers only the time it takes to get a worker
--spec send_request_available_worker(wpool:name(), any(), timeout()) ->
+-spec send_request_available_worker(wpool:name(), term(), timeout()) ->
     noproc | timeout | gen_server:request_id().
 send_request_available_worker(Name, Call, Timeout) ->
     wpool_queue_manager:send_request_available_worker(
@@ -233,7 +254,7 @@ all() ->
         Name
      || {{?MODULE, Name}, _} <- persistent_term:get(),
         is_atom(Name),
-        find_wpool(Name) /= undefined
+        find_wpool(Name) =/= undefined
     ].
 
 %% @doc Retrieves the list of worker registered names.
@@ -245,7 +266,7 @@ get_workers(Name) ->
 %% @doc Retrieves the pool stats for all pools
 -spec stats() -> [wpool:stats()].
 stats() ->
-    [stats(Name) || Name <- all()].
+    lists:map(fun stats/1, all()).
 
 %% @doc Retrieves a snapshot of the pool stats
 %% @throws no_workers
@@ -350,10 +371,10 @@ remove_callback_module(Pool, Module) ->
 %% @doc Get values from the worker pool record. Useful when using a custom
 %% strategy function.
 -spec wpool_get
-    (atom(), wpool()) -> any();
-    ([atom()], wpool()) -> any().
+    (atom(), wpool()) -> term();
+    ([atom()], wpool()) -> term().
 wpool_get(List, Wpool) when is_list(List) ->
-    [g(Atom, Wpool) || Atom <- List];
+    [g(Atom, Wpool) || Atom <:- List];
 wpool_get(Atom, Wpool) when is_atom(Atom) ->
     g(Atom, Wpool).
 
@@ -556,7 +577,7 @@ all_workers(Name) ->
 store_wpool(Name, Size, Options) ->
     Atomic = atomics:new(1, [{signed, false}]),
     atomics:put(Atomic, 1, 1),
-    WorkerNames = list_to_tuple([worker_name(Name, I) || I <- lists:seq(1, Size)]),
+    WorkerNames = list_to_tuple([worker_name(Name, I) || I <:- lists:seq(1, Size)]),
     Wpool =
         #wpool{
             name = Name,
