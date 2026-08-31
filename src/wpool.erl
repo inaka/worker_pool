@@ -11,188 +11,241 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @doc Worker pool main interface.
-%%%
-%%% Use functions provided by this module to manage your pools of workers.
-%%%
-%%% <h2>Starting the application</h2>
-%%% <b>Worker Pool</b> is an Erlang application that can be started using the functions in the
-%%% `application' module. For convenience, `wpool:start/0' and `wpool:stop/0' are also provided.
-%%%
-%%% <h2>Starting a Pool</h2>
-%%%
-%%% To start a new worker pool, you can either
-%%% <ul>
-%%%   <li>Use `wpool:child_spec/2' if you want to add the pool under a supervision tree
-%%%   initialisation;</li>
-%%%   <li>Use `wpool:start_pool/1' or `wpool:start_pool/2' if you want to supervise it
-%%%   yourself;</li>
-%%%   <li>Use `wpool:start_sup_pool/1' or `wpool:start_sup_pool/2' if you want the pool to live
-%%%   under
-%%%   wpool's supervision tree.</li>
-%%% </ul>
-%%%
-%%% <h2>Stopping a Pool</h2>
-%%% To stop a pool, just use `wpool:stop_pool/1' or `wpool:stop_sup_pool/1' according to how you
-%%% started the pool.
-%%%
-%%% <h2>Using the Workers</h2>
-%%%
-%%% Since the workers are `gen_server's, messages can be `call'ed or `cast'ed to them. To do that
-%%% you can use `wpool:call' and `wpool:cast' as you would use the equivalent functions on
-%%% `gen_server'.
-%%%
-%%% <h3>Choosing a Strategy</h3>
-%%%
-%%% Beyond the regular parameters for `gen_server', wpool also provides an extra optional parameter
-%%% <b>Strategy</b> The strategy used to pick up the worker to perform the task. If not provided,
-%%% the result of `wpool:default_strategy/0' is used.
-%%%
-%%% The available strategies are defined in the `t:wpool:strategy/0' type.
-%%%
-%%% <h2>Watching a Pool</h2>
-%%% Wpool provides a way to get live statistics about a pool. To do that, you can use
-%%% `wpool:stats/1'.
 -module(wpool).
+-moduledoc """
+Worker pool main interface.
+
+Use functions provided by this module to manage your pools of workers.
+
+## Starting the application
+
+**Worker Pool** is an Erlang application that can be started using the functions in the
+`application` module. For convenience, `wpool:start/0` and `wpool:stop/0` are also provided.
+
+## Starting a Pool
+
+To start a new worker pool, you can either
+
+* Use `wpool:child_spec/2` if you want to add the pool under a supervision tree initialisation;
+* Use `wpool:start_pool/1` or `wpool:start_pool/2` if you want to supervise it yourself;
+* Use `wpool:start_sup_pool/1` or `wpool:start_sup_pool/2` if you want the pool to live under
+  `wpool`'s supervision tree.
+
+## Stopping a Pool
+
+To stop a pool, just use `wpool:stop_pool/1` or `wpool:stop_sup_pool/1` according to how you
+started the pool.
+
+## Using the Workers
+
+Since the workers are `gen_server`s, messages can be _called_ or _casted_ to them. To do that
+you can use `wpool:call` and `wpool:cast` as you would use the equivalent functions on
+`gen_server`.
+
+### Choosing a Strategy
+
+Beyond the regular parameters for `gen_server`, `wpool` also provides an extra optional parameter,
+`Strategy`: The strategy used to pick up the worker to perform the task. If not provided,
+the result of `wpool:default_strategy/0` is used.
+
+The available strategies are defined in the `t:wpool:strategy/0` type.
+
+## Watching a Pool
+
+`wpool` provides a way to get live statistics about a pool. To do that, you can use
+`wpool:stats/1`.
+""".
 
 -elvis([{elvis_style, private_data_types, disable}]).
 
 -behaviour(application).
 
+-doc """
+The number of milliseconds after which a task is considered _overrun_ i.e., delayed.
+
+A warning is emitted using `overrun_handler()`.
+
+The task is monitored until it is finished,
+thus more than one warning might be emitted for a single task.
+
+The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead:
+after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000` warnings would
+be emitted after 1000, 2000, 4000, 8000 ...).
+
+> The default value for this setting is `infinity`, i.e., no warnings are emitted.
+""".
 -type overrun_warning() :: infinity | pos_integer().
-%% The number of milliseconds after which a task is considered <i>overrun</i> i.e., delayed.
-%%
-%% A warning is emitted using {@link overrun_handler()}.
-%%
-%% The task is monitored until it is finished,
-%% thus more than one warning might be emitted for a single task.
-%%
-%% The rounds of warnings are not equally timed, an exponential backoff algorithm is used instead:
-%% after each warning the overrun time is doubled (i.e. with `overrun_warning = 1000' warnings would
-%% be emitted after 1000, 2000, 4000, 8000 ...).
-%%
-%% The default value for this setting is `infinity', i.e., no warnings are emitted.
 
+-doc """
+The maximum number of overrun warnings emitted before killing the worker with a delayed task.
+
+If this parameter is set to a value other than `infinity` the rounds of warnings become equally
+timed (i.e. with `overrun_warning = 1000` and `max_overrun_warnings = 5` the task would be killed
+after 5 seconds of execution).
+
+> The default value for this setting is `infinity`, i.e., delayed tasks are not killed.
+>
+> As the worker is being killed it might cause worker's messages to be missing if you
+> are using a worker stategy other than `available_worker`.
+""".
 -type max_overrun_warnings() :: infinity | pos_integer().
-%% The maximum number of overrun warnings emitted before killing the worker with a delayed task.
-%%
-%% If this parameter is set to a value other than `infinity' the rounds of warnings become equally
-%% timed (i.e. with `overrun_warning = 1000' and `max_overrun_warnings = 5' the task would be killed
-%% after 5 seconds of execution).
-%%
-%% The default value for this setting is `infinity', i.e., delayed tasks are not killed.
-%%
-%% <b>NOTE</b>: As the worker is being killed it might cause worker's messages to be missing if you
-%% are using a worker stategy other than `available_worker' (see worker {@link strategy()} below).
 
+-doc """
+The module and function to call when a task is _overrun_.
+
+The default value for this setting is `{logger, warning}`. The function must be of
+arity 1, and it will be called as`Module:Fun(Args)` where `Args` is a proplist with the following
+reported values:
+
+* `{alert, AlertType}`: Where `AlertType` is `overrun` on regular warnings, or
+`max_overrun_limit` when the worker is about to be killed.
+* `{pool, Pool}`: The pool name.
+* `{worker, Pid}`: Pid of the worker.
+* `{task, Task}`: A description of the task.
+* `{runtime, Runtime}`: The runtime of the current round.
+""".
 -type overrun_handler() :: {Module :: module(), Fun :: atom()}.
-%% The module and function to call when a task is <i>overrun</i>
-%%
-%% The default value for this setting is `{logger, warning}'. The function must be of
-%% arity 1, and it will be called as`Module:Fun(Args)' where `Args' is a proplist with the following
-%% reported values:
-%% <ul>
-%%  <li>`{alert, AlertType}': Where `AlertType' is `overrun' on regular warnings, or
-%%  `max_overrun_limit' when the worker is about to be killed.</li>
-%%  <li>`{pool, Pool}': The pool name.</li>
-%%  <li>`{worker, Pid}': Pid of the worker.</li>
-%%  <li>`{task, Task}': A description of the task.</li>
-%%  <li>`{runtime, Runtime}': The runtime of the current round.</li>
-%% </ul>
 
+-doc """
+The number of workers in the pool.
+
+> The default value for this setting is `100`.
+""".
 -type workers() :: pos_integer().
-%% The number of workers in the pool.
-%%
-%% The default value for this setting is `100'
 
+-doc """
+The `gen_server` module and the arguments to pass to the `init` callback.
+
+This is the module that each worker will run and the `InitArgs` to use on the corresponding
+`start_link` call used to initiate it.
+
+The default value for this setting is `{wpool_worker, undefined}`. That means that if you don't
+provide a worker implementation, the pool will be generated with this default one.
+
+> See `wpool_worker` for details.
+""".
 -type worker() :: {Module :: module(), InitArg :: term()}.
-%% The `gen_server' module and the arguments to pass to the `init' callback.
-%%
-%% This is the module that each worker will run and the `InitArgs' to use on the corresponding
-%% `start_link' call used to initiate it.
-%%
-%% The default value for this setting is `{wpool_worker, undefined}'. That means that if you don't
-%% provide a worker implementation, the pool will be generated with this default one.
-%% See {@link wpool_worker} for details.
 
+-doc """
+Server options that will be passed to each `gen_server` worker.
+
+These are the same as described at the `gen_server` documentation.
+""".
 -type worker_opt() :: gen_server:start_opt().
-%% Server options that will be passed to each `gen_server' worker.
-%%
-%% These are the same as described at the `gen_server' documentation.
 
+-doc """
+The `shutdown` option to be used over the individual workers.
+
+> Defaults to `5000`.
+>
+> See `wpool_process_sup` for more details.
+""".
 -type worker_shutdown() :: brutal_kill | timeout().
-%% The `shutdown' option to be used over the individual workers.
-%%
-%% Defaults to `5000'. See {@link wpool_process_sup} for more details.
 
+-doc """
+Supervision strategy to use over the individual workers.
+
+> Defaults to `{one_for_one, 5, 60}`.
+>
+> See `wpool_process_sup` for more details.
+""".
 -type supervisor_strategy() :: supervisor:sup_flags().
-%% Supervision strategy to use over the individual workers.
-%%
-%% Defaults to `{one_for_one, 5, 60}'. See {@link wpool_process_sup} for more details.
 
+-doc """
+The `shutdown` option to be used over the supervisor that supervises the workers.
+
+> Defaults to `brutal_kill`.
+>
+> See `wpool_process_sup` for more details.
+""".
 -type pool_sup_shutdown() :: brutal_kill | timeout().
-%% The `shutdown' option to be used over the supervisor that supervises the workers.
-%%
-%% Defaults to `brutal_kill'. See {@link wpool_process_sup} for more details.
 
+-doc """
+The supervision period to use over the supervisor that supervises the workers.
+
+> Defaults to `60`.
+>
+> See `wpool_pool` for more details.
+""".
 -type pool_sup_period() :: non_neg_integer().
-%% The supervision period to use over the supervisor that supervises the workers.
-%%
-%% Defaults to `60'. See {@link wpool_pool} for more details.
 
+-doc """
+The supervision intensity to use over the supervisor that supervises the workers.
+
+> Defaults to `5`.
+>
+> See `wpool_pool` for more details.
+""".
 -type pool_sup_intensity() :: non_neg_integer().
-%% The supervision intensity to use over the supervisor that supervises the workers.
-%%
-%% Defaults to `5'. See {@link wpool_pool} for more details.
 
+-doc """
+Order in which requests will be stored and handled by workers.
+
+> Defaults to `fifo`.
+""".
 -type queue_type() :: fifo | lifo.
-%% Order in which requests will be stored and handled by workers.
-%%
-%% This option can take values `lifo' or `fifo'. Defaults to `fifo'.
 
+-doc """
+A boolean value determining if `queue_manager` should be started for queueing requests.
+
+> Defaults to `true`.
+>
+> Disabling this will disable `available_worker` and `next_available_worker` strategies.
+""".
 -type enable_queues() :: boolean().
-%% A boolean value determining if `queue_manager' should be started for queueing requests.
-%%
-%% Defaults to `true'.
-%% Note that disabling this will disable `available_worker' and `next_available_worker' strategies.
 
+-doc """
+A boolean value determining if `event_manager` should be started for callback modules.
+
+> Defaults to `false`.
+""".
 -type enable_callbacks() :: boolean().
-%% A boolean value determining if `event_manager' should be started for callback modules.
-%%
-%% Defaults to `false'.
 
+-doc """
+Initial list of callback modules implementing `wpool_process_callbacks` to be
+called on certain worker events.
+
+> This options will only work if the `enable_callbacks` is set to `true`.
+>
+> Callbacks can be added and removed later by `wpool_pool:add_callback_module/2` and
+> `wpool_pool:remove_callback_module/2`.
+""".
 -type callbacks() :: [module()].
-%% Initial list of callback modules implementing `wpool_process_callbacks' to be
-%% called on certain worker events.
-%%
-%% This options will only work if the {@link enable_callbacks()} is set to <b>true</b>.
-%% Callbacks can be added and removed later by `wpool_pool:add_callback_module/2' and
-%% `wpool_pool:remove_callback_module/2'.
 
+-doc """
+A function to run with a given worker.
+
+It can be used to enable APIs that hide the `gen_server` behind a complex logic
+that might for example curate parameters or run side-effects, for example, `supervisor`.
+
+For example:
+```erlang
+    Opts = #{
+        workers => 3,
+        worker_shutdown => infinity,
+        worker => {supervisor, {Name, ModuleCallback, Args}}
+    },
+    %% Note that the supervisor's `init/1` callback takes such 3-tuple.
+    {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
+...
+
+    Run = fun(Sup, _) -> supervisor:start_child(Sup, Params) end,
+    {ok, Pid} = wpool:run(pool_of_supervisors, Run, next_worker),
+```
+""".
 -type run(Result) :: fun((name() | pid(), timeout()) -> Result).
-%% A function to run with a given worker.
-%%
-%% It can be used to enable APIs that hide the gen_server behind a complex logic
-%% that might for example curate parameters or run side-effects, for example, `supervisor'.
-%%
-%% For example:
-%% ```
-%%  Opts =
-%%      #{workers => 3,
-%%        worker_shutdown => infinity,
-%%        worker => {supervisor, {Name, ModuleCallback, Args}}},
-%%        %% Note that the supervisor's `init/1' callback takes such 3-tuple.
-%% {ok, Pid} = wpool:start_sup_pool(pool_of_supervisors, Opts),
-%%
-%% ...
-%%
-%% Run = fun(Sup, _) -> supervisor:start_child(Sup, Params) end,
-%% {ok, Pid} = wpool:run(pool_of_supervisors, Run, next_worker),
-%% '''
 
+-doc """
+Name of the pool.
+""".
 -type name() :: atom().
-%% Name of the pool
 
+-doc """
+Options that can be provided to a new pool.
+
+> `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
+> that take a list of these options as a parameter.
+""".
 -type option() ::
     {workers, workers()}
     | {worker, worker()}
@@ -209,11 +262,13 @@
     | {enable_callbacks, enable_callbacks()}
     | {enable_queues, enable_queues()}
     | {callbacks, callbacks()}.
-%% Options that can be provided to a new pool.
-%%
-%% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
-%% that take a list of these options as a parameter.
 
+-doc """
+Options that can be provided to a new pool.
+
+> `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
+> that take a list of these options as a parameter.
+""".
 -type options() :: #{
     workers => workers(),
     worker => worker(),
@@ -232,14 +287,54 @@
     callbacks => callbacks(),
     _ => _
 }.
-%% Options that can be provided to a new pool.
-%%
-%% `child_spec/2', `start_pool/2', `start_sup_pool/2' are the callbacks
-%% that take a list of these options as a parameter.
 
+-doc """
+A callback that gets the pool name and returns a worker's name.
+""".
 -type custom_strategy() :: fun((atom()) -> Atom :: atom()).
-%% A callback that gets the pool name and returns a worker's name.
 
+-doc """
+Strategy to use when choosing a worker.
+
+## `best_worker`
+Picks the worker with the shortest queue of messages. Loosely based on [this
+article](https://lethain.com/load-balancing-across-erlang-process-groups/).
+
+This strategy is usually useful when your workers always perform the same task,
+or tasks with expectedly similar runtimes.
+
+## `random_worker`
+Just picks a random worker. This strategy is the fastest one to select a worker.
+It's ideal if your workers will perform many short tasks.
+
+## `next_worker`
+Picks the next worker in a round-robin fashion. This ensures an evenly distribution of tasks.
+
+## `available_worker`
+Instead of just picking one of the workers in the queue and sending the request to it, this
+strategy queues the request and waits until a worker is available to perform it. That may render
+the worker selection part of the process much slower (thus generating the need for an additional
+parameter: `Worker_Timeout' that controls how many milliseconds the client is willing to spend
+in that, regardless of the global `Timeout' for the call).
+
+This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
+It also ensures that, if a task takes too long, that doesn't block other tasks since, as soon as
+other worker is free it can pick up the next task in the list.
+
+## `next_available_worker`
+In a way, this strategy behaves like `available_worker` in the sense that it will pick the first
+worker that it can find which is not running any task at the moment, but the difference is that
+it will fail if all workers are busy.
+
+## `{hash_worker, Key}`
+This strategy takes a `Key` and selects a worker using `erlang:phash2/2`. This ensures that tasks
+classified under the same key will be delivered to the same worker, which is useful to classify
+events by key and work on them sequentially on the worker, distributing different keys across
+different workers.
+
+## `custom_strategy()`
+A callback that gets the pool name and returns a worker's name.
+""".
 -type strategy() ::
     best_worker
     | random_worker
@@ -248,51 +343,15 @@
     | next_available_worker
     | {hash_worker, term()}
     | custom_strategy().
-%% Strategy to use when choosing a worker.
-%%
-%% <h2>`best_worker'</h2>
-%% Picks the worker with the shortest queue of messages. Loosely based on this
-%% article: [https://lethain.com/load-balancing-across-erlang-process-groups/].
-%%
-%% This strategy is usually useful when your workers always perform the same task,
-%% or tasks with expectedly similar runtimes.
-%%
-%% <h2>`random_worker'</h2>
-%% Just picks a random worker. This strategy is the fastest one to select a worker.
-%% It's ideal if your workers will perform many short tasks.
-%%
-%% <h2>`next_worker'</h2>
-%% Picks the next worker in a round-robin fashion. This ensures an evenly distribution of tasks.
-%%
-%% <h2>`available_worker'</h2>
-%% Instead of just picking one of the workers in the queue and sending the request to it, this
-%% strategy queues the request and waits until a worker is available to perform it. That may render
-%% the worker selection part of the process much slower (thus generating the need for an additional
-%% parameter: `Worker_Timeout' that controls how many milliseconds the client is willing to spend
-%% in that, regardless of the global `Timeout' for the call).
-%%
-%% This strategy ensures that, if a worker crashes, no messages are lost in its message queue.
-%% It also ensures that, if a task takes too long, that doesn't block other tasks since, as soon as
-%% other worker is free it can pick up the next task in the list.
-%%
-%% <h2>`next_available_worker'</h2>
-%% In a way, this strategy behaves like `available_worker' in the sense that it will pick the first
-%% worker that it can find which is not running any task at the moment, but the difference is that
-%% it will fail if all workers are busy.
-%%
-%% <h2>`{hash_worker, Key}'</h2>
-%% This strategy takes a `Key' and selects a worker using `erlang:phash2/2'. This ensures that tasks
-%% classified under the same key will be delivered to the same worker, which is useful to classify
-%% events by key and work on them sequentially on the worker, distributing different keys across
-%% different workers.
-%%
-%% <h2>{@link custom_strategy()}</h2>
-%% A callback that gets the pool name and returns a worker's name.
 
--type worker_stats() ::
-    [{messsage_queue_len, non_neg_integer()} | {memory, pos_integer()}].
-%% Statistics about a worker in a pool.
+-doc """
+Statistics about a worker in a pool.
+""".
+-type worker_stats() :: [{messsage_queue_len, non_neg_integer()} | {memory, pos_integer()}].
 
+-doc """
+Statistics about a given live pool.
+""".
 -type stats() ::
     [
         {pool, name()}
@@ -303,7 +362,6 @@
         | {total_message_queue_len, non_neg_integer()}
         | {workers, [{pos_integer(), worker_stats()}]}
     ].
-%% Statistics about a given live pool.
 
 -export_type([
     name/0,
@@ -331,48 +389,54 @@
 -export([stats/0, stats/1, get_workers/1]).
 -export([default_strategy/0]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% ADMIN API
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @doc Starts the application
+-doc #{group => "Admin API"}.
+-doc """
+Starts the application.
+""".
 -spec start() -> ok | {error, {already_started, ?MODULE}}.
 start() ->
     application:start(worker_pool).
 
-%% @doc Stops the application
+-doc #{group => "Admin API"}.
+-doc """
+Stops the application.
+""".
 -spec stop() -> ok.
 stop() ->
     application:stop(worker_pool).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% BEHAVIOUR CALLBACKS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @private
+-doc #{group => "Behaviour callbacks"}.
+-doc false.
 -spec start(term(), term()) -> supervisor:startlink_ret().
 start(_StartType, _StartArgs) ->
     wpool_sup:start_link().
 
-%% @private
+-doc #{group => "Behaviour callbacks"}.
+-doc false.
 -spec stop(term()) -> ok.
 stop(_State) ->
     ok.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% PUBLIC API
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @equiv start_pool(Name, [])
+-doc #{group => "Public API"}.
+-doc #{equiv => start_pool(Name, [])}.
 -spec start_pool(name()) -> supervisor:startlink_ret().
 start_pool(Name) ->
     start_pool(Name, []).
 
-%% @doc Starts (and links) a pool of N wpool_processes.
-%%      The result pid belongs to a supervisor (in case you want to add it to a
-%%      supervisor tree)
+-doc #{group => "Public API"}.
+-doc """
+Starts (and links) a pool of `N` `wpool_process`es.
+The result pid belongs to a supervisor (in case you want to add it to a
+supervisor tree).
+""".
 -spec start_pool(name(), [option()] | options()) -> supervisor:startlink_ret().
 start_pool(Name, Options) ->
     wpool_pool:start_link(Name, wpool_utils:add_defaults(Options)).
 
-%% @doc Builds a child specification to pass to a supervisor.
+-doc #{group => "Public API"}.
+-doc """
+Builds a child specification to pass to a supervisor.
+""".
 -spec child_spec(name(), [option()] | options()) -> supervisor:child_spec().
 child_spec(Name, Options) ->
     FullOptions = wpool_utils:add_defaults(Options),
@@ -384,7 +448,10 @@ child_spec(Name, Options) ->
         type => supervisor
     }.
 
-%% @doc Stops a pool that doesn't belong to `wpool_sup'.
+-doc #{group => "Public API"}.
+-doc """
+Stops a pool that doesn't belong to `wpool_sup`.
+""".
 -spec stop_pool(name()) -> true.
 stop_pool(Name) ->
     case whereis(Name) of
@@ -394,22 +461,32 @@ stop_pool(Name) ->
             exit(Pid, normal)
     end.
 
-%% @equiv start_sup_pool(Name, [])
+-doc #{group => "Public API"}.
+-doc #{equiv => start_sup_pool(Name, [])}.
 -spec start_sup_pool(name()) -> supervisor:startchild_ret().
 start_sup_pool(Name) ->
     start_sup_pool(Name, []).
 
-%% @doc Starts a pool of N wpool_processes supervised by `wpool_sup'
+-doc #{group => "Public API"}.
+-doc """
+Starts a pool of `N` wpool_processes supervised by `wpool_sup`.
+""".
 -spec start_sup_pool(name(), [option()] | options()) -> supervisor:startchild_ret().
 start_sup_pool(Name, Options) ->
     wpool_sup:start_pool(Name, wpool_utils:add_defaults(Options)).
 
-%% @doc Stops a pool supervised by `wpool_sup' supervision tree.
+-doc #{group => "Public API"}.
+-doc """
+Stops a pool supervised by `wpool_sup` supervision tree.
+""".
 -spec stop_sup_pool(name()) -> ok.
 stop_sup_pool(Name) ->
     wpool_sup:stop_pool(Name).
 
-%% @doc Default strategy
+-doc #{group => "Public API"}.
+-doc """
+Default strategy.
+""".
 -spec default_strategy() -> strategy().
 default_strategy() ->
     case application:get_env(worker_pool, default_strategy) of
@@ -419,22 +496,27 @@ default_strategy() ->
             Strategy
     end.
 
-%% @equiv run(Sup, Run, default_strategy())
+-doc #{group => "Public API"}.
+-doc #{equiv => run(Sup, Run, default_strategy())}.
 -spec run(name(), run(Result)) -> Result.
 run(Sup, Run) ->
     run(Sup, Run, default_strategy()).
 
-%% @equiv run(Sup, Run, Strategy, 5000)
+-doc #{group => "Public API"}.
+-doc #{equiv => run(Sup, Run, Strategy, 5000)}.
 -spec run(name(), run(Result), strategy()) -> Result.
 run(Sup, Run, Strategy) ->
     run(Sup, Run, Strategy, 5000).
 
-%% @doc Picks a server and issues the run to it.
-%%
-%% For all strategies except available_worker, Timeout applies only to the
-%% time spent on the actual run to the worker, because time spent finding
-%% the worker in other strategies is negligible.
-%% For available_worker the time used choosing a worker is also considered
+-doc #{group => "Public API"}.
+-doc """
+Picks a server and issues the run to it.
+
+For all strategies except `available_worker`, `Timeout` applies only to the
+time spent on the actual run to the worker, because time spent finding
+the worker in other strategies is negligible.
+For `available_worker`, the time used choosing a worker is also considered.
+""".
 -spec run(name(), run(Result), strategy(), timeout()) -> Result.
 run(Sup, Run, available_worker, Timeout) ->
     wpool_pool:run_with_available_worker(Sup, Run, Timeout);
@@ -451,22 +533,27 @@ run(Sup, Run, {hash_worker, HashKey}, Timeout) ->
 run(Sup, Run, Fun, Timeout) when is_function(Fun, 1) ->
     wpool_process:run(Fun(Sup), Run, Timeout).
 
-%% @equiv call(Sup, Call, default_strategy())
+-doc #{group => "Public API"}.
+-doc #{equiv => call(Sup, Call, default_strategy())}.
 -spec call(name(), term()) -> term().
 call(Sup, Call) ->
     call(Sup, Call, default_strategy()).
 
-%% @equiv call(Sup, Call, Strategy, 5000)
+-doc #{group => "Public API"}.
+-doc #{equiv => call(Sup, Call, Strategy, 5000)}.
 -spec call(name(), term(), strategy()) -> term().
 call(Sup, Call, Strategy) ->
     call(Sup, Call, Strategy, 5000).
 
-%% @doc Picks a server and issues the call to it.
-%%
-%% For all strategies except available_worker, Timeout applies only to the
-%% time spent on the actual call to the worker, because time spent finding
-%% the worker in other strategies is negligible.
-%% For available_worker the time used choosing a worker is also considered
+-doc #{group => "Public API"}.
+-doc """
+Picks a server and issues the call to it.
+
+For all strategies except `available_worker`, `Timeout` applies only to the
+time spent on the actual run to the worker, because time spent finding
+the worker in other strategies is negligible.
+For `available_worker`, the time used choosing a worker is also considered.
+""".
 -spec call(name(), term(), strategy(), timeout()) -> term().
 call(Sup, Call, available_worker, Timeout) ->
     wpool_pool:call_available_worker(Sup, Call, Timeout);
@@ -483,12 +570,16 @@ call(Sup, Call, {hash_worker, HashKey}, Timeout) ->
 call(Sup, Call, Fun, Timeout) when is_function(Fun, 1) ->
     wpool_process:call(Fun(Sup), Call, Timeout).
 
-%% @equiv cast(Sup, Cast, default_strategy())
+-doc #{group => "Public API"}.
+-doc #{equiv => cast(Sup, Cast, default_strategy())}.
 -spec cast(name(), term()) -> ok.
 cast(Sup, Cast) ->
     cast(Sup, Cast, default_strategy()).
 
-%% @doc Picks a server and issues the cast to it
+-doc #{group => "Public API"}.
+-doc """
+Picks a server and issues the cast to it.
+""".
 -spec cast(name(), term(), strategy()) -> ok.
 cast(Sup, Cast, available_worker) ->
     wpool_pool:cast_to_available_worker(Sup, Cast);
@@ -505,20 +596,25 @@ cast(Sup, Cast, {hash_worker, HashKey}) ->
 cast(Sup, Cast, Fun) when is_function(Fun, 1) ->
     wpool_process:cast(Fun(Sup), Cast).
 
-%% @equiv send_request(Sup, Call, default_strategy(), 5000)
+-doc #{group => "Public API"}.
+-doc #{equiv => send_request(Sup, Call, default_strategy(), 5000)}.
 -spec send_request(name(), term()) -> noproc | timeout | gen_server:request_id().
 send_request(Sup, Call) ->
     send_request(Sup, Call, default_strategy()).
 
-%% @equiv send_request(Sup, Call, Strategy, 5000)
+-doc #{group => "Public API"}.
+-doc #{equiv => send_request(Sup, Call, Strategy, 5000)}.
 -spec send_request(name(), term(), strategy()) ->
     noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, Strategy) ->
     send_request(Sup, Call, Strategy, 5000).
 
-%% @doc Picks a server and issues the call to it.
-%%
-%% Timeout applies only for the time used choosing a worker in the available_worker strategy
+-doc #{group => "Public API"}.
+-doc """
+Picks a server and issues the call to it.
+
+> `Timeout` applies only for the time used choosing a worker in the `available_worker` strategy.
+""".
 -spec send_request(name(), term(), strategy(), timeout()) ->
     noproc | timeout | gen_server:request_id().
 send_request(Sup, Call, available_worker, Timeout) ->
@@ -536,41 +632,56 @@ send_request(Sup, Call, {hash_worker, HashKey}, _Timeout) ->
 send_request(Sup, Call, Fun, _Timeout) when is_function(Fun, 1) ->
     wpool_process:send_request(Fun(Sup), Call).
 
-%% @doc Casts a message to all the workers within the given pool.
-%%
-%% <b>NOTE:</b> These messages don't get queued, they go straight to the worker's message queues, so
-%% if you're using available_worker strategy to balance the charge and you have some tasks queued up
-%% waiting for the next available worker, the broadcast will reach all the workers <b>before</b> the
-%% queued up tasks.
+-doc #{group => "Public API"}.
+-doc """
+Casts a message to all the workers within the given pool.
+
+> These messages don't get queued, they go straight to the worker's message queues, so
+> if you're using `available_worker` strategy to balance the charge and you have some
+> tasks queued up waiting for the next available worker, the broadcast will reach all
+> the workers **before** the queued up tasks.
+""".
 -spec broadcast(wpool:name(), term()) -> ok.
 broadcast(Sup, Cast) ->
     wpool_pool:broadcast(Sup, Cast).
 
-%% @doc Calls all the workers within the given pool async and waits for the responses synchronously.
-%%
-%% If one worker times out, the entire call is considered timed-out.
+-doc #{group => "Public API"}.
+-doc """
+Calls all the workers within the given pool async and waits for the responses synchronously.
+
+> If one worker times out, the entire call is considered timed-out.
+""".
 -spec broadcall(wpool:name(), term(), timeout()) ->
     {[Replies :: term()], [Errors :: term()]}.
 broadcall(Sup, Call, Timeout) ->
     wpool_pool:broadcall(Sup, Call, Timeout).
 
-%% @doc Retrieves a snapshot of statistics for all pools.
-%%
-%% See `t:stats/0' for details on the return type.
+-doc #{group => "Public API"}.
+-doc """
+Retrieves a snapshot of statistics for all pools.
+
+> See `t:stats/0` for details on the return type.
+""".
 -spec stats() -> [stats()].
 stats() ->
     wpool_pool:stats().
 
-%% @doc Retrieves a snapshot of statistics for a a given pool.
-%%
-%% See `t:stats/0' for details on the return type.
+-doc #{group => "Public API"}.
+-doc """
+Retrieves a snapshot of statistics for a a given pool.
+
+> See `t:stats/0` for details on the return type.
+""".
 -spec stats(name()) -> stats().
 stats(Sup) ->
     wpool_pool:stats(Sup).
 
-%% @doc Retrieves the list of worker registered names.
-%%
-%% This can be useful to manually inspect the workers or do custom work on them.
+-doc #{group => "Public API"}.
+-doc """
+Retrieves the list of worker registered names.
+
+This can be useful to manually inspect the workers or do custom work on them.
+""".
 -spec get_workers(name()) -> [atom()].
 get_workers(Sup) ->
     wpool_pool:get_workers(Sup).

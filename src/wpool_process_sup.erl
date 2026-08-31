@@ -11,24 +11,26 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @doc This is the supervisor that supervises the `gen_server' workers specifically.
 -module(wpool_process_sup).
+-moduledoc """
+This is the supervisor that supervises the `gen_server` workers specifically.
+
+It should not be used outside this project.
+""".
 
 -include_lib("kernel/include/logger.hrl").
 
 -behaviour(supervisor).
 
-%% API
 -export([start_link/3]).
-%% Supervisor callbacks
 -export([init/1]).
 
-%% @private
+-doc false.
 -spec start_link(wpool:name(), atom(), wpool:options()) -> supervisor:startlink_ret().
 start_link(Parent, Name, Options) ->
     supervisor:start_link({local, Name}, ?MODULE, {Parent, Options}).
 
-%% @private
+-doc false.
 -spec init({wpool:name(), wpool:options()}) ->
     {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->

@@ -11,12 +11,13 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @doc a gen_server built to test wpool_process
 -module(echo_server).
+-moduledoc """
+A `gen_server` built to test `wpool_process`.
+""".
 
 -behaviour(gen_server).
 
-%% gen_server callbacks
 -export([start_link/1]).
 -export([
     init/1,
@@ -35,9 +36,6 @@
 start_link(Something) ->
     gen_server:start_link(?MODULE, Something, []).
 
-%%%===================================================================
-%%% callbacks
-%%%===================================================================
 -spec init(Something) -> Something.
 init(Something) ->
     Something.

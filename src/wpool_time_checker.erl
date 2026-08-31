@@ -11,8 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
 -module(wpool_time_checker).
+-moduledoc false.
 
 -behaviour(gen_server).
 
@@ -26,18 +26,13 @@
 
 -export_type([state/0]).
 
-%% api
 -export([start_link/3, add_handler/2]).
-%% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -elvis([{elvis_style, no_catch_expressions, disable}]).
 -elvis([{elvis_style, private_data_types, disable}]).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
-%% @private
+-doc false.
 -spec start_link(wpool:name(), atom(), handler() | [handler()]) ->
     {ok, pid()} | {error, {already_started, pid()} | term()}.
 start_link(WPool, Name, Handlers) when is_list(Handlers) ->
@@ -45,20 +40,17 @@ start_link(WPool, Name, Handlers) when is_list(Handlers) ->
 start_link(WPool, Name, Handler) when is_tuple(Handler) ->
     start_link(WPool, Name, [Handler]).
 
-%% @private
+-doc false.
 -spec add_handler(atom(), handler()) -> ok.
 add_handler(Name, Handler) ->
     gen_server:call(Name, {add_handler, Handler}, 5000).
 
-%%%===================================================================
-%%% simple callbacks
-%%%===================================================================
-%% @private
+-doc false.
 -spec init({wpool:name(), [{atom(), atom()}]}) -> {ok, state()}.
 init({WPool, Handlers}) ->
     {ok, #state{wpool = WPool, handlers = Handlers}}.
 
-%% @private
+-doc false.
 -spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast(_Cast, State) ->
     {noreply, State}.
@@ -67,10 +59,7 @@ handle_cast(_Cast, State) ->
 handle_call({add_handler, Handler}, _, #state{handlers = Handlers} = State) ->
     {reply, ok, State#state{handlers = [Handler | Handlers]}}.
 
-%%%===================================================================
-%%% real (i.e. interesting) callbacks
-%%%===================================================================
-%% @private
+-doc false.
 -spec handle_info(term(), state()) -> {noreply, state()}.
 handle_info({check, Pid, TaskId, Runtime, WarningsLeft}, State) ->
     case erlang:process_info(Pid, dictionary) of

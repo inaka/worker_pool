@@ -11,14 +11,14 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
-%%% @doc Decorator over `gen_server' that lets `wpool_pool'
-%%%      control certain aspects of the execution
 -module(wpool_process).
+-moduledoc """
+Decorator over `gen_server` that lets `wpool_pool`
+control certain aspects of the execution.
+""".
 
 -behaviour(gen_server).
 
-%% Taken from gen_server OTP
 -record(callback_cache, {
     module :: module(),
     handle_call ::
@@ -54,6 +54,10 @@
     options :: opts()
 }).
 
+-doc """
+Options for process control.
+The atoms, like `time_checker` and `event_manager`, correspond to registered process names.
+""".
 -type opts() :: #{
     time_checker := atom(),
     queue_manager := atom(),
@@ -62,15 +66,12 @@
     _ => _
 }.
 
+-doc """
+Internal state.
+""".
 -opaque state() :: #state{}.
-
 -export_type([state/0]).
 
--type next_step() :: timeout() | hibernate | {continue, term()}.
-
--export_type([next_step/0]).
-
-%% api
 -export([start_link/4, run/3, call/3, cast/2, send_request/2]).
 
 -ifdef(TEST).
@@ -79,7 +80,6 @@
 
 -endif.
 
-%% gen_server callbacks
 -export([
     init/1,
     terminate/2,
@@ -91,10 +91,10 @@
     format_status/1
 ]).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
-%% @doc Starts a named process
+-doc #{group => "API Functions"}.
+-doc """
+Starts a named process.
+""".
 -spec start_link(wpool:name(), module(), term(), wpool:options()) ->
     {ok, pid()} | ignore | {error, {already_started, pid()} | term()}.
 start_link(Name, Module, InitArgs, Options) ->
@@ -107,22 +107,28 @@ start_link(Name, Module, InitArgs, Options) ->
         WorkerOpt
     ).
 
-%% @doc Runs a function that takes as a parameter the given process
+-doc #{group => "API Functions"}.
+-doc """
+Runs a function that takes as a parameter the given process.
+""".
 -spec run(wpool:name() | pid(), wpool:run(Result), timeout()) -> Result.
 run(Process, Run, Timeout) ->
     Run(Process, Timeout).
 
-%% @equiv gen_server:call(Process, Call, Timeout)
+-doc #{group => "API Functions"}.
+-doc #{equiv => gen_server:call(Process, Call, Timeout)}.
 -spec call(wpool:name() | pid(), term(), timeout()) -> term().
 call(Process, Call, Timeout) ->
     gen_server:call(Process, Call, Timeout).
 
-%% @equiv gen_server:cast(Process, {cast, Cast})
+-doc #{group => "API Functions"}.
+-doc #{equiv => gen_server:cast(Process, {cast, Cast})}.
 -spec cast(wpool:name() | pid(), term()) -> ok.
 cast(Process, Cast) ->
     gen_server:cast(Process, Cast).
 
-%% @equiv gen_server:send_request(Process, Request)
+-doc #{group => "API Functions"}.
+-doc #{equiv => gen_server:send_request(Process, Request)}.
 -spec send_request(wpool:name() | pid(), term()) -> gen_server:request_id().
 send_request(Name, Request) ->
     gen_server:send_request(Name, Request).
@@ -135,12 +141,9 @@ get_state(#state{state = State}) ->
 
 -endif.
 
-%%%===================================================================
-%%% init, terminate, code_change, info callbacks
-%%%===================================================================
-%% @private
+-doc false.
 -spec init({atom(), atom(), term(), opts()}) ->
-    {ok, state()} | {ok, state(), next_step()} | {stop, can_not_ignore} | {stop, term()}.
+    {ok, state()} | {ok, state(), gen_server:action()} | {stop, can_not_ignore} | {stop, term()}.
 init({Name, Mod, InitArgs, Options}) ->
     #{event_manager := EventManager, queue_manager := QueueManager} = Options,
     wpool_process_callbacks:notify(handle_init_start, EventManager, [Name]),
@@ -172,7 +175,7 @@ init({Name, Mod, InitArgs, Options}) ->
             Error
     end.
 
-%% @private
+-doc false.
 -spec terminate(atom(), state()) -> term().
 terminate(Reason, State) ->
     #state{
@@ -190,7 +193,7 @@ terminate(Reason, State) ->
             ok
     end.
 
-%% @private
+-doc false.
 -spec code_change(string() | {down, string()}, state(), term()) ->
     {ok, state()} | {error, term()}.
 code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) ->
@@ -206,9 +209,9 @@ code_change(OldVsn, #state{mod = #callback_cache{module = Mod}} = State, Extra) 
             {ok, State}
     end.
 
-%% @private
+-doc false.
 -spec handle_info(term(), state()) ->
-    {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
+    {noreply, state()} | {noreply, state(), gen_server:action()} | {stop, term(), state()}.
 handle_info(Info, #state{mod = CbCache} = State) ->
     #callback_cache{module = Mod, handle_info = HandleInfo} = CbCache,
     try HandleInfo(Info, State#state.state) of
@@ -234,10 +237,10 @@ handle_info(Info, #state{mod = CbCache} = State) ->
             {stop, Reason, State#state{state = NewState}}
     end.
 
-%% @private
+-doc false.
 -spec handle_continue(term(), state()) ->
     {noreply, state()}
-    | {noreply, state(), next_step()}
+    | {noreply, state(), gen_server:action()}
     | {stop, term(), state()}.
 handle_continue(Continue, #state{mod = #callback_cache{module = Mod}} = State) ->
     try Mod:handle_continue(Continue, State#state.state) of
@@ -263,7 +266,7 @@ handle_continue(Continue, #state{mod = #callback_cache{module = Mod}} = State) -
             {stop, Reason, State#state{state = NewState}}
     end.
 
-%% @private
+-doc false.
 -spec format_status(gen_server:format_status()) -> gen_server:format_status().
 format_status(#{state := #state{mod = #callback_cache{module = Mod}}} = Status) ->
     case erlang:function_exported(Mod, format_status, 1) of
@@ -273,12 +276,9 @@ format_status(#{state := #state{mod = #callback_cache{module = Mod}}} = Status) 
             Mod:format_status(Status)
     end.
 
-%%%===================================================================
-%%% real (i.e. interesting) callbacks
-%%%===================================================================
-%% @private
+-doc false.
 -spec handle_cast(term(), state()) ->
-    {noreply, state()} | {noreply, state(), next_step()} | {stop, term(), state()}.
+    {noreply, state()} | {noreply, state(), gen_server:action()} | {stop, term(), state()}.
 handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     #callback_cache{handle_cast = HandleCast} = CbCache,
     #{overrun_warning := OverrunWarning, queue_manager := QueueManager} = Options,
@@ -304,12 +304,12 @@ handle_cast(Cast, #state{mod = CbCache, options = Options} = State) ->
     ok = notify_queue_manager(worker_ready, State#state.name, QueueManager),
     Reply.
 
-%% @private
+-doc false.
 -spec handle_call(term(), gen_server:from(), state()) ->
     {reply, term(), state()}
-    | {reply, term(), state(), next_step()}
+    | {reply, term(), state(), gen_server:action()}
     | {noreply, state()}
-    | {noreply, state(), next_step()}
+    | {noreply, state(), gen_server:action()}
     | {stop, term(), term(), state()}
     | {stop, term(), state()}.
 handle_call(Call, From, #state{mod = CbCache, options = Options} = State) ->

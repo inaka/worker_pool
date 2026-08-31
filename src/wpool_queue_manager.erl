@@ -11,12 +11,11 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
 -module(wpool_queue_manager).
+-moduledoc false.
 
 -behaviour(gen_server).
 
-%% api
 -export([start_link/2, start_link/3]).
 -export([
     run_with_available_worker/3,
@@ -29,7 +28,7 @@
     worker_busy/2,
     pending_task_count/1
 ]).
-%% gen_server callbacks
+
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 -record(state, {
@@ -41,7 +40,6 @@
 }).
 
 -opaque state() :: #state{}.
-
 -export_type([state/0]).
 
 -type monitored_from() :: {reference(), gen_server:from()}.
@@ -65,9 +63,7 @@
 -export_type([call_request/0]).
 -export_type([queue_mgr/0]).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+-doc #{group => "API Functions"}.
 -spec start_link(wpool:name(), queue_mgr()) -> gen_server:start_ret().
 start_link(WPool, Name) ->
     start_link(WPool, Name, []).
@@ -76,7 +72,10 @@ start_link(WPool, Name) ->
 start_link(WPool, Name, Options) ->
     gen_server:start_link({local, Name}, ?MODULE, [{pool, WPool} | Options], []).
 
-%% @doc returns the first available worker in the pool
+-doc #{group => "API Functions"}.
+-doc """
+Returns the first available worker in the pool.
+""".
 -spec run_with_available_worker(queue_mgr(), wpool:run(Result), timeout()) ->
     noproc | timeout | Result.
 run_with_available_worker(QueueManager, Call, Timeout) ->
@@ -90,7 +89,10 @@ run_with_available_worker(QueueManager, Call, Timeout) ->
             Other
     end.
 
-%% @doc returns the first available worker in the pool
+-doc #{group => "API Functions"}.
+-doc """
+Returns the first available worker in the pool.
+""".
 -spec call_available_worker(queue_mgr(), term(), timeout()) -> noproc | timeout | term().
 call_available_worker(QueueManager, Call, Timeout) ->
     case get_available_worker(QueueManager, Call, Timeout) of
@@ -103,15 +105,21 @@ call_available_worker(QueueManager, Call, Timeout) ->
             Other
     end.
 
-%% @doc Casts a message to the first available worker.
-%%      Since we can wait forever for a wpool:cast to be delivered
-%%      but we don't want the caller to be blocked, this function
-%%      just forwards the cast when it gets the worker
+-doc #{group => "API Functions"}.
+-doc """
+Casts a message to the first available worker.
+Since we can wait forever for a `wpool:cast/2` to be delivered
+but we don't want the caller to be blocked, this function
+just forwards the cast when it gets the worker.
+""".
 -spec cast_to_available_worker(queue_mgr(), term()) -> ok.
 cast_to_available_worker(QueueManager, Cast) ->
     gen_server:cast(QueueManager, {cast_to_available_worker, Cast}).
 
-%% @doc returns the first available worker in the pool
+-doc #{group => "API Functions"}.
+-doc """
+Returns the first available worker in the pool.
+""".
 -spec send_request_available_worker(queue_mgr(), term(), timeout()) ->
     noproc | timeout | gen_server:request_id().
 send_request_available_worker(QueueManager, Call, Timeout) ->
@@ -122,28 +130,44 @@ send_request_available_worker(QueueManager, Call, Timeout) ->
             Other
     end.
 
-%% @doc Mark a brand new worker as available
+-doc #{group => "API Functions"}.
+-doc """
+Marks a brand new worker as available.
+""".
 -spec new_worker(queue_mgr(), atom()) -> ok.
 new_worker(QueueManager, Worker) ->
     gen_server:cast(QueueManager, {new_worker, Worker}).
 
-%% @doc Mark a worker as available
+-doc #{group => "API Functions"}.
+-doc """
+Marks a worker as available.
+""".
 -spec worker_ready(queue_mgr(), atom()) -> ok.
 worker_ready(QueueManager, Worker) ->
     gen_server:cast(QueueManager, {worker_ready, Worker}).
 
-%% @doc Mark a worker as no longer available
+-doc #{group => "API Functions"}.
+-doc """
+Marks a worker as no longer available.
+""".
 -spec worker_busy(queue_mgr(), atom()) -> ok.
 worker_busy(QueueManager, Worker) ->
     gen_server:cast(QueueManager, {worker_busy, Worker}).
 
-%% @doc Decrement the total number of workers
+-doc #{group => "API Functions"}.
+-doc """
+Decrements the total number of workers.
+""".
 -spec worker_dead(queue_mgr(), atom()) -> ok.
 worker_dead(QueueManager, Worker) ->
     gen_server:cast(QueueManager, {worker_dead, Worker}).
 
-%% @doc Retrieves the number of pending tasks (used for stats)
-%% @see wpool_pool:stats/1
+-doc #{group => "API Functions"}.
+-doc """
+Retrieves the number of pending tasks (used for stats).
+
+See `wpool_pool:stats/1`.
+""".
 -spec pending_task_count(queue_mgr()) -> non_neg_integer().
 pending_task_count(QueueManager) ->
     try
@@ -153,9 +177,7 @@ pending_task_count(QueueManager) ->
             0
     end.
 
-%%%===================================================================
-%%% gen_server callbacks
-%%%===================================================================
+-doc false.
 -spec init(args()) -> {ok, state()}.
 init(Args) ->
     WPool = proplists:get_value(pool, Args),
@@ -169,6 +191,7 @@ init(Args) ->
         queue_type = QueueType
     }}.
 
+-doc false.
 -spec handle_cast({worker_event(), atom()}, state()) -> {noreply, state()}.
 handle_cast({new_worker, Worker}, State) ->
     handle_cast({worker_ready, Worker}, State);
@@ -224,6 +247,7 @@ handle_cast({cast_to_available_worker, Cast}, State) ->
             {noreply, State#state{workers = NewWorkers}}
     end.
 
+-doc false.
 -spec handle_call(call_request(), gen_server:from(), state()) ->
     {reply, {ok, atom()}, state()} | {noreply, state()}.
 handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
@@ -246,6 +270,7 @@ handle_call({available_worker, ExpiresAt}, {ClientPid, _Ref} = Client, State) ->
 handle_call(pending_task_count, _From, State) ->
     {reply, get(pending_tasks), State}.
 
+-doc false.
 -spec handle_info(term(), state()) -> {noreply, state()}.
 handle_info({'DOWN', Ref, Type, {Worker, _Node}, Exit}, State) ->
     handle_info({'DOWN', Ref, Type, Worker, Exit}, State);
@@ -260,9 +285,6 @@ handle_info({'DOWN', _, _, Worker, Exit}, #state{monitors = Mons} = State) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
-%%%===================================================================
-%%% private
-%%%===================================================================
 -spec get_available_worker(queue_mgr(), term(), timeout()) ->
     noproc | timeout | {ok, atom(), timeout()}.
 get_available_worker(QueueManager, Call, Timeout) ->

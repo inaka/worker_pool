@@ -4,22 +4,37 @@
 
 -behaviour(gen_event).
 
-%% The callbacks are called in an extremely dynamic from call/3.
+% The callbacks are called in an extremely dynamic fashion from call/3.
 -hank([unused_callbacks]).
 
 -export([init/1, handle_event/2, handle_call/2]).
 -export([notify/3, add_callback_module/2, remove_callback_module/2]).
 
+-doc """
+Callback state. Basically, the module that handles the callbacks.
+""".
 -type state() :: module().
 
 -export_type([state/0]).
 
+-doc """
+Event being reported.
+""".
 -type event() :: handle_init_start | handle_worker_creation | handle_worker_death.
 
 -export_type([event/0]).
 
+-doc """
+Callback handler initialization.
+""".
 -callback handle_init_start(wpool:name()) -> term().
+-doc """
+Callback for new worker creation.
+""".
 -callback handle_worker_creation(wpool:name()) -> term().
+-doc """
+Callback for worker termination.
+""".
 -callback handle_worker_death(wpool:name(), term()) -> term().
 
 -optional_callbacks([
@@ -28,30 +43,34 @@
     handle_worker_death/2
 ]).
 
-%% @private
+-doc false.
 -spec init(module()) -> {ok, state()}.
 init(Module) ->
     {ok, Module}.
 
-%% @private
+-doc false.
 -spec handle_event({event(), [term()]}, state()) -> {ok, state()}.
 handle_event({Event, Args}, Module) ->
     call(Module, Event, Args),
     {ok, Module}.
 
-%% @private
+-doc false.
 -spec handle_call(Msg, state()) -> {ok, {error, {unexpected_call, Msg}}, state()}.
 handle_call(Msg, State) ->
     {ok, {error, {unexpected_call, Msg}}, State}.
 
-%% @doc Sends a notification to all registered callback modules.
+-doc """
+Sends a notification to all registered callback modules.
+""".
 -spec notify(event(), undefined | atom(), [term()]) -> ok.
 notify(_, undefined, _) ->
     ok;
 notify(Event, EventMgr, Args) ->
     gen_event:notify(EventMgr, {Event, Args}).
 
-%% @doc Adds a callback module.
+-doc """
+Adds a callback module.
+""".
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(EventManager, Module) ->
     case ensure_loaded(Module) of
@@ -61,7 +80,9 @@ add_callback_module(EventManager, Module) ->
             Other
     end.
 
-%% @doc Removes a callback module.
+-doc """
+Removes a callback module.
+""".
 -spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 remove_callback_module(EventManager, Module) ->
     gen_event:delete_handler(EventManager, {wpool_process_callbacks, Module}, Module).

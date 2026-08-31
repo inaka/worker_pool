@@ -11,8 +11,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
-%% @hidden
 -module(wpool_pool_SUITE).
 
 -behaviour(ct_suite).

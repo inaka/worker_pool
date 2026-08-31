@@ -2,7 +2,9 @@
 
 -export([run_tasks/3]).
 
-%% @doc Returns the average time involved in processing the small tasks
+-doc """
+Returns the average time involved in processing the small tasks.
+""".
 -spec run_tasks(
     [{small | large, pos_integer()}, ...],
     wpool:strategy(),
