@@ -26,7 +26,7 @@ Starts the supervisor.
 """.
 -spec start_link() -> supervisor:startlink_ret().
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, #{}).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, noargs).
 
 -doc """
 Starts a new pool.
@@ -55,8 +55,8 @@ stop_pool(Name) ->
             ok = supervisor:terminate_child(?MODULE, Pid)
     end.
 
--spec init(#{}) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
-init(#{}) ->
+-spec init(noargs) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
+init(noargs) ->
     {ok,
         {{simple_one_for_one, 5, 60}, [
             {wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}
