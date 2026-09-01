@@ -74,7 +74,7 @@ be emitted after 1000, 2000, 4000, 8000 ...).
 
 > The default value for this setting is `infinity`, i.e., no warnings are emitted.
 """.
--type overrun_warning() :: infinity | pos_integer().
+-nominal overrun_warning() :: infinity | pos_integer().
 
 -doc """
 The maximum number of overrun warnings emitted before killing the worker with a delayed task.
@@ -88,7 +88,7 @@ after 5 seconds of execution).
 > As the worker is being killed it might cause worker's messages to be missing if you
 > are using a worker stategy other than `available_worker`.
 """.
--type max_overrun_warnings() :: infinity | pos_integer().
+-nominal max_overrun_warnings() :: infinity | pos_integer().
 
 -doc """
 The module and function to call when a task is _overrun_.
@@ -104,14 +104,14 @@ reported values:
 * `{task, Task}`: A description of the task.
 * `{runtime, Runtime}`: The runtime of the current round.
 """.
--type overrun_handler() :: {Module :: module(), Fun :: atom()}.
+-nominal overrun_handler() :: {Module :: module(), Fun :: atom()}.
 
 -doc """
 The number of workers in the pool.
 
 > The default value for this setting is `100`.
 """.
--type workers() :: pos_integer().
+-nominal workers() :: pos_integer().
 
 -doc """
 The `gen_server` module and the arguments to pass to the `init` callback.
@@ -124,14 +124,7 @@ provide a worker implementation, the pool will be generated with this default on
 
 > See `wpool_worker` for details.
 """.
--type worker() :: {Module :: module(), InitArg :: term()}.
-
--doc """
-Server options that will be passed to each `gen_server` worker.
-
-These are the same as described at the `gen_server` documentation.
-""".
--type worker_opt() :: gen_server:start_opt().
+-nominal worker() :: {Module :: module(), InitArg :: term()}.
 
 -doc """
 The `shutdown` option to be used over the individual workers.
@@ -140,16 +133,7 @@ The `shutdown` option to be used over the individual workers.
 >
 > See `wpool_process_sup` for more details.
 """.
--type worker_shutdown() :: brutal_kill | timeout().
-
--doc """
-Supervision strategy to use over the individual workers.
-
-> Defaults to `{one_for_one, 5, 60}`.
->
-> See `wpool_process_sup` for more details.
-""".
--type supervisor_strategy() :: supervisor:sup_flags().
+-nominal worker_shutdown() :: brutal_kill | timeout().
 
 -doc """
 The `shutdown` option to be used over the supervisor that supervises the workers.
@@ -158,7 +142,7 @@ The `shutdown` option to be used over the supervisor that supervises the workers
 >
 > See `wpool_process_sup` for more details.
 """.
--type pool_sup_shutdown() :: brutal_kill | timeout().
+-nominal pool_sup_shutdown() :: brutal_kill | timeout().
 
 -doc """
 The supervision period to use over the supervisor that supervises the workers.
@@ -167,7 +151,7 @@ The supervision period to use over the supervisor that supervises the workers.
 >
 > See `wpool_pool` for more details.
 """.
--type pool_sup_period() :: non_neg_integer().
+-nominal pool_sup_period() :: non_neg_integer().
 
 -doc """
 The supervision intensity to use over the supervisor that supervises the workers.
@@ -176,14 +160,14 @@ The supervision intensity to use over the supervisor that supervises the workers
 >
 > See `wpool_pool` for more details.
 """.
--type pool_sup_intensity() :: non_neg_integer().
+-nominal pool_sup_intensity() :: non_neg_integer().
 
 -doc """
 Order in which requests will be stored and handled by workers.
 
 > Defaults to `fifo`.
 """.
--type queue_type() :: fifo | lifo.
+-nominal queue_type() :: fifo | lifo.
 
 -doc """
 A boolean value determining if `queue_manager` should be started for queueing requests.
@@ -192,14 +176,14 @@ A boolean value determining if `queue_manager` should be started for queueing re
 >
 > Disabling this will disable `available_worker` and `next_available_worker` strategies.
 """.
--type enable_queues() :: boolean().
+-nominal enable_queues() :: boolean().
 
 -doc """
 A boolean value determining if `event_manager` should be started for callback modules.
 
 > Defaults to `false`.
 """.
--type enable_callbacks() :: boolean().
+-nominal enable_callbacks() :: boolean().
 
 -doc """
 Initial list of callback modules implementing `wpool_process_callbacks` to be
@@ -210,7 +194,7 @@ called on certain worker events.
 > Callbacks can be added and removed later by `wpool_pool:add_callback_module/2` and
 > `wpool_pool:remove_callback_module/2`.
 """.
--type callbacks() :: [module()].
+-nominal callbacks() :: [module()].
 
 -doc """
 A function to run with a given worker.
@@ -233,12 +217,12 @@ For example:
     {ok, Pid} = wpool:run(pool_of_supervisors, Run, next_worker),
 ```
 """.
--type run(Result) :: fun((name() | pid(), timeout()) -> Result).
+-nominal run(Result) :: fun((name() | pid(), timeout()) -> Result).
 
 -doc """
 Name of the pool.
 """.
--type name() :: atom().
+-nominal name() :: atom().
 
 -doc """
 Options that can be provided to a new pool.
@@ -246,11 +230,11 @@ Options that can be provided to a new pool.
 > `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
 > that take a list of these options as a parameter.
 """.
--type option() ::
+-nominal option() ::
     {workers, workers()}
     | {worker, worker()}
-    | {worker_opt, [worker_opt()]}
-    | {strategy, supervisor_strategy()}
+    | {worker_opt, [gen_server:start_opt()]}
+    | {strategy, supervisor:sup_flags()}
     | {worker_shutdown, worker_shutdown()}
     | {overrun_handler, overrun_handler() | [overrun_handler()]}
     | {overrun_warning, overrun_warning()}
@@ -269,11 +253,11 @@ Options that can be provided to a new pool.
 > `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
 > that take a list of these options as a parameter.
 """.
--type options() :: #{
+-nominal options() :: #{
     workers => workers(),
     worker => worker(),
-    worker_opt => [worker_opt()],
-    strategy => supervisor_strategy(),
+    worker_opt => [gen_server:start_opt()],
+    strategy => supervisor:sup_flags(),
     worker_shutdown => worker_shutdown(),
     overrun_handler => overrun_handler() | [overrun_handler()],
     overrun_warning => overrun_warning(),
@@ -291,7 +275,7 @@ Options that can be provided to a new pool.
 -doc """
 A callback that gets the pool name and returns a worker's name.
 """.
--type custom_strategy() :: fun((atom()) -> Atom :: atom()).
+-nominal custom_strategy() :: fun((atom()) -> Atom :: atom()).
 
 -doc """
 Strategy to use when choosing a worker.
@@ -335,7 +319,7 @@ different workers.
 ## `custom_strategy()`
 A callback that gets the pool name and returns a worker's name.
 """.
--type strategy() ::
+-nominal strategy() ::
     best_worker
     | random_worker
     | next_worker
@@ -347,12 +331,12 @@ A callback that gets the pool name and returns a worker's name.
 -doc """
 Statistics about a worker in a pool.
 """.
--type worker_stats() :: [{messsage_queue_len, non_neg_integer()} | {memory, pos_integer()}].
+-nominal worker_stats() :: [{messsage_queue_len, non_neg_integer()} | {memory, pos_integer()}].
 
 -doc """
 Statistics about a given live pool.
 """.
--type stats() ::
+-nominal stats() ::
     [
         {pool, name()}
         | {supervisor, pid()}
@@ -365,6 +349,18 @@ Statistics about a given live pool.
 
 -export_type([
     name/0,
+    callbacks/0,
+    worker/0,
+    workers/0,
+    worker_shutdown/0,
+    overrun_handler/0,
+    overrun_warning/0,
+    max_overrun_warnings/0,
+    pool_sup_intensity/0,
+    pool_sup_shutdown/0,
+    pool_sup_period/0,
+    enable_callbacks/0,
+    enable_queues/0,
     option/0,
     options/0,
     custom_strategy/0,

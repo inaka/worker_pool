@@ -58,7 +58,7 @@ control certain aspects of the execution.
 Options for process control.
 The atoms, like `time_checker` and `event_manager`, correspond to registered process names.
 """.
--type opts() :: #{
+-nominal opts() :: #{
     time_checker := atom(),
     queue_manager := atom(),
     event_manager := atom(),

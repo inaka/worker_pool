@@ -13,15 +13,13 @@
 -doc """
 Callback state. Basically, the module that handles the callbacks.
 """.
--type state() :: module().
-
+-nominal state() :: module().
 -export_type([state/0]).
 
 -doc """
 Event being reported.
 """.
--type event() :: handle_init_start | handle_worker_creation | handle_worker_death.
-
+-nominal event() :: handle_init_start | handle_worker_creation | handle_worker_death.
 -export_type([event/0]).
 
 -doc """

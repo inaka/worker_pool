@@ -17,7 +17,7 @@
 
 -elvis([{elvis_style, atom_naming_convention, disable}]).
 
--type config() :: [{atom(), term()}].
+-nominal config() :: [{atom(), term()}].
 
 -export_type([config/0]).
 
