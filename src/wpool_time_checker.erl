@@ -16,7 +16,7 @@
 
 -behaviour(gen_server).
 
--type handler() :: {atom(), atom()}.
+-nominal handler() :: {atom(), atom()}.
 
 -export_type([handler/0]).
 

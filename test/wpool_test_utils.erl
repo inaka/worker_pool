@@ -2,7 +2,7 @@
 
 -export([wait_for/2, wait_for/4, wait_for_success/1]).
 
--type task(T) :: fun(() -> T).
+-nominal task(T) :: fun(() -> T).
 -export_type([task/1]).
 
 -spec wait_for(task(T1), T2) -> {error, {timeout, {badmatch, T1}}} | T2 when is_subtype(T2, T1).

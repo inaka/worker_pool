@@ -2,7 +2,7 @@
 
 -behaviour(ct_suite).
 
--type config() :: [{atom(), term()}].
+-nominal config() :: [{atom(), term()}].
 
 -export_type([config/0]).
 

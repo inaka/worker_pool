@@ -42,23 +42,23 @@
 -opaque state() :: #state{}.
 -export_type([state/0]).
 
--type monitored_from() :: {reference(), gen_server:from()}.
--type options() :: [{option(), term()}].
+-nominal monitored_from() :: {reference(), gen_server:from()}.
+-nominal options() :: [{option(), term()}].
 
 -export_type([options/0]).
 
--type option() :: queue_type.
--type args() :: [{arg(), term()}].
+-nominal option() :: queue_type.
+-nominal args() :: [{arg(), term()}].
 
 -export_type([args/0]).
 
--type arg() :: option() | pool.
--type queue_mgr() :: atom().
--type worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
+-nominal arg() :: option() | pool.
+-nominal queue_mgr() :: atom().
+-nominal worker_event() :: new_worker | worker_dead | worker_busy | worker_ready.
 
 -export_type([worker_event/0]).
 
--type call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
+-nominal call_request() :: {available_worker, infinity | pos_integer()} | pending_task_count.
 
 -export_type([call_request/0]).
 -export_type([queue_mgr/0]).
