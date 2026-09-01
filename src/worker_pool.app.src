@@ -21,7 +21,7 @@
     {applications, [kernel, stdlib]},
     {mod, {wpool, []}},
     {env, []},
-    {licenses, ["Apache2"]},
+    {licenses, ["Apache-2.0"]},
     {links, [
         {"GitHub", "https://github.com/inaka/worker_pool"},
         {"Blog Post",
