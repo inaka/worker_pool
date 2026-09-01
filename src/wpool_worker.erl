@@ -43,6 +43,7 @@ call(S, M, F, A) ->
             exit(Error)
     end.
 
+-doc #{group => "API Functions"}.
 -doc """
 Executes `M:F(A).` in any of the workers of the pool `S`.
 """.
