@@ -11,18 +11,17 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @doc Default instance for `wpool_process'
-%%%
-%%% It is a module that implements a very simple RPC-like interface.
 -module(wpool_worker).
+-moduledoc """
+Default instance for `wpool_process`.
 
+It is a module that implements a very simple RPC-like interface.
+""".
 -include_lib("kernel/include/logger.hrl").
 
 -behaviour(gen_server).
 
-%% api
 -export([call/4, cast/4]).
-%% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -record(state, {}).
@@ -31,10 +30,10 @@
 
 -export_type([state/0]).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
-%% @doc Returns the result of M:F(A) from any of the workers of the pool S
+-doc #{group => "API Functions"}.
+-doc """
+Returns the result of `M:F(A).` from any of the workers of the pool `S`.
+""".
 -spec call(wpool:name(), module(), atom(), [term()]) -> term().
 call(S, M, F, A) ->
     case wpool:call(S, {M, F, A}) of
@@ -44,24 +43,20 @@ call(S, M, F, A) ->
             exit(Error)
     end.
 
-%% @doc Executes M:F(A) in any of the workers of the pool S
+-doc #{group => "API Functions"}.
+-doc """
+Executes `M:F(A).` in any of the workers of the pool `S`.
+""".
 -spec cast(wpool:name(), module(), atom(), [term()]) -> ok.
 cast(S, M, F, A) ->
     wpool:cast(S, {M, F, A}).
 
-%%%===================================================================
-%%% simple callbacks
-%%%===================================================================
-
-%% @private
+-doc false.
 -spec init(undefined) -> {ok, state()}.
 init(undefined) ->
     {ok, #state{}}.
 
-%%%===================================================================
-%%% real (i.e. interesting) callbacks
-%%%===================================================================
-%% @private
+-doc false.
 -spec handle_cast(term(), state()) -> {noreply, state(), hibernate}.
 handle_cast({M, F, A}, State) ->
     try erlang:apply(M, F, A) of
@@ -83,7 +78,7 @@ handle_cast(Cast, State) ->
     ),
     {noreply, State, hibernate}.
 
-%% @private
+-doc false.
 -spec handle_call(term(), gen_server:from(), state()) ->
     {reply, {ok, term()} | {error, term()}, state(), hibernate}.
 handle_call({M, F, A}, _From, State) ->
@@ -107,9 +102,6 @@ handle_call(Call, From, State) ->
     ),
     {reply, {error, invalid_request}, State, hibernate}.
 
-%%%===================================================================
-%%% not exported functions
-%%%===================================================================
 log_error(M, F, A, Class, Reason, Stacktrace) ->
     logger:error(
         #{

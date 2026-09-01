@@ -11,12 +11,14 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
 -module(wpool_utils).
+-moduledoc false.
 
 -export([add_defaults/1]).
 
-%% @doc Adds default parameters to a pool configuration
+-doc """
+Adds default parameters to a pool configuration.
+""".
 -spec add_defaults([wpool:option()] | wpool:options()) -> wpool:options().
 add_defaults(Opts) when is_map(Opts) ->
     maps:merge(defaults(), Opts);

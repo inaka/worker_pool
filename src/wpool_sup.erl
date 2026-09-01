@@ -11,8 +11,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @private
 -module(wpool_sup).
+-moduledoc false.
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -21,20 +21,23 @@
 -export([start_link/0, init/1]).
 -export([start_pool/2, stop_pool/1]).
 
-%%-------------------------------------------------------------------
-%% PUBLIC API
-%%-------------------------------------------------------------------
-%% @doc Starts the supervisor
+-doc """
+Starts the supervisor.
+""".
 -spec start_link() -> supervisor:startlink_ret().
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, #{}).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, noargs).
 
-%% @doc Starts a new pool
+-doc """
+Starts a new pool.
+""".
 -spec start_pool(wpool:name(), wpool:options()) -> supervisor:startchild_ret().
 start_pool(Name, Options) ->
     supervisor:start_child(?MODULE, [Name, Options]).
 
-%% @doc Stops a pool
+-doc """
+Stops a pool.
+""".
 -spec stop_pool(wpool:name()) -> ok.
 stop_pool(Name) ->
     case erlang:whereis(Name) of
@@ -52,11 +55,8 @@ stop_pool(Name) ->
             ok = supervisor:terminate_child(?MODULE, Pid)
     end.
 
-%%----------------------------------------------------------------------
-%% Supervisor behaviour callbacks
-%%----------------------------------------------------------------------
--spec init(#{}) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
-init(#{}) ->
+-spec init(noargs) -> {ok, {{simple_one_for_one, 5, 60}, [supervisor:child_spec()]}}.
+init(noargs) ->
     {ok,
         {{simple_one_for_one, 5, 60}, [
             {wpool_pool, {wpool_pool, start_link, []}, permanent, 2000, supervisor, dynamic}

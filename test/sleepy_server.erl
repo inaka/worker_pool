@@ -11,19 +11,17 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%% @doc a gen_server built to test wpool_process
 -module(sleepy_server).
+-moduledoc """
+A `gen_server` built to test `wpool_process`.
+""".
 
 -behaviour(gen_server).
 
-%% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2]).
 
 -dialyzer([no_behaviours]).
 
-%%%===================================================================
-%%% callbacks
-%%%===================================================================
 -spec init(pos_integer()) -> {ok, state}.
 init(TimeToSleep) ->
     ct:pal("Waiting ~pms to return...", [TimeToSleep]),

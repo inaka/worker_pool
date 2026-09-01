@@ -11,17 +11,19 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%%% @doc Top supervisor for a `worker_pool'.
-%%%
-%%% This supervisor supervises `wpool_process_sup' (which is the worker's supervisor) together with
-%%% auxiliary servers that help keep the whole pool running and in order.
-%%%
-%%% The strategy of this supervisor must be `one_for_all' but the intensity and period may be
-%%% changed from their defaults by the `t:wpool:pool_sup_intensity()' and
-%%% `t:wpool:pool_sup_intensity()' options respectively.
 -module(wpool_pool).
+-moduledoc """
+Top supervisor for a `worker_pool`.
 
-%% We use <- to filter and we use list_to_atom/1 to build atoms from other atoms.
+This supervisor supervises `wpool_process_sup` (which is the worker's supervisor) together with
+auxiliary servers that help keep the whole pool running and in order.
+
+The strategy of this supervisor must be `one_for_all` but the intensity and period may be
+changed from their defaults by the `wpool:pool_sup_intensity()` and
+`wpool:pool_sup_intensity()` options respectively.
+""".
+
+% We use <- to filter and we use list_to_atom/1 to build atoms from other atoms.
 -elvis(
     [
         {elvis_style, prefer_strict_generators, disable},
@@ -46,7 +48,6 @@
 
 -behaviour(supervisor).
 
-%% API
 -export([start_link/2]).
 -export([
     best_worker/1,
@@ -63,7 +64,6 @@
 -export([worker_name/2, find_wpool/1]).
 -export([next/2, wpool_get/2]).
 -export([add_callback_module/2, remove_callback_module/2]).
-%% Supervisor callbacks
 -export([init/1]).
 
 -record(wpool, {
@@ -76,21 +76,27 @@
     born = erlang:system_time() :: integer()
 }).
 
+-doc """
+A pool of workers.
+""".
 -opaque wpool() :: #wpool{}.
 
 -export_type([wpool/0]).
 
-%% ===================================================================
-%% API functions
-%% ===================================================================
-
-%% @doc Starts a supervisor with several `wpool_process'es as its children
+-doc #{group => "API Functions"}.
+-doc """
+Starts a supervisor with several `wpool_process`es as its children.
+""".
 -spec start_link(wpool:name(), wpool:options()) -> supervisor:startlink_ret().
 start_link(Name, Options) ->
     supervisor:start_link({local, Name}, ?MODULE, {Name, Options}).
 
-%% @doc Picks the worker with the smaller queue of messages.
-%% @throws no_workers
+-doc #{group => "API Functions"}.
+-doc """
+Picks the worker with the smaller queue of messages.
+
+> Throws `no_workers`.
+""".
 -spec best_worker(wpool:name()) -> atom().
 best_worker(Name) ->
     case find_wpool(Name) of
@@ -100,8 +106,12 @@ best_worker(Name) ->
             min_message_queue(Wpool)
     end.
 
-%% @doc Picks a random worker
-%% @throws no_workers
+-doc #{group => "API Functions"}.
+-doc """
+Picks a random worker.
+
+> Throws `no_workers`.
+""".
 -spec random_worker(wpool:name()) -> atom().
 random_worker(Name) ->
     case find_wpool(Name) of
@@ -112,8 +122,12 @@ random_worker(Name) ->
             nth_worker_name(Wpool, WorkerNumber)
     end.
 
-%% @doc Picks the next worker in a round robin fashion
-%% @throws no_workers
+-doc #{group => "API Functions"}.
+-doc """
+Picks the next worker in a round robin fashion.
+
+> Throws `no_workers`.
+""".
 -spec next_worker(wpool:name()) -> atom().
 next_worker(Name) ->
     case find_wpool(Name) of
@@ -126,8 +140,12 @@ next_worker(Name) ->
             nth_worker_name(Wpool, Index)
     end.
 
-%% @doc Picks the first available worker, if any
-%% @throws no_workers | no_available_workers
+-doc #{group => "API Functions"}.
+-doc """
+Picks the first available worker, if any.
+
+> Throws `no_workers | no_available_workers`.
+""".
 -spec next_available_worker(wpool:name()) -> atom().
 next_available_worker(Name) ->
     case find_wpool(Name) of
@@ -142,10 +160,14 @@ next_available_worker(Name) ->
             end
     end.
 
-%% @doc Picks the first available worker and sends the call to it.
-%%      The timeout provided includes the time it takes to get a worker
-%%      and for it to process the call.
-%% @throws no_workers | timeout
+-doc #{group => "API Functions"}.
+-doc """
+Picks the first available worker and sends the call to it..
+The timeout provided includes the time it takes to get a worker
+and for it to process the call.
+
+> Throws `no_workers | timeout`.
+""".
 -spec run_with_available_worker(wpool:name(), wpool:run(Result), timeout()) -> Result.
 run_with_available_worker(Name, Run, Timeout) ->
     case find_wpool(Name) of
@@ -162,10 +184,14 @@ run_with_available_worker(Name, Run, Timeout) ->
             end
     end.
 
-%% @doc Picks the first available worker and sends the call to it.
-%%      The timeout provided includes the time it takes to get a worker
-%%      and for it to process the call.
-%% @throws no_workers | timeout
+-doc #{group => "API Functions"}.
+-doc """
+Picks the first available worker and sends the call to it..
+The timeout provided includes the time it takes to get a worker
+and for it to process the call.
+
+> Throws `no_workers | timeout`.
+""".
 -spec call_available_worker(wpool:name(), term(), timeout()) -> term().
 call_available_worker(Name, Call, Timeout) ->
     case find_wpool(Name) of
@@ -182,8 +208,13 @@ call_available_worker(Name, Call, Timeout) ->
             end
     end.
 
-%% @doc Picks the first available worker and sends the request to it.
-%%      The timeout provided considers only the time it takes to get a worker
+-doc #{group => "API Functions"}.
+-doc """
+Picks the first available worker and sends the request to it.
+The timeout provided considers only the time it takes to get a worker.
+
+Throws `no_workers | timeout`.
+""".
 -spec send_request_available_worker(wpool:name(), term(), timeout()) ->
     noproc | timeout | gen_server:request_id().
 send_request_available_worker(Name, Call, Timeout) ->
@@ -193,10 +224,14 @@ send_request_available_worker(Name, Call, Timeout) ->
         Timeout
     ).
 
-%% @doc Picks a worker base on a hash result.
-%%      <pre>phash2(Term, Range)</pre> returns hash = integer,
-%%      0 &lt;= hash &lt; Range so <pre>1</pre> must be added
-%% @throws no_workers
+-doc #{group => "API Functions"}.
+-doc """
+Picks a worker base on a hash result..
+Note that `phash2(Term, Range)` returns an integer
+between `0` (inclusive) and `Range` (non-inclusive), so `1` must be added.
+
+> Throws `no_workers`.
+""".
 -spec hash_worker(wpool:name(), term()) -> atom().
 hash_worker(Name, HashKey) ->
     case find_wpool(Name) of
@@ -207,15 +242,21 @@ hash_worker(Name, HashKey) ->
             nth_worker_name(Wpool, Index)
     end.
 
-%% @doc Casts a message to the first available worker.
-%%      Since we can wait forever for a wpool:cast to be delivered
-%%      but we don't want the caller to be blocked, this function
-%%      just forwards the cast when it gets the worker
+-doc #{group => "API Functions"}.
+-doc """
+Casts a message to the first available worker..
+Since we can wait forever for a `wpool:cast` to be delivered
+but we don't want the caller to be blocked, this function
+just forwards the cast when it gets the worker.
+""".
 -spec cast_to_available_worker(wpool:name(), term()) -> ok.
 cast_to_available_worker(Name, Cast) ->
     wpool_queue_manager:cast_to_available_worker(queue_manager_name(Name), Cast).
 
-%% @doc Casts a message to all the workers within the given pool.
+-doc #{group => "API Functions"}.
+-doc """
+Casts a message to all the workers within the given pool.
+""".
 -spec broadcast(wpool:name(), term()) -> ok.
 broadcast(Name, Cast) ->
     lists:foreach(
@@ -223,10 +264,13 @@ broadcast(Name, Cast) ->
         all_workers(Name)
     ).
 
-%% @doc Calls all workers in the pool in parallel
-%%
-%% Waits for responses in parallel too, and it assumes that if any response times out,
-%% all of them did too and therefore exits with reason timeout like a regular `gen_server' does.
+-doc #{group => "API Functions"}.
+-doc """
+Calls all workers in the pool in parallel.
+
+Waits for responses in parallel too, and it assumes that if any response times out,
+all of them did too and therefore exits with reason timeout like a regular `gen_server` does.
+""".
 -spec broadcall(wpool:name(), term(), timeout()) ->
     {[Replies :: term()], [Errors :: term()]}.
 broadcall(Name, Call, Timeout) ->
@@ -248,6 +292,7 @@ broadcall(Name, Call, Timeout) ->
     {_, Replies, Errors} = lists:foldl(WaitFold, {ReqId1, [], []}, Workers),
     {Replies, Errors}.
 
+-doc #{group => "API Functions"}.
 -spec all() -> [wpool:name()].
 all() ->
     [
@@ -257,19 +302,29 @@ all() ->
         find_wpool(Name) =/= undefined
     ].
 
-%% @doc Retrieves the list of worker registered names.
-%% This can be useful to manually inspect the workers or do custom work on them.
+-doc #{group => "API Functions"}.
+-doc """
+Retrieves the list of worker registered names.
+This can be useful to manually inspect the workers or do custom work on them.
+""".
 -spec get_workers(wpool:name()) -> [atom()].
 get_workers(Name) ->
     all_workers(Name).
 
-%% @doc Retrieves the pool stats for all pools
+-doc #{group => "API Functions"}.
+-doc """
+Retrieves the pool stats for all pools.
+""".
 -spec stats() -> [wpool:stats()].
 stats() ->
     lists:map(fun stats/1, all()).
 
-%% @doc Retrieves a snapshot of the pool stats
-%% @throws no_workers
+-doc #{group => "API Functions"}.
+-doc """
+Retrieves a snapshot of the pool stats.
+
+> Throws `no_workers`.
+""".
 -spec stats(wpool:name()) -> wpool:stats().
 stats(Name) ->
     case find_wpool(Name) of
@@ -348,28 +403,40 @@ task({_TaskId, Started, Task}) ->
     Runtime = erlang:convert_time_unit(Time - Started, native, second),
     [{task, Task}, {runtime, Runtime}].
 
-%% @doc Set next within the worker pool record. Useful when using
-%% a custom strategy function.
+-doc #{group => "API Functions"}.
+-doc """
+Set next within the worker pool record. Useful when using.
+a custom strategy function.
+""".
 -spec next(pos_integer(), wpool()) -> wpool().
 next(Next, #wpool{next = Atomic} = Wpool) ->
     atomics:put(Atomic, 1, Next),
     Wpool.
 
-%% @doc Adds a callback module.
-%%      The module must implement the `wpool_process_callbacks' behaviour.
+-doc #{group => "API Functions"}.
+-doc """
+Adds a callback module.
+The module must implement the `wpool_process_callbacks` behaviour.
+""".
 -spec add_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 add_callback_module(Pool, Module) ->
     EventManager = event_manager_name(Pool),
     wpool_process_callbacks:add_callback_module(EventManager, Module).
 
-%% @doc Removes a callback module.
+-doc #{group => "API Functions"}.
+-doc """
+Removes a callback module.
+""".
 -spec remove_callback_module(wpool:name(), module()) -> ok | {error, term()}.
 remove_callback_module(Pool, Module) ->
     EventManager = event_manager_name(Pool),
     wpool_process_callbacks:remove_callback_module(EventManager, Module).
 
-%% @doc Get values from the worker pool record. Useful when using a custom
-%% strategy function.
+-doc #{group => "API Functions"}.
+-doc """
+Get values from the worker pool record. Useful when using a custom.
+strategy function.
+""".
 -spec wpool_get
     (atom(), wpool()) -> term();
     ([atom()], wpool()) -> term().
@@ -395,10 +462,8 @@ g(born, #wpool{born = Ret}) ->
 time_checker_name(Name) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ "-time-checker").
 
-%% ===================================================================
-%% Supervisor callbacks
-%% ===================================================================
-%% @private
+-doc #{group => "Supervisor callbacks"}.
+-doc false.
 -spec init({wpool:name(), wpool:options()}) ->
     {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init({Name, Options}) ->
@@ -472,18 +537,16 @@ init({Name, Options}) ->
         },
     {ok, {SupStrategy, Children}}.
 
-%% @private
+-doc false.
 -spec nth_worker_name(wpool(), pos_integer()) -> atom().
 nth_worker_name(#wpool{workers = Workers}, I) ->
     element(I, Workers).
 
+-doc false.
 -spec worker_name(wpool:name(), pos_integer()) -> atom().
 worker_name(Name, I) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ [$- | integer_to_list(I)]).
 
-%% ===================================================================
-%% Private functions
-%% ===================================================================
 process_sup_name(Name) ->
     list_to_atom(?MODULE_STRING ++ [$- | atom_to_list(Name)] ++ "-process-sup").
 
@@ -571,9 +634,7 @@ all_workers(Name) ->
             tuple_to_list(Workers)
     end.
 
-%% ===================================================================
-%% Storage functions
-%% ===================================================================
+-doc #{group => "Storage Functions"}.
 store_wpool(Name, Size, Options) ->
     Atomic = atomics:new(1, [{signed, false}]),
     atomics:put(Atomic, 1, 1),
@@ -590,7 +651,10 @@ store_wpool(Name, Size, Options) ->
     persistent_term:put({?MODULE, Name}, Wpool),
     Wpool.
 
-%% @doc Use this function to get the Worker pool record in a custom worker.
+-doc #{group => "Storage Functions"}.
+-doc """
+Use this function to get the Worker pool record in a custom worker.
+""".
 -spec find_wpool(atom()) -> undefined | wpool().
 find_wpool(Name) ->
     try {erlang:whereis(Name), persistent_term:get({?MODULE, Name})} of
@@ -603,8 +667,12 @@ find_wpool(Name) ->
             build_wpool(Name)
     end.
 
-%% @doc We use this function not to report an error if for some reason we've
-%% lost the record on the persistent_term table. This SHOULDN'T be called too much.
+-doc #{group => "Storage Functions"}.
+-doc """
+We use this function to avoid reporing an error if for some reason we've
+lost the record on the persistent_term table.
+This **should not** be called too much.
+""".
 build_wpool(Name) ->
     logger:warning(
         #{

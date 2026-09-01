@@ -11,8 +11,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
-%% @hidden
 -module(wpool_SUITE).
 
 -behaviour(ct_suite).
@@ -601,9 +599,6 @@ pool_of_supervisors(_Config) ->
 
     {comment, "Nicely load-balanced childrens across supervisors"}.
 
-%% =============================================================================
-%% Helpers
-%% =============================================================================
 get_time_checker(PoolPid) ->
     [TCPid] = [
         P

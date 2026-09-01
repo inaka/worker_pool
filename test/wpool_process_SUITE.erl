@@ -11,8 +11,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-
-%% @hidden
 -module(wpool_process_SUITE).
 
 -behaviour(ct_suite).
@@ -358,11 +356,14 @@ complete_coverage(_Config) ->
 
     {comment, []}.
 
-%% @doc We can use this function in tests since echo_server implements
-%%      format_status/1 by returning the status as a map S.
-%%      We can safely grab it from the result of sys:get_status/1
-%% @see gen_server:format_status/1
-%% @see sys:get_status/2
+-doc """
+We can use this function in tests since echo_server implements
+`format_status/1` by returning the status as a map `S`.
+
+We can safely grab it from the result of `sys:get_status/1`.
+
+Ssee `gen_server:format_status/1` and `sys:get_status/2`.
+""".
 get_state(Atom) when is_atom(Atom) ->
     get_state(whereis(Atom));
 get_state(Pid) ->
