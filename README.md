@@ -88,6 +88,50 @@ And just like that, all your requests are now pooled!
 
 By passing a more complex configuration in the `WPoolOpts` parameter, you can tweak many things, for example the number of workers (`t:wpool:workers()`), options to pass to OTP's the `gen_server` engine behind your code `t:wpool:worker_opt()`, the strategy to supervise all the workers (`t:wpool:strategy()`), register callbacks you want to be triggered on worker's events (`t:wpool:callbacks()`), and many more. See `t:wpool:option()` for all options available.
 
+#### Parallel worker shutdown
+
+To let workers clean up in parallel when a pool stops, explicitly configure
+`simple_one_for_one` and allow the worker supervisor to finish shutting down:
+
+```erlang
+{ok, _} = wpool:start_sup_pool(my_pool, #{
+    workers => 10,
+    worker => {my_worker, []},
+    strategy => {simple_one_for_one, 5, 60},
+    pool_sup_shutdown => infinity,
+    worker_shutdown => 1000
+}),
+ok = wpool:stop_sup_pool(my_pool).
+```
+
+The pool starts all configured workers before returning. Workers remain permanent
+and are restarted if they exit. During shutdown, workers stop in parallel without
+a defined order. Each worker has the configured `worker_shutdown` timeout, subject
+to the shutdown deadlines of its ancestors. Worker callbacks must trap exits to
+perform cleanup in `terminate/2`.
+
+The application supervision tree, default strategies, and shutdown timeouts are
+unchanged. In particular, `start_sup_pool/2` retains its outer **2000 millisecond**
+shutdown timeout, including for `simple_one_for_one`. Setting
+`pool_sup_shutdown => infinity` does not remove that outer deadline.
+
+For cleanup that may take longer, put the pool under your own supervisor using
+`wpool:child_spec/2`, which already specifies an outer shutdown timeout of
+`infinity`. For example, in that supervisor's `init/1`:
+
+```erlang
+PoolSpec = wpool:child_spec(my_pool, #{
+    workers => 10,
+    worker => {my_worker, []},
+    strategy => {simple_one_for_one, 5, 60},
+    pool_sup_shutdown => infinity,
+    worker_shutdown => 5000
+}),
+{ok, {{one_for_one, 5, 60}, [PoolSpec]}}.
+```
+
+All supervisors above this tree must also allow sufficient time for cleanup.
+
 #### Case studies used in production
 
 To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios exercised in the different suites.

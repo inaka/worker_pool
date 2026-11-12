@@ -138,6 +138,15 @@ The `shutdown` option to be used over the individual workers.
 -doc """
 The `shutdown` option to be used over the supervisor that supervises the workers.
 
+Set this to `infinity` to allow the worker supervisor to complete shutdown. With
+`strategy => {simple_one_for_one, 5, 60}`, workers shut down in parallel. Both tuple
+and map supervisor flags are supported; the pool still starts a fixed number of
+permanent workers.
+
+Pools started with `start_sup_pool/2` retain their outer shutdown timeout of
+2000 milliseconds, even when this option is `infinity`. For longer cleanup, use
+`child_spec/2` under your own supervisor; its outer shutdown timeout is `infinity`.
+
 > Defaults to `brutal_kill`.
 >
 > See `wpool_process_sup` for more details.
