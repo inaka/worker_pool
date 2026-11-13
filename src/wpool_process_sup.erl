@@ -27,6 +27,10 @@ It should not be used outside this project.
 
 -doc false.
 -spec start_link(wpool:name(), atom(), wpool:options()) -> supervisor:startlink_ret().
+start_link(_Parent, _Name, #{strategy := {simple_one_for_one, _, _}}) ->
+    {error, {unsupported_strategy, simple_one_for_one}};
+start_link(_Parent, _Name, #{strategy := #{strategy := simple_one_for_one}}) ->
+    {error, {unsupported_strategy, simple_one_for_one}};
 start_link(Parent, Name, Options) ->
     supervisor:start_link({local, Name}, ?MODULE, {Parent, Options}).
 

@@ -32,6 +32,7 @@
     kill_on_overrun/1,
     too_much_overrun/1,
     default_strategy/1,
+    unsupported_supervisor_strategy/1,
     overrun_handler1/1,
     overrun_handler2/1,
     default_options/1,
@@ -59,6 +60,7 @@ all() ->
         brutal_worker_shutdown,
         stats,
         default_strategy,
+        unsupported_supervisor_strategy,
         default_options,
         complete_coverage,
         child_spec,
@@ -407,6 +409,32 @@ default_strategy(_Config) ->
     application:unset_env(worker_pool, default_strategy),
     available_worker = wpool:default_strategy(),
     {comment, []}.
+
+-spec unsupported_supervisor_strategy(config()) -> ok.
+unsupported_supervisor_strategy(_Config) ->
+    Strategies = [{simple_one_for_one, 5, 60}, #{strategy => simple_one_for_one}],
+    lists:foreach(
+        fun(Strategy) ->
+            lists:foreach(
+                fun(Workers) ->
+                    Options = [{strategy, Strategy}, {workers, Workers}],
+                    reject_supervisor_strategy(Options),
+                    reject_supervisor_strategy(maps:from_list(Options))
+                end,
+                [1, 2]
+            )
+        end,
+        Strategies
+    ).
+
+reject_supervisor_strategy(Options) ->
+    Pool = unsupported_supervisor_strategy,
+    Result = wpool:start_sup_pool(Pool, Options),
+    {error, {shutdown, {failed_to_start_child, _, {unsupported_strategy, simple_one_for_one}}}} =
+        Result,
+    undefined = whereis(Pool),
+    undefined = whereis(wpool_pool:worker_name(Pool, 1)),
+    ok.
 
 -spec default_options(config()) -> {comment, []}.
 default_options(_Config) ->

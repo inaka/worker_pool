@@ -227,6 +227,12 @@ Name of the pool.
 -doc """
 Options that can be provided to a new pool.
 
+The `strategy` option configures worker supervision. Supported strategies are
+`one_for_one` (the default), `one_for_all`, and `rest_for_one`.
+`simple_one_for_one` is not supported: pool workers use individual static child
+specifications. Selecting it causes pool startup to fail with an
+`{unsupported_strategy, simple_one_for_one}` reason.
+
 > `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
 > that take a list of these options as a parameter.
 """.
@@ -249,6 +255,12 @@ Options that can be provided to a new pool.
 
 -doc """
 Options that can be provided to a new pool.
+
+The `strategy` option configures worker supervision. Supported strategies are
+`one_for_one` (the default), `one_for_all`, and `rest_for_one`.
+`simple_one_for_one` is not supported: pool workers use individual static child
+specifications. Selecting it causes pool startup to fail with an
+`{unsupported_strategy, simple_one_for_one}` reason.
 
 > `child_spec/2`, `start_pool/2`, `start_sup_pool/2` are the callbacks
 > that take a list of these options as a parameter.
