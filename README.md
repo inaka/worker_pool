@@ -88,6 +88,17 @@ And just like that, all your requests are now pooled!
 
 By passing a more complex configuration in the `WPoolOpts` parameter, you can tweak many things, for example the number of workers (`t:wpool:workers()`), options to pass to OTP's the `gen_server` engine behind your code `t:wpool:worker_opt()`, the strategy to supervise all the workers (`t:wpool:strategy()`), register callbacks you want to be triggered on worker's events (`t:wpool:callbacks()`), and many more. See `t:wpool:option()` for all options available.
 
+#### Worker supervision strategy
+
+The `strategy` pool option accepts `one_for_one` (the default), `one_for_all`, or
+`rest_for_one`, using either tuple or map supervisor flags. It configures worker
+supervision, separately from the worker selection strategy passed to `wpool:call`.
+
+`simple_one_for_one` is **not supported** because workers use individual static
+child specifications. Pool startup rejects it with an
+`{unsupported_strategy, simple_one_for_one}` reason. Parallel worker shutdown
+through `simple_one_for_one` is therefore not available.
+
 #### Case studies used in production
 
 To see how `wpool` is used you can check the [test](test) folder where you'll find many different scenarios exercised in the different suites.
